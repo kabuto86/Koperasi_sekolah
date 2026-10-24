@@ -1,0 +1,31 @@
+/* Template 1 — gaya store ibu bapa (mobile-first) */
+
+.store-body { background-color: var(--bs-tertiary-bg); }
+
+/* Ruang untuk navbar bawah pada telefon */
+.store-body { padding-bottom: 4.5rem; }
+
+@media (min-width: 992px) {
+    .store-body { padding-bottom: 0; }
+}
+
+.store-topbar .navbar-brand { max-width: 60vw; }
+
+.store-hero {
+    color: #fff;
+    background: linear-gradient(135deg, var(--app-brand), var(--app-brand-dark));
+}
+
+.store-bottom-nav { padding: 0.25rem 0; }
+
+.store-bottom-link {
+    padding: 0.25rem 0.1rem;
+    color: var(--bs-secondary-color);
+    line-height: 1.2;
+}
+
+.store-bottom-link.active { color: var(--app-brand); font-weight: 600; }
+
+@media (max-width: 991.98px) {
+    .app-toasts { bottom: 4.5rem !important; }
+}

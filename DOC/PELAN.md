@@ -5,7 +5,7 @@
 > tanpa bertanya. Status semasa: [PROSES.md](PROSES.md). Prompt kerja:
 > [PROMPT-SESSION.md](PROMPT-SESSION.md).
 
-Kemas kini terakhir: 24 Oktober 2026 (pelan awal)
+Kemas kini terakhir: 24 Oktober 2026 (U1 — kerangka UI)
 Persekitaran sasaran: XAMPP · PHP 8.2 · MariaDB 10.4+ / MySQL 8 · Bootstrap 5
 
 ---
@@ -403,7 +403,8 @@ Koperasi_sekolah/
 ├── CLAUDE.md
 ├── DOC/            PELAN.md · PROSES.md · PROMPT-SESSION.md
 ├── config/         app.php · database.php (.gitignore) · database.example.php · secret.key (.gitignore)
-├── core/           Database · Request · Response · Validator · Csrf · Lang (+ t(), e())
+├── core/           bootstrap.php · Config · View · SecurityHeaders (CSP) — sejak U1
+│                   Database · Request · Response · Validator · Csrf · Lang (+ t(), e())
 │                   OwnerAuth · VendorAuth · CustomerAuth · ApiTokenAuth
 │                   Crypto (sodium) · RateLimit · ModuleAccess · PlanLimit · Mailer
 │                   Uploader · View · Totp · SecurityHeaders
@@ -417,8 +418,12 @@ Koperasi_sekolah/
 ├── api/v1/
 │   ├── owner/  vendor/  store/  pos/
 │   └── webhooks/   toyyibpay.php · billplz.php · …
+├── partials/       head · lang-switcher · sidebar-menu · ui-shell (toast + confirm) · scripts · login-form
 ├── owner/          panel owner (halaman .php)
+│   └── _layout/    header · sidebar · footer · profile-menu · menu.php (senarai menu)
 ├── vendor/         panel vendor (halaman .php)
+│   ├── _layout/    header · sidebar · footer · profile-menu · menu.php · addons.php
+│   ├── addons/     halaman modul add-on: {code}.php (U6)
 │   └── pos/        POS kaunter + skrin serah barang
 ├── store/          index.php (titik masuk ibu bapa: slug → koperasi → template)
 ├── templates/
@@ -426,13 +431,14 @@ Koperasi_sekolah/
 ├── modules/        news/ · clearance/ · calendar/ · school_opening/
 ├── lang/           ms.php · en.php · zh.php · ta.php
 ├── cron/           send-emails · expire-cash-orders · generate-invoices · suspend-overdue · promote-grades
+├── tools/          check-ui.php (tiada inline CSS + kunci 4 bahasa sama) — CLI sahaja
 ├── assets/
-│   ├── lib/        bootstrap/ · bootstrap-icons/ · qrcode/ (perpustakaan JS kecil, tanpa CDN)
+│   ├── lib/        bootstrap/ (5.3.3) · bootstrap-icons/ (1.11.3) · qrcode/ (perpustakaan JS kecil, tanpa CDN)
 │   ├── css/        app.css · print-label.css · print-slip.css · receipt.css
 │   ├── js/         api.js · lang.js · helpers.js · {modul}.js
 │   │   └── mock/   owner.js · vendor.js · store.js (Peringkat 1 sahaja)
 │   ├── img/
-│   └── fonts/      Noto Sans SC · Noto Sans Tamil (paparan Cina & Tamil)
+│   └── fonts/      noto-sans-sc/ · noto-sans-tamil/ (woff2 400 & 700, unicode-range — dimuat bila perlu)
 ├── uploads/        {vendor_id}/{cooperative_id}/… (.gitignore isi, .htaccess halang PHP)
 └── database/       schema.sql · seed.sql · migrations/
 ```
@@ -597,4 +603,79 @@ Repo `kabuto86/pos-system` mempunyai pelan KedaiPOS yang sudah dikaji. Yang diam
 > Setiap session U menambah di sini bentuk objek yang digunakan dalam `assets/js/mock/*.js`.
 > Backend (Peringkat 2) mesti memulangkan bentuk yang sama.
 
-_(kosong — diisi bermula U1)_
+### 18.1 Bentuk jawapan (U1)
+
+Setiap `Api.get(path, params)` / `Api.post(path, body)` memulangkan **Promise** yang sentiasa
+*resolve* (tidak pernah *reject*) kepada salah satu:
+
+```js
+{ ok: true,  data: ... }
+{ ok: false, error: "Mesej untuk pengguna", errors: { field: "mesej" } }   // errors boleh {}
+```
+
+- `path` tanpa `/api/v1/` dan tanpa `.php`: `'vendor/cooperatives/list'` → Peringkat 2:
+  `GET /api/v1/vendor/cooperatives/list.php?...`
+- Mesej `error` sudah diterjemah (bahasa pengguna). Halaman terus papar dengan `showToast(res.error, 'danger')`
+- Ralat rangkaian (Peringkat 2) juga dipulangkan sebagai `{ ok: false, error: T('error.network') }`
+
+### 18.2 Format senarai (U1)
+
+Semua endpoint senarai menerima `page` (lalai 1), `per_page` (lalai 20, maks 100), `q` (carian)
+dan tapisan khusus modul. Jawapan:
+
+```js
+{ ok: true, data: { items: [ ... ], total: 42, page: 1, per_page: 20 } }
+```
+
+Dalam mock: `Mock.paginate(rows, params, ['medan_carian', ...])`.
+
+### 18.3 Mock (Peringkat 1 sahaja)
+
+- `assets/js/mock/mock.js` — `Mock.register(path, handler)`, `Mock.ok(data)`, `Mock.fail(msg, errors)`,
+  `Mock.paginate()`. `Mock.handle()` memulangkan **salinan dalam** supaya halaman tidak mengubah data mock
+- `mock/owner.js`, `mock/vendor.js`, `mock/store.js` — dimuat oleh layout masing-masing
+- `config/app.php` `use_mock => false` (Peringkat 2) → skrip mock tidak dimuat; hanya `Api.request()` ditukar
+- `vendor_id` dalam mock datang dari `MockVendor.sessionVendorId` (meniru sesi) — tidak pernah dari parameter
+
+### 18.4 Objek U1
+
+**Cooperative (vendor)** — `vendor/cooperatives/list` (format senarai, `q` pada nama/kod/slug)
+```js
+{ id: 1, vendor_id: 1, slug: 'sk-taman-melati', school_name: 'SK Taman Melati', school_code: 'BBA1234',
+  school_type: 'SK', state: 'Selangor', district: 'Gombak', status: 'active' }
+```
+
+| Laluan | Kaedah | Input | `data` |
+|---|---|---|---|
+| `owner/auth/login` | POST | `email, password` | `{ requires_2fa: true }` |
+| `owner/auth/verify-2fa` | POST | `code` (6 digit) | `{ user: { id, name, role } }` |
+| `vendor/auth/login` | POST | `email, password` | `{ user: { id, name, role }, requires_2fa: false }` |
+| `vendor/cooperatives/list` | GET | `page, per_page, q` | senarai Cooperative |
+| `vendor/session/cooperative` | POST | `cooperative_id` | `{ cooperative }` — pelayan sahkan milik vendor (`ValidateCooperativeJob`) dan simpan dalam sesi |
+| `vendor/modules/active` | GET | `cooperative_id` | `{ cooperative_id, modules: ['news', ...] }` |
+| `store/school` | GET | `slug` | `{ id, slug, school_name, school_type, state, district, payment_methods: ['cash','online'], default_language }` |
+| `store/cart/summary` | GET | — | `{ item_count }` |
+
+Mock demo: kata laluan `salah` → ralat log masuk; kod 2FA `000000` → ditolak.
+
+### 18.5 Konvensyen UI (U1)
+
+- Halaman panel: `require core/bootstrap.php` → set `$pageTitle`, `$activeMenu` (kunci menu, cth.
+  `'menu.orders'`), `$pageScripts` (pilihan) → `require _layout/header.php` → kandungan →
+  `require _layout/footer.php`
+- Teks JS: PHP mengeluarkan semua teks (bahasa semasa + jatuh balik Melayu) dalam
+  `<body data-lang="{json}">`; `lang.js` membacanya ke `window.LANG`. Tiada skrip inline
+- CSP (`core/SecurityHeaders.php`): `script-src 'self'; style-src 'self'` — skrip/gaya inline
+  akan disekat pelayar, jadi pelanggaran kelihatan serta-merta
+- Bahasa: `?lang=xx` → cookie `lang` (1 tahun) → lalai `ms`. Tukar bahasa = muat semula halaman
+- Koperasi semasa (vendor): `currentCooperativeId()`; halaman dengar
+  `document.addEventListener('cooperativechange', fn)` untuk muat semula data
+- Menu add-on vendor: dirender berkunci (pautan ke `vendor/subscription.php?module=code`);
+  dibuka oleh `vendor-layout.js` jika `vendor/modules/active` mengandungi kodnya
+- Store Peringkat 1: `store/index.php?school={slug}&page={halaman}` — `View::storeUrl()`.
+  URL cantik `/{slug}/` ditambah dalam B6 (.htaccess) tanpa mengubah template
+- Helpers: `formatRM(sen)`, `formatDate(iso, withTime)`, `showToast(msg, type)`,
+  `confirmDialog(msg, {title, okText, okClass})` → Promise<boolean>,
+  `renderTable(tbody, items, [{key, className, render}])`, `statusBadge(status)`, `createEl(tag, class, text)`
+- Data pengguna tidak pernah dimasukkan melalui `innerHTML` — guna `textContent` / `createEl()`
+- Semakan sebelum commit: `php tools/check-ui.php`

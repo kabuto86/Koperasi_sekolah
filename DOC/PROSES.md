@@ -4,9 +4,9 @@
 > Kemas kini fail ini di HUJUNG setiap session, sebelum commit & push.
 > Reka bentuk: [PELAN.md](PELAN.md) · Prompt kerja: [PROMPT-SESSION.md](PROMPT-SESSION.md)
 
-**Status keseluruhan:** Pelan siap · belum ada kod
-**Session terakhir siap:** S0 — Pelan & dokumen
-**Session seterusnya:** **U1 — Kerangka UI**
+**Status keseluruhan:** Peringkat 1 bermula · kerangka UI siap
+**Session terakhir siap:** U1 — Kerangka UI
+**Session seterusnya:** **U2 — UI Owner**
 
 Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 
@@ -22,7 +22,7 @@ Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 
 | Session | Tajuk | Status | Tarikh siap | Commit | Nota |
 |---|---|---|---|---|---|
-| U1 | Kerangka UI: layout, Bootstrap, `t()` 4 bahasa, `api.js` mock | ⬜ | | | |
+| U1 | Kerangka UI: layout, Bootstrap, `t()` 4 bahasa, `api.js` mock | ✅ | 24 Okt 2026 | `feat(ui): U1 kerangka UI` | 3 layout, 4 bahasa (155 kunci), CSP, tangkap layar `DOC/screenshots/U1/` |
 | U2 | UI Owner | ⬜ | | | |
 | U3a | UI Vendor — dashboard, koperasi, produk, inventori, pembekal | ⬜ | | | |
 | U3b | UI Vendor — kit sekolah, pesanan, serah barang, ibu bapa | ⬜ | | | |
@@ -72,6 +72,39 @@ Dibuat:
 - `DOC/PELAN.md` — reka bentuk penuh, 68 jadual
 - `DOC/PROSES.md` — fail ini
 - `DOC/PROMPT-SESSION.md` — prompt U1–U7, B1–B15, F1–F4
+
+### U1 — Kerangka UI (24 Okt 2026)
+
+Dibuat:
+- `assets/lib/` — Bootstrap 5.3.3 (css + bundle js) dan Bootstrap Icons 1.11.3, setempat (dari npm, tiada CDN)
+- `assets/fonts/` — Noto Sans SC & Noto Sans Tamil (woff2, 400 & 700, `unicode-range` — hanya dimuat bila aksara itu dipapar)
+- `assets/css/app.css` — warna jenama (`--app-brand` #0f766e), `.btn-brand`, `.text-bg-brand`, sidebar, log masuk
+- `config/app.php`, `core/bootstrap.php`, `core/Config.php`, `core/View.php` (url, asset, partial, storeUrl),
+  `core/SecurityHeaders.php` (CSP tanpa inline), `core/Lang.php` (`t()`, `e()`, `?lang=` → cookie → `ms`)
+- `lang/ms.php, en.php, zh.php, ta.php` — 155 kunci: menu owner/vendor/add-on/store, butang, umum, ralat,
+  log masuk, 10 status pesanan, kaedah bayaran, siapa ambil, darjah PRA/D1–D6/T1–T6
+- `assets/js/lang.js` (`T()` dari `<body data-lang>`), `api.js`, `helpers.js`, `vendor-layout.js`, `login.js`,
+  `vendor-dashboard.js`, `mock/mock.js, owner.js, vendor.js, store.js`
+- `partials/` (head, lang-switcher, sidebar-menu, ui-shell, scripts, login-form)
+- `owner/_layout/`, `vendor/_layout/` (header, sidebar, footer, profile-menu, menu.php; vendor + addons.php)
+- `templates/template1/` (manifest.json, layout.php, partials/, pages/home.php, css/, js/layout.js) — navbar bawah di telefon
+- Halaman: `owner/index.php`, `owner/login.php`, `vendor/index.php`, `vendor/login.php`, `store/index.php`
+- `tools/check-ui.php` — semak tiada inline CSS & kunci bahasa sama; `.gitignore`; `.htaccess` halang akses terus ke `_layout/`, `partials/`, `templates/*.php`
+
+Disahkan:
+- `php tools/check-ui.php` → tiada `style=` / `<style>`, 155 kunci sama dalam 4 bahasa
+- Playwright: 5 halaman × 4 bahasa × 375px & 1366px — tiada ralat konsol/CSP, tiada kunci mentah dipapar,
+  tiada skrol mendatar. Pemilih bahasa menukar semua teks dan diingat dalam cookie
+- Log masuk owner → langkah 2FA → papan pemuka; pemilih koperasi vendor membuka kunci modul add-on yang dilanggan
+
+Keputusan kecil (dicatat dalam PELAN 10.1 & 18):
+- Semua teks JS dihantar dalam atribut `data-lang` pada `<body>` (bukan fail JSON berasingan) — satu permintaan kurang
+- Halaman modul add-on vendor: `vendor/addons/{code}.php` (U6 boleh ubah)
+- Store Peringkat 1: `store/index.php?school={slug}&page=...`; URL `/{slug}/` dalam B6
+- Pilihan koperasi vendor disimpan sementara dalam `localStorage` + `Api.post('vendor/session/cooperative')`
+
+Tertangguh:
+- Tajuk halaman store ikut halaman (U5); `assets/lib/qrcode/` (U3b)
 
 ---
 
