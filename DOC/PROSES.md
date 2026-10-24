@@ -22,7 +22,7 @@ Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 
 | Session | Tajuk | Status | Tarikh siap | Commit | Nota |
 |---|---|---|---|---|---|
-| U1 | Kerangka UI: layout, Bootstrap, `t()` 4 bahasa, `api.js` mock | ✅ | 24 Okt 2026 | `feat(ui): U1 kerangka UI` | 3 layout, 4 bahasa (155 kunci), CSP, tangkap layar `DOC/screenshots/U1/` |
+| U1 | Kerangka UI: layout, Bootstrap, `t()` 4 bahasa, `api.js` mock | ✅ | 24 Okt 2026 | `1082584` | 3 layout, 4 bahasa (155 kunci), CSP, tangkap layar `DOC/screenshots/U1/` |
 | U2 | UI Owner | ⬜ | | | |
 | U3a | UI Vendor — dashboard, koperasi, produk, inventori, pembekal | ⬜ | | | |
 | U3b | UI Vendor — kit sekolah, pesanan, serah barang, ibu bapa | ⬜ | | | |
