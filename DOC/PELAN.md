@@ -5,7 +5,7 @@
 > tanpa bertanya. Status semasa: [PROSES.md](PROSES.md). Prompt kerja:
 > [PROMPT-SESSION.md](PROMPT-SESSION.md).
 
-Kemas kini terakhir: 24 Oktober 2026 (pelan awal)
+Kemas kini terakhir: 24 Oktober 2026 (U2 — UI owner)
 Persekitaran sasaran: XAMPP · PHP 8.2 · MariaDB 10.4+ / MySQL 8 · Bootstrap 5
 
 ---
@@ -403,7 +403,8 @@ Koperasi_sekolah/
 ├── CLAUDE.md
 ├── DOC/            PELAN.md · PROSES.md · PROMPT-SESSION.md
 ├── config/         app.php · database.php (.gitignore) · database.example.php · secret.key (.gitignore)
-├── core/           Database · Request · Response · Validator · Csrf · Lang (+ t(), e())
+├── core/           bootstrap.php · Config · View · SecurityHeaders (CSP) — sejak U1
+│                   Database · Request · Response · Validator · Csrf · Lang (+ t(), e())
 │                   OwnerAuth · VendorAuth · CustomerAuth · ApiTokenAuth
 │                   Crypto (sodium) · RateLimit · ModuleAccess · PlanLimit · Mailer
 │                   Uploader · View · Totp · SecurityHeaders
@@ -417,8 +418,13 @@ Koperasi_sekolah/
 ├── api/v1/
 │   ├── owner/  vendor/  store/  pos/
 │   └── webhooks/   toyyibpay.php · billplz.php · …
+├── partials/       head · lang-switcher · sidebar-menu · ui-shell (toast + confirm) · scripts · login-form
+│                   page-title (tajuk + butang tindakan + kembali) · stat-card (kad papan pemuka)
 ├── owner/          panel owner (halaman .php)
+│   └── _layout/    header · sidebar · footer · profile-menu · menu.php (senarai menu)
 ├── vendor/         panel vendor (halaman .php)
+│   ├── _layout/    header · sidebar · footer · profile-menu · menu.php · addons.php
+│   ├── addons/     halaman modul add-on: {code}.php (U6)
 │   └── pos/        POS kaunter + skrin serah barang
 ├── store/          index.php (titik masuk ibu bapa: slug → koperasi → template)
 ├── templates/
@@ -426,13 +432,16 @@ Koperasi_sekolah/
 ├── modules/        news/ · clearance/ · calendar/ · school_opening/
 ├── lang/           ms.php · en.php · zh.php · ta.php
 ├── cron/           send-emails · expire-cash-orders · generate-invoices · suspend-overdue · promote-grades
+├── tools/          check-ui.php (tiada inline CSS + kunci 4 bahasa sama) — CLI sahaja
 ├── assets/
-│   ├── lib/        bootstrap/ · bootstrap-icons/ · qrcode/ (perpustakaan JS kecil, tanpa CDN)
+│   ├── lib/        bootstrap/ (5.3.3) · bootstrap-icons/ (1.11.3) · qrcode/ (qrcode-generator 1.4.4, MIT — sejak U2)
 │   ├── css/        app.css · print-label.css · print-slip.css · receipt.css
-│   ├── js/         api.js · lang.js · helpers.js · {modul}.js
+│   ├── js/         api.js · lang.js · helpers.js · login.js · vendor-layout.js
+│   │   ├── owner/  satu fail per halaman owner (dashboard.js, vendors.js, …)
+│   │   ├── vendor/ satu fail per halaman vendor (dashboard.js, …)
 │   │   └── mock/   owner.js · vendor.js · store.js (Peringkat 1 sahaja)
 │   ├── img/
-│   └── fonts/      Noto Sans SC · Noto Sans Tamil (paparan Cina & Tamil)
+│   └── fonts/      noto-sans-sc/ · noto-sans-tamil/ (woff2 400 & 700, unicode-range — dimuat bila perlu)
 ├── uploads/        {vendor_id}/{cooperative_id}/… (.gitignore isi, .htaccess halang PHP)
 └── database/       schema.sql · seed.sql · migrations/
 ```
@@ -597,4 +606,198 @@ Repo `kabuto86/pos-system` mempunyai pelan KedaiPOS yang sudah dikaji. Yang diam
 > Setiap session U menambah di sini bentuk objek yang digunakan dalam `assets/js/mock/*.js`.
 > Backend (Peringkat 2) mesti memulangkan bentuk yang sama.
 
-_(kosong — diisi bermula U1)_
+### 18.1 Bentuk jawapan (U1)
+
+Setiap `Api.get(path, params)` / `Api.post(path, body)` memulangkan **Promise** yang sentiasa
+*resolve* (tidak pernah *reject*) kepada salah satu:
+
+```js
+{ ok: true,  data: ... }
+{ ok: false, error: "Mesej untuk pengguna", errors: { field: "mesej" } }   // errors boleh {}
+```
+
+- `path` tanpa `/api/v1/` dan tanpa `.php`: `'vendor/cooperatives/list'` → Peringkat 2:
+  `GET /api/v1/vendor/cooperatives/list.php?...`
+- Mesej `error` sudah diterjemah (bahasa pengguna). Halaman terus papar dengan `showToast(res.error, 'danger')`
+- Ralat rangkaian (Peringkat 2) juga dipulangkan sebagai `{ ok: false, error: T('error.network') }`
+
+### 18.2 Format senarai (U1)
+
+Semua endpoint senarai menerima `page` (lalai 1), `per_page` (lalai 20, maks 100), `q` (carian)
+dan tapisan khusus modul. Jawapan:
+
+```js
+{ ok: true, data: { items: [ ... ], total: 42, page: 1, per_page: 20 } }
+```
+
+Dalam mock: `Mock.paginate(rows, params, ['medan_carian', ...])`.
+
+### 18.3 Mock (Peringkat 1 sahaja)
+
+- `assets/js/mock/mock.js` — `Mock.register(path, handler)`, `Mock.ok(data)`, `Mock.fail(msg, errors)`,
+  `Mock.paginate()`. `Mock.handle()` memulangkan **salinan dalam** supaya halaman tidak mengubah data mock
+- `mock/owner.js`, `mock/vendor.js`, `mock/store.js` — dimuat oleh layout masing-masing
+- `config/app.php` `use_mock => false` (Peringkat 2) → skrip mock tidak dimuat; hanya `Api.request()` ditukar
+- `vendor_id` dalam mock datang dari `MockVendor.sessionVendorId` (meniru sesi) — tidak pernah dari parameter
+
+### 18.4 Objek U1
+
+**Cooperative (vendor)** — `vendor/cooperatives/list` (format senarai, `q` pada nama/kod/slug)
+```js
+{ id: 1, vendor_id: 1, slug: 'sk-taman-melati', school_name: 'SK Taman Melati', school_code: 'BBA1234',
+  school_type: 'SK', state: 'Selangor', district: 'Gombak', status: 'active' }
+```
+
+| Laluan | Kaedah | Input | `data` |
+|---|---|---|---|
+| `owner/auth/login` | POST | `email, password` | `{ requires_2fa: true }` |
+| `owner/auth/verify-2fa` | POST | `code` (6 digit) | `{ user: { id, name, role } }` |
+| `vendor/auth/login` | POST | `email, password` | `{ user: { id, name, role }, requires_2fa: false }` |
+| `vendor/cooperatives/list` | GET | `page, per_page, q` | senarai Cooperative |
+| `vendor/session/cooperative` | POST | `cooperative_id` | `{ cooperative }` — pelayan sahkan milik vendor (`ValidateCooperativeJob`) dan simpan dalam sesi |
+| `vendor/modules/active` | GET | `cooperative_id` | `{ cooperative_id, modules: ['news', ...] }` |
+| `store/school` | GET | `slug` | `{ id, slug, school_name, school_type, state, district, payment_methods: ['cash','online'], default_language }` |
+| `store/cart/summary` | GET | — | `{ item_count }` |
+
+Mock demo: kata laluan `salah` → ralat log masuk; kod 2FA `000000` → ditolak.
+
+### 18.5 Konvensyen UI (U1)
+
+- Halaman panel: `require core/bootstrap.php` → set `$pageTitle`, `$activeMenu` (kunci menu, cth.
+  `'menu.orders'`), `$pageScripts` (pilihan) → `require _layout/header.php` → kandungan →
+  `require _layout/footer.php`
+- Teks JS: PHP mengeluarkan semua teks (bahasa semasa + jatuh balik Melayu) dalam
+  `<body data-lang="{json}">`; `lang.js` membacanya ke `window.LANG`. Tiada skrip inline
+- CSP (`core/SecurityHeaders.php`): `script-src 'self'; style-src 'self'` — skrip/gaya inline
+  akan disekat pelayar, jadi pelanggaran kelihatan serta-merta
+- Bahasa: `?lang=xx` → cookie `lang` (1 tahun) → lalai `ms`. Tukar bahasa = muat semula halaman
+- Koperasi semasa (vendor): `currentCooperativeId()`; halaman dengar
+  `document.addEventListener('cooperativechange', fn)` untuk muat semula data
+- Menu add-on vendor: dirender berkunci (pautan ke `vendor/subscription.php?module=code`);
+  dibuka oleh `vendor-layout.js` jika `vendor/modules/active` mengandungi kodnya
+- Store Peringkat 1: `store/index.php?school={slug}&page={halaman}` — `View::storeUrl()`.
+  `&template={kod}` = pratonton template dari panel owner (hanya jika folder wujud; B6 hadkan kepada owner).
+  URL cantik `/{slug}/` ditambah dalam B6 (.htaccess) tanpa mengubah template
+- Helpers: `formatRM(sen)`, `formatDate(iso, withTime)`, `showToast(msg, type)`,
+  `confirmDialog(msg, {title, okText, okClass})` → Promise<boolean>,
+  `renderTable(tbody, items, [{key, className, render}])`, `statusBadge(status)`, `createEl(tag, class, text)`
+- Data pengguna tidak pernah dimasukkan melalui `innerHTML` — guna `textContent` / `createEl()`
+- Semakan sebelum commit: `php tools/check-ui.php` — juga memastikan setiap `t('kunci')` / `T('kunci')`
+  literal wujud dalam `lang/ms.php`. Kunci dinamik (cth. `T('vendor.status.' + status)`) mesti disemak sendiri
+
+### 18.6 Konvensyen borang & senarai (U2)
+
+- Medan borang (dibaca oleh `formToObject()` / diisi oleh `fillForm()` dalam `helpers.js`):
+  `name="names.ms"` → objek bersarang · `data-type="money"` → input RM, dihantar sebagai **sen** ·
+  `data-type="int"` (kosong → `null`) · `data-type="lines"` → array baris · checkbox → `true/false` ·
+  checkbox `data-multi` → array nilai
+- `bindForm(form, path, onSuccess, buildPayload)` = pengesahan Bootstrap → `Api.post` → `errors` dari pelayan
+  ditanda `is-invalid` pada medan bernama sama (`{ ok:false, errors: { 'names.ms': '...' } }`)
+- Senarai: `bindListFilters(form, state, load)` + `renderTable()` + `renderPagination()`; `state` = parameter
+  `page, per_page, q, …` terus ke `Api.get()`
+- Medan rahsia (kunci gateway, kata laluan SMTP) **tidak pernah dipulangkan**; API pulangkan `*_set` / `secrets_set`,
+  dan nilai kosong semasa simpan = kekalkan nilai lama
+- Tindakan sensitif owner direkod dalam log audit (mock: `MockOwner.audit()`; B3: jadual `audit_logs`)
+
+### 18.7 Objek owner (U2) — `assets/js/mock/owner.js`
+
+Wang dalam sen. Tarikh ISO 8601 (`+08:00`) atau `YYYY-MM-DD` untuk tarikh sahaja.
+
+**VendorSummary** — `owner/vendors/list` (senarai; tapis `q, status, plan_id`)
+```js
+{ id, code: 'VENDOR01', company_name, contact_name, email, phone,
+  status: 'trial|active|past_due|suspended|cancelled', trial_ends_at, plan_id, plan_name,
+  billing_cycle: 'monthly|yearly', cooperative_count, current_period_end, created_at }
+```
+**VendorDetail** — `owner/vendors/get {id}` = semua medan `vendors` + `plan_name`, `subscription` (SubscriptionSummary),
+`cooperatives` [CooperativeSummary], `invoices` [InvoiceSummary], `notes` [{ id, body, created_by, created_at }]
+
+**CooperativeSummary** — `owner/cooperatives/list` (senarai; tapis `q, vendor_id, status, school_type`)
+```js
+{ id, vendor_id, vendor_code, vendor_name, slug, school_name, school_code, school_type, state, district,
+  status: 'active|suspended|closed', template_code, template_name, modules: ['news'], created_at }
+```
+**Plan** — `owner/plans/list` (array, bukan senarai bertapis)
+```js
+{ id, code, name, price_monthly, price_yearly, max_cooperatives, max_products, max_staff,  // null = tanpa had
+  features: ['...'], is_active, sort_order, vendor_count }
+```
+**PlanTiers** — `owner/plans/tiers {plan_id}` → `{ plan: Plan, tiers: [{ id, from_coop, to_coop, price_monthly, price_yearly }] }`
+(`to_coop: null` = dan seterusnya). Simpan: `owner/plans/save-tiers { plan_id, tiers }` — pelayan sahkan berturutan
+(mula 2, `from = to sebelumnya + 1`, terakhir `null`)
+
+**Module** — `owner/modules/list`
+```js
+{ id, code, names: { ms, en, zh, ta }, descriptions: { ms, en, zh, ta }, price_monthly, price_yearly,
+  is_core, is_active, sort_order, cooperative_count }
+```
+**Template** — `owner/templates/list`
+```js
+{ id, code, name, folder, preview_image /* url atau null */, description, price_monthly, price_yearly,
+  is_free, is_active, cooperative_count }
+```
+**SubscriptionSummary** — `owner/subscriptions/list` (senarai; tapis `q, status, billing_cycle, plan_id`)
+```js
+{ id, vendor_id, vendor_code, vendor_name, plan_id, plan_name, billing_cycle, status,
+  started_at, current_period_start, current_period_end, cooperative_count }
+```
+**InvoiceSummary** — `owner/invoices/list` (senarai; tapis `q, status, vendor_id`)
+```js
+{ id, invoice_no, vendor_id, vendor_code, vendor_name, period_start, period_end, subtotal, tax, total,
+  status: 'draft|issued|paid|void', issued_at, due_at, paid_at }
+```
+**InvoiceDetail** — `owner/invoices/get {id}` = InvoiceSummary + `vendor { id, code, company_name, registration_no, address, email }`,
+`lines [{ description, item_type: 'plan|cooperative|module|template', qty, unit_price, amount, is_prorated }]`,
+`payments [{ method: 'online|bank_transfer|cash|cheque|other', gateway_code, reference, amount, paid_at, note }]`, `sst_rate`
+
+**Gateways** — `owner/gateways/list` → `{ drivers: [{ code, name, allowed_for_vendors, supports_refund, vendor_count,
+fields: [{ name, secret }] }], owner_gateway: { driver_code, sandbox, values: { medan_bukan_rahsia }, secrets_set: ['secret_key'] } }`
+
+**Translation** — `owner/translations/list` (senarai; tapis `q, group, missing: ''|any|ms|en|zh|ta`)
+→ item `{ key, group, values: { ms, en, zh, ta }, missing: ['ta'] }`; `data` juga ada `groups: []`, `missing_counts: { ms, en, zh, ta }`
+
+**Grade** — `owner/grades/list` → `{ code: 'PRA|D1…D6|T1…T6', level_type: 'preschool|primary|secondary', sort_order, names: { ms, en, zh, ta } }`
+
+**EmailTemplate** — `owner/email-templates/list` → `[{ template_key, languages: { ms: { subject, updated_at } | null, … } }]`;
+`get {template_key, language_code}` → `{ template_key, language_code, subject, body_html, updated_at, placeholders: ['{order_no}', …] }`.
+Kunci: `order_new_vendor, order_receipt, order_ready, order_collected, invoice_issued, password_reset`.
+Pelayan menolak pemegang tempat yang tiada dalam `placeholders`
+
+**Announcement** — `owner/announcements/list` (senarai)
+```js
+{ id, title, body, target: 'all|selected', vendor_ids: [], vendor_names: ['VENDOR04'], published_at /* null = draf */, created_by, created_at }
+```
+**AuditLog** — `owner/audit-logs/list` (senarai; tapis `q, actor_type, date_from, date_to`)
+```js
+{ id, actor_type: 'owner|vendor_user|customer|system', actor_name, vendor_code, action: 'vendor.suspend', entity, entity_id, detail, ip_address, created_at }
+```
+**PlatformSettings** — `owner/settings/get`
+```js
+{ platform_name, support_email, support_phone, smtp_host, smtp_port, smtp_encryption: 'tls|ssl|none', smtp_username,
+  smtp_password_set, mail_from_address, mail_from_name, sst_rate /* % */, sst_registration_no, trial_days, grace_days, default_language }
+```
+**OwnerStaff** — `owner/staff/list` → `{ id, full_name, email, role: 'owner|owner_staff', is_active, totp_enabled, last_login_at }`
+
+**Profil & 2FA** — `owner/profile/get` → `{ id, full_name, email, language, totp_enabled }`;
+`owner/two-factor/setup` → `{ enabled, secret, otpauth_url }`; `enable {code}` / `regenerate-codes {code}` → `{ recovery_codes: [8] }`.
+QR dijana dalam pelayar (`assets/lib/qrcode/`) — rahsia tidak dihantar ke perkhidmatan luar. Owner tidak boleh mematikan 2FA
+
+| Laluan tindakan (POST) | Input | Nota |
+|---|---|---|
+| `owner/vendors/set-status` | `id, status: active\|suspended, reason` | `reason` wajib untuk gantung; disimpan sebagai nota |
+| `owner/vendors/add-note` | `id, body` | |
+| `owner/plans/save` · `delete` | Plan / `id` | pelan baharu → satu peringkat lalai (harga sama); padam ditolak jika ada vendor |
+| `owner/modules/save` | Module | `code` `^[a-z][a-z0-9_]+$`, unik, tidak boleh ditukar |
+| `owner/templates/save` | `id, name, description, is_free, is_active, price_*` | `template1` sentiasa percuma & aktif |
+| `owner/invoices/issue` · `void` · `mark-paid` | `id` (+ `method, reference, paid_at, note`) | tanda dibayar hanya untuk `issued` |
+| `owner/gateways/toggle` | `code, allowed` | |
+| `owner/gateways/save-owner` | `driver_code, sandbox, credentials: {}` | rahsia kosong = kekal |
+| `owner/translations/save` | `key, values` | `values.ms` wajib |
+| `owner/grades/save` | Grade | |
+| `owner/email-templates/save` | `template_key, language_code, subject, body_html` | |
+| `owner/announcements/save` · `delete` | Announcement + `publish: bool` | yang sudah terbit tidak boleh disunting |
+| `owner/settings/save` · `test-email` | PlatformSettings + `smtp_password` / `to` | |
+| `owner/staff/save` · `set-active` · `reset-2fa` | | tidak boleh nyahaktif / turun peranan diri sendiri |
+| `owner/profile/save` · `change-password` | | kata laluan ≥ 10 aksara |
+
+Mock demo: kata laluan semasa `salah` → ralat; kod 2FA `000000` → ditolak.

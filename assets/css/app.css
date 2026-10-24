@@ -1,0 +1,195 @@
+/* KoperasiKu — gaya tambahan minimum di atas Bootstrap 5.
+   Tiada inline CSS dalam halaman; semua gaya tambahan di sini atau templates/{nama}/css/ */
+
+:root {
+    --app-brand: #0f766e;
+    --app-brand-dark: #115e59;
+    --app-topbar-height: 3.5rem;
+    --app-sidebar-width: 16rem;
+    --app-sidebar-bg: #0b3d3a;
+    --app-sidebar-color: #cfe9e5;
+
+    /* Fon: sistem dahulu; Noto Sans SC & Tamil hanya dimuat bila aksara itu dipapar (unicode-range) */
+    --bs-body-font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+        "Noto Sans SC", "Noto Sans Tamil", sans-serif;
+    --bs-link-color: var(--app-brand);
+    --bs-link-color-rgb: 15, 118, 110;
+    --bs-link-hover-color: var(--app-brand-dark);
+    --bs-link-hover-color-rgb: 17, 94, 89;
+}
+
+/* Bahasa Cina & Tamil: utamakan fon Noto supaya rupa konsisten */
+:lang(zh) body {
+    font-family: "Noto Sans SC", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+:lang(ta) body {
+    font-family: "Noto Sans Tamil", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    line-height: 1.6;
+}
+
+/* ---------- Warna jenama ---------- */
+.text-brand { color: var(--app-brand) !important; }
+.bg-brand { background-color: var(--app-brand) !important; }
+.text-bg-brand { color: #fff !important; background-color: var(--app-brand) !important; }
+
+.btn-brand {
+    --bs-btn-color: #fff;
+    --bs-btn-bg: var(--app-brand);
+    --bs-btn-border-color: var(--app-brand);
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: var(--app-brand-dark);
+    --bs-btn-hover-border-color: var(--app-brand-dark);
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: var(--app-brand-dark);
+    --bs-btn-active-border-color: var(--app-brand-dark);
+    --bs-btn-disabled-color: #fff;
+    --bs-btn-disabled-bg: var(--app-brand);
+    --bs-btn-disabled-border-color: var(--app-brand);
+}
+
+.min-w-0 { min-width: 0; }
+
+/* ---------- Panel owner & vendor ---------- */
+.app-panel { background-color: var(--bs-tertiary-bg); }
+
+.app-topbar { min-height: var(--app-topbar-height); }
+
+.app-coop-select { min-width: 12rem; max-width: 18rem; }
+
+.app-main { min-width: 0; }
+
+.app-sidebar {
+    --bs-offcanvas-width: var(--app-sidebar-width);
+    --bs-offcanvas-bg: var(--app-sidebar-bg);
+    --bs-offcanvas-color: var(--app-sidebar-color);
+    background-color: var(--app-sidebar-bg) !important;
+    color: var(--app-sidebar-color);
+}
+
+@media (min-width: 992px) {
+    .app-sidebar {
+        width: var(--app-sidebar-width);
+        flex-shrink: 0;
+        position: sticky;
+        top: var(--app-topbar-height);
+        height: calc(100vh - var(--app-topbar-height));
+        overflow-y: auto;
+    }
+}
+
+.app-sidebar .offcanvas-header { border-color: rgba(255, 255, 255, 0.1) !important; }
+
+.app-sidebar-section {
+    padding: 1rem 1rem 0.25rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.app-sidebar-label { color: rgba(255, 255, 255, 0.6); }
+
+.app-sidebar .nav { padding: 0 0.5rem; }
+
+.app-sidebar .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.45rem 0.75rem;
+    border-radius: 0.375rem;
+    font-size: 0.9rem;
+    color: var(--app-sidebar-color);
+}
+
+.app-sidebar .nav-link:hover,
+.app-sidebar .nav-link:focus-visible {
+    color: #fff;
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.app-sidebar .nav-link.active {
+    color: #fff;
+    background-color: var(--app-brand);
+}
+
+.app-sidebar .nav-link.is-locked { color: rgba(255, 255, 255, 0.45); }
+
+.app-sidebar .nav-link .badge { font-size: 0.65rem; }
+
+/* ---------- Log masuk ---------- */
+.app-login-main { padding-top: 2rem; padding-bottom: 3rem; }
+
+.app-login-logo {
+    width: 3.5rem;
+    height: 3.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 1rem;
+    font-size: 1.75rem;
+    color: #fff;
+    background-color: var(--app-brand);
+}
+
+.app-otp-input { letter-spacing: 0.5em; }
+
+/* Toast di atas segala-galanya (termasuk navbar bawah store) */
+.app-toasts { z-index: 1090; }
+
+/* ---------- Papan pemuka ---------- */
+.app-stat-icon {
+    width: 2.75rem;
+    height: 2.75rem;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.75rem;
+    font-size: 1.25rem;
+}
+
+.app-stat-brand { color: var(--app-brand); background-color: rgba(15, 118, 110, 0.12); }
+.app-stat-success { color: var(--bs-success); background-color: var(--bs-success-bg-subtle); }
+.app-stat-warning { color: var(--bs-warning-text-emphasis); background-color: var(--bs-warning-bg-subtle); }
+.app-stat-danger { color: var(--bs-danger); background-color: var(--bs-danger-bg-subtle); }
+.app-stat-info { color: var(--bs-info-text-emphasis); background-color: var(--bs-info-bg-subtle); }
+
+/* Carta SVG (renderBarChart) */
+.app-chart { width: 100%; height: auto; display: block; }
+.app-chart-bar { fill: var(--app-brand); }
+.app-chart-bar:hover { fill: var(--app-brand-dark); }
+.app-chart-value { font-size: 12px; fill: var(--bs-body-color); }
+.app-chart-label { font-size: 13px; fill: var(--bs-secondary-color); }
+
+/* Input sempit dalam jadual boleh sunting */
+.app-money-input { min-width: 8rem; max-width: 11rem; }
+.app-int-input { min-width: 5rem; max-width: 7rem; }
+
+/* Pratonton template (tiada gambar → ikon di tengah) */
+.app-template-preview {
+    height: 10rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    font-size: 3rem;
+    color: var(--app-brand);
+    background: linear-gradient(135deg, rgba(15, 118, 110, 0.08), rgba(15, 118, 110, 0.2));
+}
+
+.app-template-preview-lg { height: 18rem; border-radius: 0.5rem; font-size: 5rem; }
+
+/* Jadual terjemahan */
+.app-translation-table td { min-width: 10rem; }
+.app-translation-table td:first-child { min-width: 12rem; }
+.app-missing { background-color: var(--bs-warning-bg-subtle); }
+
+/* Kotak senarai pilihan yang boleh skrol (cth. pilih vendor) */
+.app-scroll-box { max-height: 14rem; overflow-y: auto; }
+
+.app-qr { width: 12rem; height: 12rem; image-rendering: pixelated; }
+
+/* Teks .visually-hidden (position: absolute) dalam jadual kekal di dalam kawasan skrol jadual */
+.table-responsive { position: relative; }

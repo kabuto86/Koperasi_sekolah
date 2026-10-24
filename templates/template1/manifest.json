@@ -1,0 +1,10 @@
+{
+    "code": "template1",
+    "name": "Template 1 — Asas",
+    "version": "1.0.0",
+    "pages": [
+        "home", "school-select", "catalog", "product", "kit", "cart", "checkout",
+        "order-success", "orders", "order-detail", "children", "login", "register",
+        "forgot-password", "profile", "news", "clearance"
+    ]
+}
