@@ -1,0 +1,6 @@
+config/database.php
+config/secret.key
+uploads/*
+!uploads/.htaccess
+.DS_Store
+Thumbs.db
