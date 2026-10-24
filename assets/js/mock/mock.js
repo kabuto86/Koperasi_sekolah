@@ -28,6 +28,50 @@ var Mock = {
         return JSON.parse(JSON.stringify(response));
     },
 
+    findById: function (rows, id) {
+        return rows.filter(function (row) {
+            return row.id === Number(id);
+        })[0] || null;
+    },
+
+    nextId: function (rows) {
+        return rows.reduce(function (max, row) {
+            return Math.max(max, row.id);
+        }, 0) + 1;
+    },
+
+    // Masa semasa dalam format ISO 8601 zon Asia/Kuala_Lumpur
+    now: function () {
+        var local = new Date(Date.now() + 8 * 3600 * 1000).toISOString();
+        return local.slice(0, 19) + '+08:00';
+    },
+
+    // Semak medan wajib → { medan: 'Ruangan ini wajib diisi.' }
+    requireFields: function (body, fields) {
+        var errors = {};
+        fields.forEach(function (field) {
+            var value = getPath(body, field);
+            if (value === undefined || value === null || String(value).trim() === '') {
+                errors[field] = T('error.required');
+            }
+        });
+        return errors;
+    },
+
+    hasErrors: function (errors) {
+        return Object.keys(errors).length > 0;
+    },
+
+    // Tapis baris di mana row[field] === params[field] (jika params[field] diisi)
+    filterBy: function (rows, params, fields) {
+        return rows.filter(function (row) {
+            return fields.every(function (field) {
+                var wanted = params[field];
+                return wanted === undefined || wanted === null || wanted === '' || String(row[field]) === String(wanted);
+            });
+        });
+    },
+
     // Format senarai standard (PELAN 10.3 / 18):
     // { items, total, page, per_page }  — tapis q pada medan yang diberi
     paginate: function (rows, params, searchFields) {

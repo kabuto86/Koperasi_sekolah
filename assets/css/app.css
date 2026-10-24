@@ -137,3 +137,59 @@
 
 /* Toast di atas segala-galanya (termasuk navbar bawah store) */
 .app-toasts { z-index: 1090; }
+
+/* ---------- Papan pemuka ---------- */
+.app-stat-icon {
+    width: 2.75rem;
+    height: 2.75rem;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.75rem;
+    font-size: 1.25rem;
+}
+
+.app-stat-brand { color: var(--app-brand); background-color: rgba(15, 118, 110, 0.12); }
+.app-stat-success { color: var(--bs-success); background-color: var(--bs-success-bg-subtle); }
+.app-stat-warning { color: var(--bs-warning-text-emphasis); background-color: var(--bs-warning-bg-subtle); }
+.app-stat-danger { color: var(--bs-danger); background-color: var(--bs-danger-bg-subtle); }
+.app-stat-info { color: var(--bs-info-text-emphasis); background-color: var(--bs-info-bg-subtle); }
+
+/* Carta SVG (renderBarChart) */
+.app-chart { width: 100%; height: auto; display: block; }
+.app-chart-bar { fill: var(--app-brand); }
+.app-chart-bar:hover { fill: var(--app-brand-dark); }
+.app-chart-value { font-size: 12px; fill: var(--bs-body-color); }
+.app-chart-label { font-size: 13px; fill: var(--bs-secondary-color); }
+
+/* Input sempit dalam jadual boleh sunting */
+.app-money-input { min-width: 8rem; max-width: 11rem; }
+.app-int-input { min-width: 5rem; max-width: 7rem; }
+
+/* Pratonton template (tiada gambar → ikon di tengah) */
+.app-template-preview {
+    height: 10rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    font-size: 3rem;
+    color: var(--app-brand);
+    background: linear-gradient(135deg, rgba(15, 118, 110, 0.08), rgba(15, 118, 110, 0.2));
+}
+
+.app-template-preview-lg { height: 18rem; border-radius: 0.5rem; font-size: 5rem; }
+
+/* Jadual terjemahan */
+.app-translation-table td { min-width: 10rem; }
+.app-translation-table td:first-child { min-width: 12rem; }
+.app-missing { background-color: var(--bs-warning-bg-subtle); }
+
+/* Kotak senarai pilihan yang boleh skrol (cth. pilih vendor) */
+.app-scroll-box { max-height: 14rem; overflow-y: auto; }
+
+.app-qr { width: 12rem; height: 12rem; image-rendering: pixelated; }
+
+/* Teks .visually-hidden (position: absolute) dalam jadual kekal di dalam kawasan skrol jadual */
+.table-responsive { position: relative; }

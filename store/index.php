@@ -10,6 +10,12 @@ if (!preg_match('/^[a-z0-9-]{1,80}$/', $schoolSlug)) {
 
 // B6: ambil dari cooperatives.template_id; template tidak dilanggan → template1
 $templateCode = 'template1';
+
+// Pratonton dari panel owner: ?template=kod (hanya jika folder wujud). B6: hadkan kepada owner
+$previewTemplate = $_GET['template'] ?? '';
+if (preg_match('/^[a-z0-9_]{1,40}$/', $previewTemplate) && is_file(APP_ROOT . '/templates/' . $previewTemplate . '/layout.php')) {
+    $templateCode = $previewTemplate;
+}
 $templateDir = APP_ROOT . '/templates/' . $templateCode;
 $manifest = json_decode(file_get_contents($templateDir . '/manifest.json'), true);
 

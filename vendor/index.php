@@ -4,7 +4,7 @@ require __DIR__ . '/../core/bootstrap.php';
 
 $pageTitle = t('menu.dashboard');
 $activeMenu = 'menu.dashboard';
-$pageScripts = [View::asset('js/vendor-dashboard.js')];
+$pageScripts = [View::asset('js/vendor/dashboard.js')];
 require __DIR__ . '/_layout/header.php';
 ?>
 <p class="text-body-secondary" id="current-coop"><?= e(t('common.loading')) ?></p>

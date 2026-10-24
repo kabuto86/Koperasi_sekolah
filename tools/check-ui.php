@@ -31,7 +31,17 @@ function projectFiles($root)
     return $files;
 }
 
+$reference = array_keys(require $root . '/lang/ms.php');
+
 foreach (projectFiles($root) as $path) {
+    // Kunci literal t('x.y') / T('x.y') mesti wujud dalam lang/ms.php
+    preg_match_all('/\b[tT]\(\s*[\'"]([a-z0-9_]+(?:\.[a-zA-Z0-9_]+)+)[\'"]/', file_get_contents($path), $matches);
+    foreach (array_unique($matches[1]) as $key) {
+        if (!in_array($key, $reference, true)) {
+            $errors[] = 'Kunci tiada dalam lang/ms.php: ' . $key . ' (' . substr($path, strlen($root) + 1) . ')';
+        }
+    }
+
     $lines = file($path);
     foreach ($lines as $number => $line) {
         if (preg_match('/\sstyle\s*=|<style[\s>]|\.style\.|setAttribute\(\s*[\'"]style/i', $line)) {
@@ -40,7 +50,6 @@ foreach (projectFiles($root) as $path) {
     }
 }
 
-$reference = array_keys(require $root . '/lang/ms.php');
 foreach (['en', 'zh', 'ta'] as $code) {
     $keys = array_keys(require $root . '/lang/' . $code . '.php');
     foreach (array_diff($reference, $keys) as $missing) {
