@@ -1,9 +1,9 @@
 <?php
 // Titik masuk store ibu bapa: slug → koperasi → template → halaman.
-// Peringkat 1: tiada DB; nama sekolah dimuat oleh JS melalui Api.get('store/school').
+// Peringkat 1: tiada DB; data sekolah, katalog & akaun dimuat oleh JS melalui Api (assets/js/store/).
 require __DIR__ . '/../core/bootstrap.php';
 
-$schoolSlug = $_GET['school'] ?? 'sk-taman-melati';
+$schoolSlug = $_GET['school'] ?? '';
 if (!preg_match('/^[a-z0-9-]{1,80}$/', $schoolSlug)) {
     $schoolSlug = '';
 }
@@ -23,6 +23,14 @@ $storePage = $_GET['page'] ?? 'home';
 $pageFile = $templateDir . '/pages/' . $storePage . '.php';
 if (!in_array($storePage, $manifest['pages'], true) || !is_file($pageFile)) {
     $storePage = 'home';
+}
+
+// Halaman akaun global (ibu bapa boleh ada anak di beberapa sekolah) boleh dibuka tanpa sekolah.
+// Halaman lain perlu sekolah → kembali ke halaman utama (pilih sekolah)
+$pagesWithoutSchool = ['home', 'school-select', 'login', 'register', 'forgot-password', 'profile', 'children'];
+if ($schoolSlug === '' && !in_array($storePage, $pagesWithoutSchool, true)) {
+    header('Location: ' . View::storeUrl('', 'home'));
+    exit;
 }
 
 require $templateDir . '/layout.php';

@@ -4,9 +4,9 @@
 > Kemas kini fail ini di HUJUNG setiap session, sebelum commit & push.
 > Reka bentuk: [PELAN.md](PELAN.md) · Prompt kerja: [PROMPT-SESSION.md](PROMPT-SESSION.md)
 
-**Status keseluruhan:** Peringkat 1 · kerangka UI, panel owner, panel vendor (U3a–U3c) & POS kaunter (U4) siap
-**Session terakhir siap:** U4 — UI POS kaunter
-**Session seterusnya:** **U5 — UI Store ibu bapa (Template 1)**
+**Status keseluruhan:** Peringkat 1 · kerangka UI, panel owner, panel vendor (U3a–U3c), POS kaunter (U4) & store ibu bapa (U5) siap
+**Session terakhir siap:** U5 — UI Store ibu bapa (Template 1)
+**Session seterusnya:** **U6 — UI modul add-on**
 
 Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 
@@ -28,7 +28,7 @@ Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 | U3b | UI Vendor — kit sekolah, pesanan, serah barang, ibu bapa | ✅ | 25 Okt 2026 | `331aa9f` | 9 halaman, 154 kunci baharu, serah barang papan kekunci sahaja, `DOC/screenshots/U3b/` |
 | U3c | UI Vendor — bayaran, refund, promosi, kakitangan, laporan, tetapan, langganan | ✅ | 25 Okt 2026 | `26d3640` | 11 halaman, 328 kunci baharu, ujian kebocoran VENDOR02 lulus, `DOC/screenshots/U3c/` |
 | U4 | UI POS kaunter | ✅ | 25 Okt 2026 | `2bf72c8` | Skrin penuh, PIN, syif, imbas, QR, resit 58/80, 116 kunci baharu, ujian kebocoran lulus, `DOC/screenshots/U4/` |
-| U5 | UI Store ibu bapa — Template 1 | ⬜ | | | |
+| U5 | UI Store ibu bapa — Template 1 | ✅ | 25 Okt 2026 | `597d2d1` | 17 halaman, 250 kunci baharu, aliran kit → troli → checkout → slip, ujian kebocoran lulus, `DOC/screenshots/U5/` |
 | U6 | UI modul add-on | ⬜ | | | |
 | U7 | Semakan UI menyeluruh | ⬜ | | | |
 
@@ -333,6 +333,59 @@ Tertangguh:
 - Baris cukai dalam butiran pesanan (`order.php`) — U7 (cukai koperasi semasa 0%)
 - Imbas QR/barcode dengan kamera telefon — U7 (pengimbas USB disokong); pemilih koperasi POS disembunyikan < 768px
 - Sekatan peranan (juruwang hanya POS & serah barang) — B2/U7
+
+### U5 — UI Store ibu bapa, Template 1 (25 Okt 2026)
+
+Dibuat:
+- `templates/template1/pages/` — 17 halaman manifest: `home` (tanpa sekolah: carian, sekolah terakhir, sekolah anak-anak; dengan sekolah: pintasan,
+  pesanan sedia diambil, anak di sekolah ini + "Beli kit", berita, banner jualan murah, waktu operasi), `school-select` (nama/daerah + negeri),
+  `register` (telefon MY, hubungan, bahasa, PDPA wajib → pengesahan e-mel), `login` (e-mel atau telefon), `forgot-password` (e-mel → token → kata laluan baharu),
+  `children` (tambah/sunting: nama, sekolah, darjah ikut jenis sekolah, kelas dengan cadangan, tahun; naik darjah; buang), `catalog` (carian, kategori,
+  darjah, pintasan darjah anak), `product` (varian, kuantiti, pilih anak), `kit` (pilih anak → semua item siap ditanda, nyahtanda + amaran wajib, kuantiti,
+  pilih saiz, jumlah serta-merta, bar melekat "Masuk troli"/"Kemas kini troli"), `cart` (ikut anak, kit & ala carte bercampur, masalah stok/had ditanda),
+  `checkout` (semak, siapa ambil murid/ibu bapa/wakil + nama, kod 4 digit bila wajib, tunai/online ikut koperasi, kupon), `order-success` (no. pendek besar,
+  QR, arahan ambil, cetak slip), `orders` (tapis anak & tahun), `order-detail` (status, garis masa, item ikut anak + diambil, rekod serahan, bayar semula,
+  batal, cetak slip / resit), `profile` (maklumat, bahasa, kata laluan, pengesahan e-mel, padam akaun PDPA), `news`, `clearance` (modul aktif sahaja)
+- `templates/template1/partials/` — header (akaun / log masuk, menu modul `data-module`), bottom-nav (menu ringkas tanpa sekolah), `gateway-modal.php`;
+  `layout.php` tajuk ikut halaman; `css/template.css`, `css/print-slip.css` (slip 2 lajur A4, resit)
+- `assets/js/store/` — `common.js`, `layout.js` + satu fail setiap halaman (17); `templates/template1/js/layout.js` dipindah ke sini (template paparan sahaja)
+- `assets/js/mock/store.js` ditulis semula — sesi ibu bapa, troli, token, berita & jualan murah contoh; 30 laluan `store/*` (PELAN 18.12)
+- `vendor-orders.js`: ibu bapa & anak kini disimpan (`Mock.persist`), anak ada `school_year`, `is_active`, `vendor_id`; `Mock.storageVersion` → `v3`
+- `core/View.php` `storeUrl($slug, $page, $params)` (tanpa slug); `store/index.php` halaman tanpa sekolah; `app.css` `.btn-outline-brand`, `.border-brand`
+- `lang/*.php` — 250 kunci baharu (jumlah 1572)
+- `DOC/screenshots/U5/` — 21 tangkap layar (375 / 1366, zh/en/ta, cetakan slip & resit)
+
+Disahkan:
+- `php tools/check-ui.php` → tiada inline CSS, 1572 kunci sama dalam 4 bahasa
+- Playwright: 17 halaman × 4 bahasa × 375px & 1366px (log masuk) — tiada ralat konsol/CSP, tiada kunci mentah, tiada skrol mendatar
+- **Aliran penuh 375px:** log masuk dengan telefon → kit Aisyah (9 item, 8 ditanda — satu habis stok) → nyahtanda item wajib (amaran, jumlah turun) →
+  +1 kuantiti → masuk troli tanpa saiz ditolak → pilih saiz → troli → produk untuk Adam → troli 2 kumpulan anak → checkout: kupon JIMAT5 (-RM 5),
+  wakil tanpa nama ditolak, kod 4 digit (> RM100) → tunai → no. pendek + QR + 2 slip → cetakan slip A4 & resit → **pesanan muncul di panel vendor**
+- Online: `pending_payment` → simulasi gateway → `paid`; SJKC Chung Hwa hanya online
+- **Ujian kebocoran** (mock): tetamu → `auth_required`; pesanan ibu bapa lain / pesanan sendiri melalui slug sekolah lain / batal pesanan orang lain /
+  anak ibu bapa lain dalam troli & kit / sunting anak orang lain / produk koperasi lain & vendor lain → semuanya ditolak; `customer_id` dalam parameter
+  diabaikan; `pickup_code` tidak pernah dipulangkan; harga dari pelayar diabaikan; `expected_total` berbeza → minta semak semula
+- Akaun: e-mel pendua & tanpa PDPA ditolak, checkout sebelum sahkan e-mel ditolak, token reset sekali guna, 5 log masuk gagal → dikunci 15 minit
+- Modul: berita hanya SK Taman Melati, jualan murah hanya SMK Bukit Indah (harga jualan murah terus dalam troli)
+
+Keputusan kecil (dicatat dalam PELAN 10.5, 18.5 & 18.12):
+- Logik store dalam `assets/js/store/` dikongsi semua template; template mengekalkan `id`/`data-*` dan menukar rupa melalui CSS
+- Akaun ibu bapa global: `profile` & `children` boleh dibuka tanpa sekolah; troli & pesanan per koperasi (slug)
+- Kod 4 digit **ditetapkan ibu bapa** semasa checkout (bila koperasi mewajibkan) kerana kod di-hash dan tidak boleh dipapar semula
+- Kit yang sama untuk anak yang sama → diganti dalam troli (`cart_items.school_kit_item_id`); item habis stok tidak ditanda
+- Pesanan store menahan stok (`reserve`) sebaik dibuat; batal oleh ibu bapa hanya `pending_payment` / `unpaid_cash`
+- Promosi store sama seperti POS (`posTotals`); `used_count` naik semasa pesanan dibuat
+- Checkout perlu e-mel disahkan; log masuk dan troli dibenarkan sebelum itu
+- Padam akaun ditolak jika ada pesanan aktif; rekod pesanan kekal tanpa telefon/e-mel
+- Semua borang store dihalang daripada hantar asal pelayar (elak kata laluan dalam URL jika skrip lambat dimuat)
+
+Tertangguh:
+- E-mel sebenar (pengesahan, reset, pesanan baharu kepada vendor & ibu bapa, slip) — B7; Peringkat 1 memapar pautan demo
+- Gateway sebenar (redirect + webhook) — B8; luput automatik pesanan tunai/online (cron) — B7
+- Laporan "forgot" mendedahkan `demo_token` hanya untuk e-mel berdaftar — Peringkat 1 sahaja, dibuang dalam B2
+- Gambar produk sebenar (ikon gantian sekarang); muat turun resit PDF (cetak sahaja sekarang) — B6/B9
+- Pilih slot ambil, banner koperasi tutup — U6 (modul `school_opening`, `calendar`)
+- Navbar desktop dalam bahasa Tamil membalut dua baris (label panjang) — U7
 
 ---
 
