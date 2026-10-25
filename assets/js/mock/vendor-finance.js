@@ -106,6 +106,8 @@ var MockFinance = {
     moduleSubs: [
         { vendor_id: 1, cooperative_id: 1, code: 'news', started_at: '2026-01-05', cancel_at_period_end: false },
         { vendor_id: 1, cooperative_id: 1, code: 'school_opening', started_at: '2026-10-10', cancel_at_period_end: false },
+        { vendor_id: 1, cooperative_id: 1, code: 'calendar', started_at: '2026-03-02', cancel_at_period_end: false },
+        { vendor_id: 1, cooperative_id: 1, code: 'whatsapp_sms', started_at: '2026-08-15', cancel_at_period_end: false },
         { vendor_id: 2, cooperative_id: 3, code: 'clearance', started_at: '2026-04-11', cancel_at_period_end: false }
     ],
 

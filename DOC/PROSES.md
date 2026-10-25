@@ -4,9 +4,9 @@
 > Kemas kini fail ini di HUJUNG setiap session, sebelum commit & push.
 > Reka bentuk: [PELAN.md](PELAN.md) · Prompt kerja: [PROMPT-SESSION.md](PROMPT-SESSION.md)
 
-**Status keseluruhan:** Peringkat 1 · kerangka UI, panel owner, panel vendor (U3a–U3c), POS kaunter (U4) & store ibu bapa (U5) siap
-**Session terakhir siap:** U5 — UI Store ibu bapa (Template 1)
-**Session seterusnya:** **U6 — UI modul add-on**
+**Status keseluruhan:** Peringkat 1 · kerangka UI, panel owner, panel vendor (U3a–U3c), POS kaunter (U4), store ibu bapa (U5) & modul add-on (U6) siap
+**Session terakhir siap:** U6 — UI modul add-on
+**Session seterusnya:** **U7 — Semakan UI menyeluruh**
 
 Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 
@@ -29,7 +29,7 @@ Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 | U3c | UI Vendor — bayaran, refund, promosi, kakitangan, laporan, tetapan, langganan | ✅ | 25 Okt 2026 | `26d3640` | 11 halaman, 328 kunci baharu, ujian kebocoran VENDOR02 lulus, `DOC/screenshots/U3c/` |
 | U4 | UI POS kaunter | ✅ | 25 Okt 2026 | `2bf72c8` | Skrin penuh, PIN, syif, imbas, QR, resit 58/80, 116 kunci baharu, ujian kebocoran lulus, `DOC/screenshots/U4/` |
 | U5 | UI Store ibu bapa — Template 1 | ✅ | 25 Okt 2026 | `597d2d1` | 17 halaman, 250 kunci baharu, aliran kit → troli → checkout → slip, ujian kebocoran lulus, `DOC/screenshots/U5/` |
-| U6 | UI modul add-on | ⬜ | | | |
+| U6 | UI modul add-on | ✅ | 25 Okt 2026 | `db41ded` | 9 halaman vendor, banner & slot ambil di store, 195 kunci baharu, ujian kebocoran lulus, `DOC/screenshots/U6/` |
 | U7 | Semakan UI menyeluruh | ⬜ | | | |
 
 ## Peringkat 2 — Backend & API
@@ -386,6 +386,67 @@ Tertangguh:
 - Gambar produk sebenar (ikon gantian sekarang); muat turun resit PDF (cetak sahaja sekarang) — B6/B9
 - Pilih slot ambil, banner koperasi tutup — U6 (modul `school_opening`, `calendar`)
 - Navbar desktop dalam bahasa Tamil membalut dua baris (label panjang) — U7
+
+### U6 — UI modul add-on (25 Okt 2026)
+
+Dibuat:
+- `vendor/_layout/module-gate.php` — halaman modul set `$moduleCode`; layout memapar kad **"Langgan modul ini"** (pautan `addon-store.php?module=`,
+  nama & keterangan modul, koperasi semasa) bila koperasi semasa belum melanggan, dan membungkus kandungan dalam `#module-content`.
+  `assets/js/vendor/addon-common.js` — `onModuleReady(fn)`, `moduleResponse(res)`, `dateRangeText`, `localDay`; butang tindakan disembunyikan semasa berkunci
+- `vendor/addons/news.php` — senarai (cari, tapis Diterbitkan / Dijadualkan / Draf), borang pos (tajuk, kandungan, gambar, tarikh terbit / jadual, terbit),
+  **hantar e-mel** (bilangan penerima dipapar; sekali sahaja, berita berjadual → semasa terbit), pratonton
+- `vendor/addons/clearance.php` + `clearance-sale.php?id=` — jualan (nama, tempoh, aktif, status dikira) & item (produk, saiz atau "semua saiz",
+  harga khas < harga biasa, had / pesanan, baki stok, % jimat); `vendor/_layout/addons/clearance-sale-modal.php`, `js/vendor/addons/clearance-form.js`
+- `vendor/addons/calendar.php` — kalendar bulanan (Isnin–Ahad, bulan sebelum/berikut/ini), acara berwarna ikut jenis (cuti sekolah, koperasi tutup,
+  pembukaan sekolah, lain-lain), hari "tutup tempahan" berlatar merah, klik tarikh → tambah acara, senarai acara bulan ini, status "hari ini dibuka / ditutup";
+  375px: bar warna + senarai di bawah
+- `vendor/addons/school_opening.php` — musim pre-order (tahun, buka, tarikh tutup tempahan, ambil bermula, nota) + slot ambil (tarikh, masa,
+  darjah — beberapa darjah = satu slot setiap darjah, kapasiti, ditempah dengan `<progress>`), slot bertempah tidak boleh dipadam
+- `vendor/addons/whatsapp_sms.php` — **UI sahaja**: hidup/mati, saluran WhatsApp/SMS, pembekal, no. penghantar, kunci API (tidak dipapar), templat 3 acara
+  (sedia diambil, telah diambil, peringatan tunai) dengan cip pemegang tempat + pratonton, mesej ujian, log mesej (no. bertopeng, status, cubaan)
+- `vendor/addons/advanced_report.php`, `mobile_app.php`, `membership.php` — halaman sementara (gerbang langganan + "sedang dibina") supaya menu tidak 404
+- `assets/js/mock/vendor-addons.js` — `MockAddons` dikongsi panel vendor & store (berita, jualan murah & item **dipindah dari `store.js`**, kalendar, musim,
+  slot, tetapan & log mesej); 20 laluan `vendor/{news,clearance,calendar,school-opening,messaging}/*` dengan `addonRequire()` (koperasi + modul)
+- Store (template1): `partials/notices.php` — banner **"Koperasi tutup hari ini"** / "akan ditutup" (14 hari) & banner **pre-order** (utama & kit);
+  checkout: **pilih slot ambil** (ikut darjah anak dalam troli, slot penuh dimatikan, semua penuh → hubungi koperasi), amaran + butang dimatikan bila
+  tempahan ditutup; slot dipapar di `order-success`, `order-detail` & panel vendor `order.php`; gambar berita di halaman Berita
+- `store.js`: `store/school.notices`, quote `pickup_slots / slot_required / orders_blocked`, `place` sahkan slot & sekat hari tutup, batal → lepas slot;
+  `vendor-orders.js`: batal dari panel → lepas slot
+- Data contoh: SK Taman Melati kini melanggan `calendar` & `whatsapp_sms` juga (`clearance` sengaja belum — uji kad langgan); `Mock.storageVersion` → `v4`
+- `app.css` — kad berkunci, kalendar (`.app-calendar`, `.app-cal-*`); `helpers.js` — warna lencana berita/jualan/musim/mesej
+- `lang/*.php` — 195 kunci baharu (jumlah 1767)
+- `DOC/screenshots/U6/` — 12 tangkap layar
+
+Disahkan:
+- `php tools/check-ui.php` → tiada inline CSS, 1767 kunci sama dalam 4 bahasa
+- Playwright: 18 halaman (9 modul + pesanan, aktiviti, kedai modul, langganan, serah barang, store utama/berita/kit/checkout/butiran) × 4 bahasa × 375px & 1366px —
+  tiada ralat konsol/CSP, tiada kunci mentah, tiada skrol mendatar
+- **Aliran (76 semakan lulus):** clearance berkunci (butang disembunyi, API `module_locked`) → kad "Langgan modul ini" → kedai modul → langgan → halaman dibuka
+  → tambah item bervarian (harga ≥ biasa ditolak, pendua ditolak) → **store: item di Jualan murah, harga RM 1.00 dalam troli**; berita + e-mel (12 ibu bapa)
+  → muncul di store; acara "koperasi tutup" hari ini → banner store + checkout dimatikan + `place` ditolak → padam → checkout dengan **slot** (D4 penuh dimatikan,
+  darjah lain tidak dipapar; API slot penuh / slot VENDOR02 / tanpa slot ditolak) → pesanan → slot di halaman berjaya & panel vendor, `booked` naik →
+  batal → `booked` turun; slot berbilang darjah, kapasiti < ditempah, padam slot bertempah, slot sebelum tarikh ambil, musim pendua — ditolak;
+  templat dengan `{nama}` ditolak; kunci API tidak dipulangkan; mesej ujian dalam log (bertopeng)
+- **Ujian kebocoran** (mock, 18 laluan): berita / jualan / item / kalendar / musim / slot / log mesej VENDOR02 (melalui `cooperative_id` VENDOR02 atau id
+  rekod VENDOR02 dengan koperasi sendiri) semuanya ditolak; koperasi sendiri tanpa langganan → `module_locked`; `vendor_id` dalam input diabaikan;
+  kalendar & log mesej hanya milik sendiri; acara kalendar VENDOR02 tidak dipapar di store (modul tidak aktif)
+
+Keputusan kecil (dicatat dalam PELAN 9.H, 10.1, 18.5, 18.12 & 18.13):
+- Fail halaman modul = kod modul (`school_opening.php`, `whatsapp_sms.php`) ikut PELAN 10.1 `{code}.php`; JS sama nama dalam `js/vendor/addons/`
+- Data modul dalam satu mock `vendor-addons.js` dikongsi panel & store (bukan dalam `store.js`) — panel vendor tidak memuat mock store
+- Slot ambil per **pesanan** (satu pesanan = satu tempat, walaupun beberapa anak); wajib bila musim dibuka & ada slot; tiada musim → checkout biasa
+- "Tutup tempahan" hanya menyekat pesanan **online** pada hari itu; POS kaunter tidak disekat (vendor sendiri yang buka kaunter)
+- Banner tutup dipapar 14 hari sebelum; banner pre-order hanya di utama & kit (checkout sudah memapar slot)
+- E-mel berita dihantar sekali sahaja (`email_sent_at`), menyunting tidak menghantar semula
+- Jadual baharu `messaging_settings` (tetapan WhatsApp/SMS per koperasi); `notification_queue` + `cooperative_id, event`; `orders.pickup_slot_id`;
+  `news_posts.email_sent_at, email_recipients` — jumlah 69 jadual
+
+Tertangguh:
+- Penghantaran WhatsApp/SMS sebenar, mesej automatik "sedia diambil / telah diambil" dari panel & skrin serah — B13 (UI tetapan sudah siap)
+- E-mel berita sebenar melalui `email_queue` + cron; muat naik gambar berita sebenar (`Uploader`) — B13
+- Penapis pesanan / picking list ikut slot ambil; slot dalam label beg — U7/B13
+- Banner "koperasi tutup" dalam POS kaunter (amaran sahaja) — U7
+- Halaman sebenar `advanced_report`, `mobile_app` (F1–F4), `membership` (kemudian)
 
 ---
 

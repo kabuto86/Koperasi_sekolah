@@ -189,7 +189,20 @@ var BADGE_COLORS = {
     'addon.status.active': 'text-bg-success',
     'addon.status.cancelling': 'text-bg-warning',
     'addon.status.available': 'text-bg-light border',
-    'addon.status.unavailable': 'text-bg-secondary'
+    'addon.status.unavailable': 'text-bg-secondary',
+    'news.state.published': 'text-bg-success',
+    'news.state.scheduled': 'text-bg-info',
+    'news.state.draft': 'text-bg-light border',
+    'clearance.state.active': 'text-bg-success',
+    'clearance.state.scheduled': 'text-bg-info',
+    'clearance.state.ended': 'text-bg-secondary',
+    'clearance.state.inactive': 'text-bg-light border',
+    'opening.state.open': 'text-bg-success',
+    'opening.state.upcoming': 'text-bg-info',
+    'opening.state.closed': 'text-bg-secondary',
+    'messaging.status.sent': 'text-bg-success',
+    'messaging.status.pending': 'text-bg-warning',
+    'messaging.status.failed': 'text-bg-danger'
 };
 
 // statusBadge('ready') → status pesanan; statusBadge('trial', 'vendor.status')

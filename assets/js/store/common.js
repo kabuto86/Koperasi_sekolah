@@ -104,6 +104,11 @@ function gradeLabel(code) {
     return code ? T('grade.' + code) : '';
 }
 
+// Slot ambil (modul school_opening): "02/01/2027 · 08:00–10:00 · Darjah 1"
+function slotText(slot) {
+    return [formatDate(slot.slot_date), slot.time_start + '–' + slot.time_end, slot.grade_level_code ? gradeLabel(slot.grade_level_code) : T('store.slot.all_grades')].join(' · ');
+}
+
 // "Darjah 4 · Bestari"
 function childClassLine(child) {
     return [gradeLabel(child.grade_level_code), child.class_name].filter(Boolean).join(' · ');

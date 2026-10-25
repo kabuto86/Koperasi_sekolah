@@ -299,3 +299,44 @@
 }
 
 .border-brand { border-color: var(--app-brand) !important; }
+
+/* Modul add-on (U6) — kad "Langgan modul ini" */
+.app-addon-lock-icon { width: 4rem; height: 4rem; }
+.app-addon-lock-text { max-width: 34rem; }
+.app-pre-line { white-space: pre-line; }
+.app-col-progress { min-width: 9rem; }
+
+/* Kalendar bulanan (modul calendar) */
+.app-calendar { table-layout: fixed; min-width: 20rem; }
+.app-cal-day { height: 6.5rem; vertical-align: top; padding: 0.25rem !important; }
+.app-cal-outside { --bs-table-bg: var(--bs-tertiary-bg); }
+.app-cal-outside .app-cal-number { color: var(--bs-secondary-color); }
+.app-cal-today .app-cal-number {
+    background-color: var(--app-brand);
+    color: #fff;
+    border-radius: 50%;
+    width: 1.6rem;
+    height: 1.6rem;
+    line-height: 1.6rem;
+}
+.app-cal-blocked { --bs-table-bg: var(--bs-danger-bg-subtle); }
+.app-cal-event {
+    --bs-btn-padding-y: 0.05rem;
+    --bs-btn-padding-x: 0.3rem;
+    --bs-btn-font-size: 0.7rem;
+    text-align: start;
+    color: #fff;
+    border: 0;
+}
+.app-cal-event:hover, .app-cal-event:focus-visible { color: #fff; filter: brightness(0.9); }
+.app-cal-dot { display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 50%; flex-shrink: 0; }
+.app-cal-school_holiday { background-color: #2563eb; }
+.app-cal-coop_closed { background-color: #dc2626; }
+.app-cal-school_opening { background-color: #0f766e; }
+.app-cal-other { background-color: #6b7280; }
+
+@media (max-width: 767.98px) {
+    .app-cal-day { height: 4rem; }
+    .app-cal-event { font-size: 0; padding: 0; height: 0.4rem; }
+    .app-cal-event .bi { display: none; }
+}

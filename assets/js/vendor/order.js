@@ -43,6 +43,12 @@ function renderOrder(order) {
     setText('ord-email', order.customer_email);
     document.getElementById('ord-payment').replaceChildren(paymentBadge(order));
     setText('ord-pickup-by', isPos ? T('pos.counter_sale') : T('pickup.by.' + order.pickup_by_type) + ': ' + order.pickup_by_name);
+    // Slot ambil (modul pembukaan sekolah)
+    var slot = order.pickup_slot;
+    document.getElementById('ord-slot-label').classList.toggle('d-none', !slot);
+    document.getElementById('ord-slot').classList.toggle('d-none', !slot);
+    setText('ord-slot', slot ? formatDate(slot.slot_date) + ' · ' + slot.time_start + '–' + slot.time_end
+        + ' · ' + (slot.grade_level_code ? T('grade.' + slot.grade_level_code) : T('store.slot.all_grades')) : '—');
     setText('ord-code', order.requires_code ? (order.pickup_locked ? T('order.code_locked') : T('order.code_required')) : T('order.code_not_required'));
     setText('ord-expires', order.expires_at ? formatDate(order.expires_at, true) : '—');
 

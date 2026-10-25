@@ -45,6 +45,50 @@ function renderCodeField(data) {
         : T('store.checkout.code_help');
 }
 
+// Modul school_opening: pilih slot ambil (slot penuh dimatikan). Pilihan dikekalkan bila sebut harga dimuat semula
+function renderSlots(data) {
+    var box = document.getElementById('checkout-slot');
+    var list = document.getElementById('checkout-slot-list');
+    var form = document.getElementById('checkout-form');
+    var chosen = form.querySelector('[name="pickup_slot_id"]:checked');
+    var chosenId = chosen ? chosen.value : '';
+    box.classList.toggle('d-none', !data.slot_required);
+    list.replaceChildren();
+    data.pickup_slots.forEach(function (slot) {
+        var id = 'slot-' + slot.id;
+        var input = createEl('input', 'btn-check');
+        input.type = 'radio';
+        input.name = 'pickup_slot_id';
+        input.id = id;
+        input.value = slot.id;
+        input.required = true;
+        input.disabled = slot.remaining < 1;
+        input.checked = !input.disabled && String(slot.id) === chosenId;
+        var label = createEl('label', 'btn btn-outline-brand text-start store-choice d-flex justify-content-between gap-2');
+        label.setAttribute('for', id);
+        var main = createEl('span');
+        main.appendChild(createEl('span', 'fw-semibold d-block', formatDate(slot.slot_date) + ' · ' + slot.time_start + '–' + slot.time_end));
+        main.appendChild(createEl('span', 'small', slot.grade_level_code ? gradeLabel(slot.grade_level_code) : T('store.slot.all_grades')));
+        label.appendChild(main);
+        label.appendChild(createEl('span', 'small text-nowrap align-self-center', slot.remaining < 1 ? T('store.slot.full_short') : T('store.slot.remaining', { n: slot.remaining })));
+        list.appendChild(input);
+        list.appendChild(label);
+    });
+    // Semua slot penuh → ibu bapa tidak boleh checkout; minta hubungi koperasi
+    var allFull = data.slot_required && data.pickup_slots.every(function (slot) { return slot.remaining < 1; });
+    var error = document.getElementById('checkout-slot-error');
+    error.textContent = allFull ? T('store.slot.all_full') : T('store.slot.choose');
+    error.classList.toggle('d-none', !allFull);
+}
+
+function renderBlocked(data) {
+    var blocked = data.orders_blocked;
+    document.getElementById('checkout-blocked').classList.toggle('d-none', !blocked);
+    document.getElementById('checkout-blocked-text').textContent = blocked
+        ? T('store.closed.blocked', { title: blocked.title, date: formatDate(blocked.reopens_on) })
+        : '';
+}
+
 function renderPickupHints(data) {
     var names = data.groups.map(function (group) { return group.child_name; }).join(', ');
     document.querySelector('[data-pickup-hint="student"]').textContent = T('store.checkout.pickup_hint.student_names', { names: names });
@@ -66,12 +110,14 @@ function renderQuote(data) {
     renderTotals(document.getElementById('checkout-totals'), data);
     renderMethods(data);
     renderCodeField(data);
+    renderSlots(data);
+    renderBlocked(data);
     renderPickupHints(data);
     var coupon = document.getElementById('checkout-coupon');
     coupon.classList.toggle('is-invalid', Boolean(data.coupon_error));
     document.getElementById('checkout-coupon-error').textContent = data.coupon_error || '';
     document.getElementById('checkout-verify').classList.toggle('d-none', data.email_verified);
-    document.getElementById('checkout-submit').disabled = !data.email_verified;
+    document.getElementById('checkout-submit').disabled = !data.email_verified || Boolean(data.orders_blocked);
 }
 
 function loadQuote() {
@@ -122,13 +168,16 @@ function placeOrder(event) {
     event.preventDefault();
     var form = document.getElementById('checkout-form');
     var methodChosen = Boolean(form.querySelector('[name="payment_method"]:checked'));
+    var slotChosen = !checkoutQuote.slot_required || Boolean(form.querySelector('[name="pickup_slot_id"]:checked'));
     document.getElementById('checkout-method-error').classList.toggle('d-none', methodChosen);
-    if (!validateForm(form) || !methodChosen) {
+    document.getElementById('checkout-slot-error').classList.toggle('d-none', slotChosen);
+    if (!validateForm(form) || !methodChosen || !slotChosen) {
         return;
     }
     var payload = formToObject(form);
     payload.coupon_code = checkoutCoupon;
     payload.expected_total = checkoutQuote.total;
+    payload.pickup_slot_id = payload.pickup_slot_id ? Number(payload.pickup_slot_id) : null;
     var button = document.getElementById('checkout-submit');
     button.disabled = true;
     storePost('store/checkout/place', payload).then(function (res) {

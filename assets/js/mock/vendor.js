@@ -49,7 +49,7 @@ var MockVendor = {
           created_at: '2026-02-12T10:00:00+08:00' }
     ],
 
-    activeModules: { 1: ['news', 'school_opening'], 2: [], 3: ['clearance'] },
+    activeModules: { 1: ['news', 'school_opening', 'calendar', 'whatsapp_sms'], 2: [], 3: ['clearance'] },
 
     classes: [],
     categories: [

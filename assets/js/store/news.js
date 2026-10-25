@@ -5,6 +5,12 @@ var newsState = { page: 1, per_page: 10 };
 function newsCard(post) {
     var card = createEl('article', 'card border-0 shadow-sm');
     card.id = 'news-' + post.id;
+    if (post.image_url) {
+        var img = createEl('img', 'card-img-top store-news-image');
+        img.src = post.image_url;
+        img.alt = '';
+        card.appendChild(img);
+    }
     var body = createEl('div', 'card-body');
     body.appendChild(createEl('div', 'small text-body-secondary', formatDate(post.published_at)));
     body.appendChild(createEl('h2', 'h6 mt-1', post.title));
