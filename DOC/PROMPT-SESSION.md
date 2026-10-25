@@ -26,7 +26,10 @@ Setiap prompt di bawah bermula dengan "Ikut peraturan umum". Maksudnya:
    dalam `assets/js/api.js`. Bentuk data baharu dicatat dalam PELAN.md bahagian 18.
    Ikut konvensyen UI dalam PELAN 18.5 (layout, `$activeMenu`, `cooperativechange`, helpers) dan
    PELAN 18.6 (borang `bindForm`/`data-type`, senarai `bindListFilters`/`renderTable`/`renderPagination`).
-   Satu fail JS per halaman dalam `assets/js/{owner|vendor}/`.
+   Satu fail JS per halaman dalam `assets/js/{owner|vendor}/`. Halaman vendor: data melalui
+   `onCooperativeReady()` + `withCoop()`; halaman berkaitan dikumpul dengan sub-navigasi (`$subNavGroup`).
+   Mock mendaftar storan dengan `Mock.persist()` supaya rekod baharu kekal antara halaman.
+   Halaman pesanan/serah barang guna `assets/js/vendor/order-common.js` (`childLine`, `paymentBadge`, `bindGradeClassFilters`).
    Sebelum commit jalankan `php tools/check-ui.php` (tiada inline CSS, kunci 4 bahasa sama).
 7. **Peringkat 2 (B):** jalankan ujian kebocoran dua vendor + dua ibu bapa (PELAN 15) sebelum tutup session.
 8. **Penutup wajib:**

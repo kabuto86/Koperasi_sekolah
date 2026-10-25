@@ -171,7 +171,12 @@ var BADGE_COLORS = {
     'invoice.status.void': 'text-bg-secondary',
     'coop.status.active': 'text-bg-success',
     'coop.status.suspended': 'text-bg-danger',
-    'coop.status.closed': 'text-bg-secondary'
+    'coop.status.closed': 'text-bg-secondary',
+    'po.status.draft': 'text-bg-light border',
+    'po.status.ordered': 'text-bg-primary',
+    'po.status.partial': 'text-bg-warning',
+    'po.status.received': 'text-bg-success',
+    'po.status.cancelled': 'text-bg-secondary'
 };
 
 // statusBadge('ready') → status pesanan; statusBadge('trial', 'vendor.status')
@@ -215,6 +220,16 @@ function createButton(text, className, iconClass, onClick, label) {
 function createLink(text, href, className) {
     var link = createEl('a', className || '', text);
     link.href = href;
+    return link;
+}
+
+// Pautan butang dengan ikon sahaja (label untuk pembaca skrin)
+function createIconLink(href, iconClass, label, className) {
+    var link = createEl('a', 'btn btn-sm ' + (className || 'btn-outline-secondary'));
+    link.href = href;
+    link.setAttribute('aria-label', label);
+    link.title = label;
+    link.appendChild(createIcon(iconClass));
     return link;
 }
 
@@ -641,7 +656,7 @@ function bindListFilters(form, state, onChange) {
         }
     });
     form.addEventListener('change', function (event) {
-        if (event.target.tagName === 'SELECT' || event.target.type === 'date') {
+        if (event.target.tagName === 'SELECT' || event.target.type === 'date' || event.target.type === 'checkbox') {
             refresh();
         }
     });
@@ -669,4 +684,60 @@ function fillSelect(select, items, valueField, labelFn, keepFirst) {
         option.value = item[valueField];
         select.appendChild(option);
     });
+}
+
+// ---------- Muat naik gambar (UI) ----------
+// Semak jenis & saiz di pelayar (pelayan semak semula dengan finfo — PELAN 15).
+// Pratonton sebagai data URL; onChange(dataUrl | null). Peringkat 1: data URL dihantar terus dalam mock.
+var IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+var IMAGE_MAX_BYTES = 2 * 1024 * 1024;
+
+function bindImageInput(input, previewBox, onChange) {
+    if (typeof input === 'string') {
+        input = document.getElementById(input);
+    }
+    input.addEventListener('change', function () {
+        var file = input.files[0];
+        if (!file) {
+            return;
+        }
+        if (IMAGE_TYPES.indexOf(file.type) === -1) {
+            input.value = '';
+            showToast(T('upload.invalid_type'), 'danger');
+            return;
+        }
+        if (file.size > IMAGE_MAX_BYTES) {
+            input.value = '';
+            showToast(T('upload.too_large', { max: '2MB' }), 'danger');
+            return;
+        }
+        var reader = new FileReader();
+        reader.onload = function () {
+            showImagePreview(previewBox, reader.result);
+            onChange(reader.result);
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+// Papar gambar dalam kotak; url kosong → ikon gantian
+function showImagePreview(box, url, iconClass) {
+    if (typeof box === 'string') {
+        box = document.getElementById(box);
+    }
+    box.replaceChildren();
+    if (url) {
+        var img = createEl('img');
+        img.src = url;
+        img.alt = '';
+        box.appendChild(img);
+    } else {
+        box.appendChild(createIcon(iconClass || 'bi-image'));
+    }
+}
+
+// "SK Taman Melati" → "sk-taman-melati"
+function slugify(text) {
+    return String(text).toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '')
+        .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
 }

@@ -193,3 +193,76 @@
 
 /* Teks .visually-hidden (position: absolute) dalam jadual kekal di dalam kawasan skrol jadual */
 .table-responsive { position: relative; }
+
+/* Sub-navigasi (pills) — skrol mendatar pada telefon, warna jenama */
+.app-sub-nav { --bs-nav-pills-link-active-bg: var(--app-brand); --bs-nav-link-color: var(--bs-body-color); }
+.app-sub-nav .nav-link { white-space: nowrap; }
+
+/* Logo koperasi / gambar produk kecil (tiada gambar → ikon) */
+.app-logo-box {
+    width: 3rem;
+    height: 3rem;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-radius: 0.5rem;
+    font-size: 1.4rem;
+    color: var(--app-brand);
+    background-color: rgba(15, 118, 110, 0.1);
+}
+
+.app-logo-box img { width: 100%; height: 100%; object-fit: cover; }
+.app-logo-box-lg { width: 6rem; height: 6rem; font-size: 2.5rem; }
+.app-border-brand { border-color: var(--app-brand) !important; }
+.app-time-input { min-width: 6.5rem; }
+.app-product-image {
+    width: 10rem;
+    height: 10rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-radius: 0.75rem;
+    font-size: 3rem;
+    color: var(--bs-secondary-color);
+    background-color: var(--bs-tertiary-bg);
+}
+
+.app-product-image img { width: 100%; height: 100%; object-fit: cover; }
+.app-po-product { min-width: 16rem; }
+
+/* Kad kosong (cth. darjah tanpa kit) */
+.app-dashed-card { border-style: dashed !important; background-color: transparent; }
+
+/* No. pesanan pendek (cth. A123) — besar supaya mudah dibaca di kaunter */
+.app-short-code {
+    min-width: 4.5rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 0.5rem;
+    font-size: 1.5rem;
+    font-weight: 700;
+    font-family: var(--bs-font-monospace);
+    text-align: center;
+    color: #fff;
+    background-color: var(--app-brand);
+}
+
+/* Garis masa sejarah status */
+.app-timeline li { position: relative; padding-left: 1rem; border-left: 2px solid var(--bs-border-color); }
+.app-timeline li::before {
+    content: '';
+    position: absolute;
+    left: -0.35rem;
+    top: 0.35rem;
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+    background-color: var(--app-brand);
+}
+
+/* Skrin serah barang — kotak carian besar untuk pengimbas/papan kekunci */
+.app-handover-input { font-size: 1.35rem; }
+.app-pin-input { max-width: 12rem; margin-inline: auto; }
+.app-handover-card:focus-within { outline: 3px solid var(--app-brand); outline-offset: 2px; }

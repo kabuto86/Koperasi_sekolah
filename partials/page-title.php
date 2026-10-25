@@ -6,7 +6,7 @@ $backUrl = $backUrl ?? null;
 $pageActions = $pageActions ?? [];
 ?>
 <?php if ($backUrl): ?>
-<a class="d-inline-block small mb-2 text-decoration-none" href="<?= e($backUrl) ?>">
+<a class="d-inline-block small mb-2 text-decoration-none d-print-none" href="<?= e($backUrl) ?>">
     <i class="bi bi-arrow-left" aria-hidden="true"></i> <?= e(t('btn.back')) ?>
 </a>
 <?php endif; ?>

@@ -5,7 +5,7 @@
 > tanpa bertanya. Status semasa: [PROSES.md](PROSES.md). Prompt kerja:
 > [PROMPT-SESSION.md](PROMPT-SESSION.md).
 
-Kemas kini terakhir: 24 Oktober 2026 (U2 — UI owner)
+Kemas kini terakhir: 25 Oktober 2026 (U3b — UI vendor bahagian 2)
 Persekitaran sasaran: XAMPP · PHP 8.2 · MariaDB 10.4+ / MySQL 8 · Bootstrap 5
 
 ---
@@ -402,7 +402,7 @@ Jumlah: **68 jadual**.
 Koperasi_sekolah/
 ├── CLAUDE.md
 ├── DOC/            PELAN.md · PROSES.md · PROMPT-SESSION.md
-├── config/         app.php · database.php (.gitignore) · database.example.php · secret.key (.gitignore)
+├── config/         app.php · malaysia.php (negeri, jenis sekolah, hari) · database.php (.gitignore) · database.example.php · secret.key (.gitignore)
 ├── core/           bootstrap.php · Config · View · SecurityHeaders (CSP) — sejak U1
 │                   Database · Request · Response · Validator · Csrf · Lang (+ t(), e())
 │                   OwnerAuth · VendorAuth · CustomerAuth · ApiTokenAuth
@@ -419,11 +419,11 @@ Koperasi_sekolah/
 │   ├── owner/  vendor/  store/  pos/
 │   └── webhooks/   toyyibpay.php · billplz.php · …
 ├── partials/       head · lang-switcher · sidebar-menu · ui-shell (toast + confirm) · scripts · login-form
-│                   page-title (tajuk + butang tindakan + kembali) · stat-card (kad papan pemuka)
+│                   page-title (tajuk + butang tindakan + kembali) · stat-card (kad papan pemuka) · sub-nav (pills)
 ├── owner/          panel owner (halaman .php)
 │   └── _layout/    header · sidebar · footer · profile-menu · menu.php (senarai menu)
 ├── vendor/         panel vendor (halaman .php)
-│   ├── _layout/    header · sidebar · footer · profile-menu · menu.php · addons.php
+│   ├── _layout/    header · sidebar · footer · profile-menu · menu.php · addons.php · sub-nav.php (kumpulan sub-navigasi)
 │   ├── addons/     halaman modul add-on: {code}.php (U6)
 │   └── pos/        POS kaunter + skrin serah barang
 ├── store/          index.php (titik masuk ibu bapa: slug → koperasi → template)
@@ -439,7 +439,7 @@ Koperasi_sekolah/
 │   ├── js/         api.js · lang.js · helpers.js · login.js · vendor-layout.js
 │   │   ├── owner/  satu fail per halaman owner (dashboard.js, vendors.js, …)
 │   │   ├── vendor/ satu fail per halaman vendor (dashboard.js, …)
-│   │   └── mock/   owner.js · vendor.js · store.js (Peringkat 1 sahaja)
+│   │   └── mock/   mock.js · owner.js · vendor.js · vendor-orders.js · store.js (Peringkat 1 sahaja)
 │   ├── img/
 │   └── fonts/      noto-sans-sc/ · noto-sans-tamil/ (woff2 400 & 700, unicode-range — dimuat bila perlu)
 ├── uploads/        {vendor_id}/{cooperative_id}/… (.gitignore isi, .htaccess halang PHP)
@@ -639,6 +639,10 @@ Dalam mock: `Mock.paginate(rows, params, ['medan_carian', ...])`.
 - `mock/owner.js`, `mock/vendor.js`, `mock/store.js` — dimuat oleh layout masing-masing
 - `config/app.php` `use_mock => false` (Peringkat 2) → skrip mock tidak dimuat; hanya `Api.request()` ditukar
 - `vendor_id` dalam mock datang dari `MockVendor.sessionVendorId` (meniru sesi) — tidak pernah dari parameter
+- **Persistence (sejak U3a):** `Mock.persist(nama, objek, [kunci])` menyimpan data mock dalam `sessionStorage`
+  selepas setiap POST yang berjaya, supaya rekod baharu kekal bila halaman bertukar (seperti DB sebenar).
+  Hilang bila tab ditutup; `Mock.resetStores()` di konsol untuk kembali ke data contoh. Naikkan
+  `Mock.storageVersion` bila bentuk data mock berubah
 
 ### 18.4 Objek U1
 
@@ -671,8 +675,11 @@ Mock demo: kata laluan `salah` → ralat log masuk; kod 2FA `000000` → ditolak
 - CSP (`core/SecurityHeaders.php`): `script-src 'self'; style-src 'self'` — skrip/gaya inline
   akan disekat pelayar, jadi pelanggaran kelihatan serta-merta
 - Bahasa: `?lang=xx` → cookie `lang` (1 tahun) → lalai `ms`. Tukar bahasa = muat semula halaman
-- Koperasi semasa (vendor): `currentCooperativeId()`; halaman dengar
-  `document.addEventListener('cooperativechange', fn)` untuk muat semula data
+- Koperasi semasa (vendor): `currentCooperativeId()`, `currentCooperative()`. Halaman vendor memuat data melalui
+  `onCooperativeReady(fn)` (dipanggil sekarang + setiap kali koperasi ditukar) dan menghantar parameter melalui
+  `withCoop(params)` (tambah `cooperative_id`). Halaman butiran satu rekod (produk, PO, stock take) kembali ke
+  senarai jika koperasi ditukar
+- Sub-navigasi vendor: halaman set `$subNavGroup` + `$subNavActive` (kumpulan dalam `vendor/_layout/sub-nav.php`)
 - Menu add-on vendor: dirender berkunci (pautan ke `vendor/subscription.php?module=code`);
   dibuka oleh `vendor-layout.js` jika `vendor/modules/active` mengandungi kodnya
 - Store Peringkat 1: `store/index.php?school={slug}&page={halaman}` — `View::storeUrl()`.
@@ -801,3 +808,139 @@ QR dijana dalam pelayar (`assets/lib/qrcode/`) — rahsia tidak dihantar ke perk
 | `owner/profile/save` · `change-password` | | kata laluan ≥ 10 aksara |
 
 Mock demo: kata laluan semasa `salah` → ralat; kod 2FA `000000` → ditolak.
+
+### 18.8 Objek vendor bahagian 1 (U3a) — `assets/js/mock/vendor.js`
+
+Setiap laluan vendor (kecuali pembekal & templat) menerima `cooperative_id` dan pelayan **mesti** mengesahkan ia milik
+vendor sesi (`ValidateCooperativeJob`); bukan milik → `{ ok:false, error: 'Data tidak dijumpai.' }` (sama seperti tiada,
+tidak mendedahkan kewujudan). Rekod anak (produk, PO, stock take, kelas) dicari dengan `vendor_id` + `cooperative_id` + `id`.
+
+**Dashboard** — `vendor/dashboard/summary {cooperative_id}`
+```js
+{ sales_today, sales_today_count, orders_to_prepare, orders_ready, low_stock_count,
+  low_stock: [InventoryRow ×6], sales_7days: [{ date: 'YYYY-MM-DD', amount }], announcements: [{ id, title, body, published_at }] }
+```
+**Cooperative** — `vendor/cooperatives/get {id}` (senarai: `vendor/cooperatives/list` → ringkasan + `template_name, class_count, product_count, modules`)
+```js
+{ id, slug, school_name, school_code /* AAA9999 */, school_type, state, district, address, phone, logo_url,
+  template_id, default_language, accept_cash, accept_online, status, created_at,
+  opening_hours: { mon: { open: true, from: '07:30', to: '13:00' }, … sun } }
+```
+- `vendor/cooperatives/pricing-preview` → `{ cooperative_number, plan_name, billing_cycle, price_monthly, price_yearly, current_period_end, max_cooperatives, limit_reached }`
+- `vendor/cooperatives/check-slug {slug, id}` → `{ slug, valid, available }` — unik seluruh platform, tidak dedah pemilik
+- `vendor/templates/options` → `[{ id, code, name, is_free, price_monthly, price_yearly, subscribed }]`
+- `vendor/cooperatives/save` — had pelan (`PlanLimit`) disemak; sekurang-kurangnya satu kaedah bayaran; template mesti dilanggan
+
+**Kelas** — `vendor/grades/list {cooperative_id}` → `['PRA','D1',…]` ikut jenis sekolah (SK/SJKC/SJKT: PRA–D6; SMK/SMKA/SBP: T1–T6);
+`vendor/classes/list` → `[{ id, grade_level_code, class_name, sort_order }]`; `add { grade_level_code, names: [] }` (pendua ditolak),
+`update { id, class_name }`, `delete { id }`
+
+**Category** — `vendor/categories/list` → `[{ id, name, sort_order, is_active, product_count }]`; `save`, `delete` (ditolak jika ada produk)
+
+**Product** — `vendor/products/get {id}` (senarai `list`: tapis `q, category_id, grade ('' | 'all' | kod), status, low_only`)
+```js
+{ id, cooperative_id, category_id, name, description, sku, barcode, price, cost_price, unit, image_url,
+  max_per_order /* null = tiada had */, has_variants, is_active, sort_order,
+  grade_levels: ['D1'] /* [] = semua darjah */,
+  variants: [{ id, label, sku, barcode, price_delta, is_active }],
+  translations: { en: { name, description }, zh: {…} } /* pilihan; bahasa kosong tidak dihantar */ }
+```
+Ringkasan senarai: `{ id, name, sku, barcode, category_id, category_name, price, unit, image_url, has_variants, variant_count,
+grade_levels, stock_available, is_low, is_active }`. SKU & barcode unik dalam koperasi. Varian baharu → baris stok 0.
+`vendor/products/options` → `[{ product_id, variant_id /* 0 = tiada */, name, sku, cost_price }]` (untuk PO).
+Gambar Peringkat 1: data URL; Peringkat 2: muat naik berasingan (`finfo`, ≤ 2MB, `uploads/{vendor_id}/{cooperative_id}/`)
+
+**InventoryRow** — `vendor/inventory/list` (tapis `q, category_id, low_only`; `data.low_count`)
+```js
+{ product_id, variant_id, product_name, variant_label, sku, category_id, category_name, unit,
+  qty_on_hand, qty_reserved, qty_available /* on_hand − reserved */, min_stock, is_low /* available ≤ min */, is_active }
+```
+- `vendor/inventory/stock-in { product_id, variant_id, qty ≥ 1, note }` → pergerakan `restock`
+- `vendor/inventory/adjust { product_id, variant_id, new_qty, reason: count_correction|damaged|lost|found|other, note, min_stock }`
+  → pergerakan `adjust` (tidak boleh di bawah `qty_reserved`)
+
+**StockMovement** — `vendor/inventory/movements` (tapis `q, type, product_id, variant_id, date_from, date_to`)
+```js
+{ id, cooperative_id, product_id, variant_id, product_name, variant_label, sku,
+  type: 'sale|pos_sale|reserve|release|collect|refund|restock|adjust|stocktake|po_receive',
+  qty_change, balance_after, ref_type: 'order|purchase_order|stock_take'|null, ref_id, user_name, note, created_at }
+```
+**Supplier** (peringkat vendor, dikongsi semua koperasi) — `vendor/suppliers/list` (tapis `q, status`)
+→ `{ id, name, contact_name, phone, email, address, is_active, open_po_count }`; `save`
+
+**PurchaseOrder** — `vendor/purchase-orders/get {id}` (senarai `list`: tapis `q, status, supplier_id`; tanpa `items`, ada `item_count`)
+```js
+{ id, cooperative_id, supplier_id, supplier_name, po_no, status: 'draft|ordered|partial|received|cancelled',
+  ordered_at, received_at, note, total,
+  items: [{ id, product_id, variant_id, product_name, variant_label, sku, qty_ordered, qty_received, unit_cost, amount }] }
+```
+- `save { id?, supplier_id, note, items: [{ product_id, variant_id, qty_ordered, unit_cost }], submit: bool }` — draf sahaja; `submit` → `ordered`
+- `receive { id, lines: [{ item_id, qty }] }` — separa dibenarkan; melebihi baki ditolak; pergerakan `po_receive`; status `partial`/`received`
+- `cancel { id }` — draf, atau dipesan tanpa barang diterima
+
+**StockTake** — `vendor/stock-takes/list` → `{ id, status: 'open|completed', started_by, started_at, completed_at, item_count, counted_count, variance_total }`;
+`get` + `items: [{ id, product_id, variant_id, product_name, variant_label, sku, category_name, qty_system, qty_counted /* null = belum */ }]`;
+`start` (satu terbuka sahaja; salin baki produk aktif), `save-counts { id, counts: [{ item_id, qty_counted }] }`,
+`complete { id }` → pergerakan `stocktake` untuk item yang dikira sahaja
+
+### 18.9 Objek vendor bahagian 2 (U3b) — `assets/js/mock/vendor-orders.js`
+
+**Status pesanan vs status bayaran.** `status` ikut PELAN 6. `payment_status: 'paid' | 'unpaid' | 'pending' | 'none'` dipulangkan
+berasingan (dikira dari jadual `payments`), kerana pesanan tunai bergerak `unpaid_cash → preparing → ready` dan hanya dibayar
+semasa diambil. Skrin serah meminta "Terima bayaran tunai" selagi `payment_status !== 'paid'`.
+
+**Rahsia pesanan:** `pickup_code` (4 digit) tidak pernah dipulangkan oleh mana-mana API vendor (disimpan sebagai hash);
+API hanya memulangkan `requires_code` dan `pickup_locked`. `qr_token` hanya dipulangkan oleh `vendor/orders/labels` (untuk dicetak).
+
+**Kit** — `vendor/kits/list { school_year }` → `{ school_year, grades: ['PRA',…], previous_year_count, kits: [KitSummary] }`
+```js
+KitSummary = { id, grade_level_code, school_year, name, note, is_published, item_count, total_price, mandatory_price }
+KitDetail  = KitSummary + { items: [{ id, product_id, variant_id /* null = ibu bapa pilih varian */, product_name, variant_label,
+                                      has_variants, unit_price, qty, is_mandatory, note, sort_order, is_active }] }
+```
+- `vendor/kits/product-options` → `[{ product_id, variant_id|null, name, variant_label, price, has_variants }]` (produk aktif sahaja)
+- `save { id?, grade_level_code, school_year, name, note, items: [{ product_id, variant_id, qty, is_mandatory, note }] /* susunan = sort_order */, publish }`
+  — UNIQUE(koperasi, darjah, tahun); `set-published { id, is_published }`; `delete { id }` (draf sahaja)
+- `copy-year { school_year }` → salin kit `school_year − 1` sebagai draf; darjah sedia ada dilangkau; item produk tidak aktif dibuang
+  → `{ copied, skipped, removed_items }`
+
+**OrderSummary** — `vendor/orders/list` (tapis `q` [no., kod pendek, nama murid/ibu bapa, telefon, token QR], `status` [boleh senarai
+dipisah koma], `grade`, `class_name`, `payment_method`, `date_from`, `date_to`; `data.status_counts: { ready: 7, … }`)
+```js
+{ id, order_no, short_code, status, payment_method: 'cash|online', payment_status, total, customer_name, customer_phone,
+  children: [{ child_name, grade_level_code, class_name }], item_count, created_at, expires_at }
+```
+**OrderDetail** — `vendor/orders/get {id}` = OrderSummary + `subtotal, discount, customer_email, pickup_by_type: 'student|parent|proxy',
+pickup_by_name, requires_code, pickup_locked, paid_at, collected_at`,
+`groups: [{ child_id, child_name, grade_level_code, class_name, items: [{ id, product_name, variant_label, sku, unit_price, qty, line_total,
+collected_qty, source: 'ala_carte|kit|pos' }] }]` (item dikumpul ikut anak),
+`logs: [{ from_status, to_status, actor: 'customer|system|vendor_user', actor_name, note, created_at }]`,
+`pickups: [{ method: 'A'…'E', picked_by_type, picked_by_name, user_name, created_at, items: [{ product_name, variant_label, child_name, qty }] }]`
+
+| Laluan (POST) | Input | Peraturan |
+|---|---|---|
+| `vendor/orders/set-status` | `id, status, note` | `paid/unpaid_cash → preparing → ready`, `ready → preparing`; batal hanya `pending_payment`/`unpaid_cash` (sebab wajib); dibayar → refund (U3c). `collected` hanya melalui serah |
+| `vendor/orders/bulk-status` | `ids[], status` | sama seperti di atas (tiada batal pukal) → `{ changed, skipped }` |
+| `vendor/handover/receive-cash` | `id, amount_received` (sen) | tunai sahaja, ≥ jumlah → `{ change, order }` |
+| `vendor/handover/collect` | `id, picked_by_type, picked_by_name, items: [{ item_id, qty }], code?` | status `ready`/`partially_collected`; dibayar; kod jika `requires_code` (5 salah → `pickup_locked`); qty ≤ baki; → `{ status, parent_notified: true, order }`; pergerakan stok `collect` |
+
+- `vendor/orders/picking-list { status (lalai 'paid,unpaid_cash,preparing'), grade, class_name }` →
+  `{ school_name, generated_at, order_count, groups: [{ grade_level_code, class_name, children: [{ child_name, order_no, short_code, status,
+  items: [{ product_name, variant_label, qty /* baki belum diambil */ }] }] }], totals: [{ product_name, variant_label, sku, qty }] }`
+- `vendor/orders/labels { grade, class_name, order_id? }` → `{ school_name, labels: [{ order_id, order_no, short_code, child_name,
+  grade_level_code, class_name, item_count, payment_status, qr_token }] }` — satu label setiap anak setiap pesanan
+- `vendor/orders/class-options` → `[{ grade_level_code, class_name }]`
+- `vendor/handover/search { q, grade, class_name }` → `{ items: [OrderDetail ×20], settings: { methods: ['A','B','C','D','E'?], code_required_above /* sen, 0 = tiada */ } }`
+  — padanan tepat token QR / kod pendek dahulu; jika tidak, pesanan aktif (`paid, unpaid_cash, preparing, ready, partially_collected`)
+  disusun `ready` dahulu
+
+**Customer** — `vendor/customers/list { q, grade, class_name }` (hanya ibu bapa yang ada anak di koperasi ini; hanya anak itu)
+```js
+{ id, full_name, phone, email, relationship: 'mother|father|guardian', children: [{ id, full_name, grade_level_code, class_name }],
+  order_count, total_spent, last_order_at, note /* nota vendor ini sahaja */ }
+```
+`vendor/customers/save-note { customer_id, note }` — ditolak jika ibu bapa tiada anak di koperasi ini
+
+**Skrin serah barang (vendor/pos/handover.php) — aliran papan kekunci:** fokus automatik pada carian → taip / imbas (pengimbas USB =
+papan kekunci + Enter) → satu hasil dibuka terus → [tunai: jumlah diterima diisi, Enter] → pilih siapa ambil (anak panah), Tab ke nama &
+item, Enter = sahkan → skrin berjaya ("Ibu bapa telah dimaklumkan"), fokus pada "Seterusnya" → Enter → kembali ke carian kosong
