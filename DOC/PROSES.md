@@ -30,7 +30,7 @@ Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 | U4 | UI POS kaunter | ✅ | 25 Okt 2026 | `2bf72c8` | Skrin penuh, PIN, syif, imbas, QR, resit 58/80, 116 kunci baharu, ujian kebocoran lulus, `DOC/screenshots/U4/` |
 | U5 | UI Store ibu bapa — Template 1 | ✅ | 25 Okt 2026 | `597d2d1` | 17 halaman, 250 kunci baharu, aliran kit → troli → checkout → slip, ujian kebocoran lulus, `DOC/screenshots/U5/` |
 | U6 | UI modul add-on | ✅ | 25 Okt 2026 | `db41ded` | 9 halaman vendor, banner & slot ambil di store, 195 kunci baharu, ujian kebocoran lulus, `DOC/screenshots/U6/` |
-| U7 | Semakan UI menyeluruh | 🟡 | | | |
+| U7 | Semakan UI menyeluruh | ✅ | 25 Okt 2026 | `30558a0` | 83 halaman × 4 bahasa × 2 lebar, axe 0 pelanggaran, indeks 214 laluan (PELAN 18.14), 6 perkara tertangguh U7 siap, `DOC/screenshots/U7/` |
 
 ## Peringkat 2 — Backend & API
 
@@ -457,14 +457,15 @@ Disemak:
   WhatsApp (data). Dua pemegang tempat Melayu ditukar ke `t()` (`settings.test_email_placeholder`, `class.names_placeholder`)
 - **Kunci bahasa:** 1773 kunci sama (6 kunci baharu) dalam `ms/en/zh/ta`
 - **Playwright** (`tools/ui-audit.js`): 83 halaman (21 owner, 45 vendor termasuk modul & POS, 17 store) × 4 bahasa × 375px & 1366px = 664 paparan —
-  RINGKASAN_AUDIT
+  tiada ralat konsol/CSP, tiada skrol mendatar, tiada `NaN/undefined/Invalid Date`, tiada medan tanpa label, butang tanpa nama atau gambar
+  tanpa `alt`. Baki yang dijangka: kunci bahasa dalam Log audit & Terjemahan (memang data), kotak semak hiasan `aria-hidden` dalam kit sekolah
 - **Tangkap layar:** `DOC/screenshots/U7/{ms,zh}-{375,1366}/` — 332 JPEG (setiap halaman) + 4 tangkap layar ciri baharu
 - **Aksesibiliti** (axe-core WCAG 2 A/AA pada 83 halaman, ms 1366px + skrip sendiri pada semua paparan): setiap medan berlabel, butang ikon
   bernama, gambar ada `alt`. Dibaiki: kontras tajuk seksyen sidebar (4.23 → ≥ 4.5), pautan navbar store (2.76 → ≥ 4.5; aktif bergaris bawah),
   butang bahasa di halaman log masuk, menu modul berkunci (3.71 → ≥ 4.5), butang garis luar kelabu/merah di atas latar panel,
   teks kecil pilihan juruwang POS bila dipilih, carta SVG kini ada `<title>` ringkasan.
   **Papan kekunci:** pautan "Langkau ke kandungan" (`.visually-hidden-focusable`, Tab pertama) di semua layout; `.btn-brand` tiada cincin fokus
-  (pemboleh ubah `--bs-btn-focus-shadow-rgb` hilang) — dibaiki; Tab melalui 12 elemen pertama 5 halaman — semua ada cincin fokus
+  (pemboleh ubah `--bs-btn-focus-shadow-rgb` hilang) — dibaiki; Tab melalui 12 elemen pertama 5 halaman — semua ada cincin fokus. Selepas pembaikan: **axe — 0 pelanggaran** pada 83 halaman
 
 Pepijat dijumpai & dibaiki:
 - Picking list (Tamil, 375px) menyebabkan skrol mendatar seluruh halaman → jadual dibungkus `.table-responsive`
@@ -491,6 +492,7 @@ Dokumen:
 - **PELAN 18.14 — indeks 214 laluan API** (kaedah, skop yang mesti disahkan pelayan, session B, fail mock) — spesifikasi backend
 - PELAN 4 — jadual menu ikut peranan; 18.9 (OrderSummary `pickup_slot`, OrderDetail `tax_rate/tax`, `slot-options`, label `pickup_slot`);
   18.11 (`closed_today`)
+- Butang "Nyahterbit" kit: `btn-outline-warning` (kontras 1.63) → `btn-outline-secondary`
 - `tools/ui-audit.js` — skrip semakan boleh diguna semula (tangkap layar dengan `shots`); `config/app.php` `asset_version` → `2`
 
 ### Perkara UI tertangguh (U7) — senarai lengkap untuk Peringkat 2

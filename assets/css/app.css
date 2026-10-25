@@ -55,7 +55,8 @@
 .app-panel { background-color: var(--bs-tertiary-bg); }
 
 /* Butang garis luar di atas latar panel kelabu: warna lebih gelap untuk kontras WCAG AA */
-.app-panel .btn-outline-secondary { --bs-btn-color: #565e64; }
+.app-panel .btn-outline-secondary,
+.store-body .btn-outline-secondary { --bs-btn-color: #565e64; }
 .app-panel .btn-outline-danger { --bs-btn-color: #b02a37; }
 
 .app-topbar { min-height: var(--app-topbar-height); }

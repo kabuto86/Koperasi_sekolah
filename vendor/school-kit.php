@@ -76,7 +76,7 @@ require __DIR__ . '/_layout/header.php';
                 <div class="card-footer bg-body d-grid gap-2">
                     <button type="button" class="btn btn-outline-secondary" id="btn-save-draft"><?= e(t('kit.save_draft')) ?></button>
                     <button type="button" class="btn btn-brand" id="btn-publish"><i class="bi bi-send" aria-hidden="true"></i> <?= e(t('kit.publish')) ?></button>
-                    <button type="button" class="btn btn-outline-warning d-none" id="btn-unpublish"><?= e(t('kit.unpublish')) ?></button>
+                    <button type="button" class="btn btn-outline-secondary d-none" id="btn-unpublish"><?= e(t('kit.unpublish')) ?></button>
                 </div>
             </div>
 
