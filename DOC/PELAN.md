@@ -365,14 +365,15 @@ Nama, harga dan maklumat anak **disalin** (snapshot) ke pesanan dan invois.
 - **`carts`** — id, customer_id, cooperative_id, vendor_id, updated_at · UNIQUE(customer_id, cooperative_id)
 - **`cart_items`** — id, cart_id, product_id, variant_id, child_id, qty, source ENUM(ala_carte, kit), school_kit_id NULL
 - **`orders`** — id, vendor_id, cooperative_id, customer_id NULL (NULL = POS walk-in), order_no, short_code, channel ENUM(online, pos), payment_method ENUM(cash, online), status (lihat 6), subtotal, discount, total, promotion_id, pickup_by_type ENUM(student, parent, proxy), pickup_by_name, pickup_code_hash NULL, pickup_qr_token UNIQUE, pickup_attempts, customer_name, customer_phone, customer_email (snapshot), expires_at, paid_at, collected_at, cancelled_at, created_at · UNIQUE(cooperative_id, order_no), UNIQUE(cooperative_id, short_code), INDEX(vendor_id, cooperative_id, status)
-- **`order_items`** — id, vendor_id, order_id, product_id, variant_id, product_name, variant_label, unit_price, qty, line_total, source ENUM(ala_carte, kit, pos), school_kit_id NULL, child_id NULL, child_name, grade_label, class_name, collected_qty
+- **`order_items`** — id, vendor_id, order_id, product_id, variant_id, product_name, variant_label, unit_price, qty, line_total, source ENUM(ala_carte, kit, pos), school_kit_id NULL, child_id NULL, child_name, grade_label, class_name, collected_qty, cancelled_qty (refund sebelum diambil), returned_qty (dipulang selepas diambil)
 - **`order_status_logs`** — id, vendor_id, order_id, from_status, to_status, actor_type, actor_id, note, created_at
 - **`order_pickups`** — id, vendor_id, order_id, method ENUM(A, B, C, D, E), picked_by_type ENUM(student, parent, proxy), picked_by_name, vendor_user_id, created_at
 - **`order_pickup_items`** — id, vendor_id, order_pickup_id, order_item_id, qty
 - **`payment_gateways`** — code PK (`toyyibpay`, `billplz`, `senangpay`, `ipay88`, `stripe`), name, config_fields_json, is_enabled_for_vendors, is_enabled_for_platform
 - **`cooperative_gateways`** — id, vendor_id, cooperative_id, gateway_code, credentials_encrypted, mode ENUM(sandbox, live), is_active · UNIQUE(cooperative_id, gateway_code)
 - **`payments`** — id, vendor_id, cooperative_id, order_id, method ENUM(cash, online), gateway_code NULL, gateway_ref UNIQUE NULL, amount, status ENUM(pending, paid, failed, refunded), raw_payload, verified_at, received_by NULL (juruwang), created_at
-- **`refunds`** — id, vendor_id, order_id, payment_id, amount, reason, method, status, vendor_user_id, created_at
+- **`refunds`** — id, vendor_id, cooperative_id, refund_no, order_id, payment_id, amount, reason, method ENUM(cash, bank_transfer, gateway), restock, status, vendor_user_id, created_at
+  > Butiran barang: **`refund_items`** — id, vendor_id, refund_id, order_item_id, qty, cancelled_qty (U3c)
 - **`pos_shifts`** — id, vendor_id, cooperative_id, vendor_user_id, opened_at, opening_cash, closed_at, closing_cash, expected_cash, variance, status
 - **`webhook_logs`** — id, gateway_code, cooperative_id NULL, payload, signature_valid, processed, created_at
 
@@ -439,7 +440,7 @@ Koperasi_sekolah/
 │   ├── js/         api.js · lang.js · helpers.js · login.js · vendor-layout.js
 │   │   ├── owner/  satu fail per halaman owner (dashboard.js, vendors.js, …)
 │   │   ├── vendor/ satu fail per halaman vendor (dashboard.js, …)
-│   │   └── mock/   mock.js · owner.js · vendor.js · vendor-orders.js · store.js (Peringkat 1 sahaja)
+│   │   └── mock/   mock.js · owner.js · vendor.js · vendor-orders.js · vendor-finance.js · store.js (Peringkat 1 sahaja)
 │   ├── img/
 │   └── fonts/      noto-sans-sc/ · noto-sans-tamil/ (woff2 400 & 700, unicode-range — dimuat bila perlu)
 ├── uploads/        {vendor_id}/{cooperative_id}/… (.gitignore isi, .htaccess halang PHP)
@@ -680,7 +681,7 @@ Mock demo: kata laluan `salah` → ralat log masuk; kod 2FA `000000` → ditolak
   `withCoop(params)` (tambah `cooperative_id`). Halaman butiran satu rekod (produk, PO, stock take) kembali ke
   senarai jika koperasi ditukar
 - Sub-navigasi vendor: halaman set `$subNavGroup` + `$subNavActive` (kumpulan dalam `vendor/_layout/sub-nav.php`)
-- Menu add-on vendor: dirender berkunci (pautan ke `vendor/subscription.php?module=code`);
+- Menu add-on vendor: dirender berkunci (pautan ke `vendor/addon-store.php?module=code` — sejak U3c, terus membuka anggaran harga);
   dibuka oleh `vendor-layout.js` jika `vendor/modules/active` mengandungi kodnya
 - Store Peringkat 1: `store/index.php?school={slug}&page={halaman}` — `View::storeUrl()`.
   `&template={kod}` = pratonton template dari panel owner (hanya jika folder wujud; B6 hadkan kepada owner).
@@ -944,3 +945,91 @@ collected_qty, source: 'ala_carte|kit|pos' }] }]` (item dikumpul ikut anak),
 **Skrin serah barang (vendor/pos/handover.php) — aliran papan kekunci:** fokus automatik pada carian → taip / imbas (pengimbas USB =
 papan kekunci + Enter) → satu hasil dibuka terus → [tunai: jumlah diterima diisi, Enter] → pilih siapa ambil (anak panah), Tab ke nama &
 item, Enter = sahkan → skrin berjaya ("Ibu bapa telah dimaklumkan"), fokus pada "Seterusnya" → Enter → kembali ke carian kosong
+
+### 18.10 Objek vendor bahagian 3 (U3c) — `assets/js/mock/vendor-finance.js`
+
+Laluan koperasi menerima `cooperative_id` (disahkan `ValidateCooperativeJob`); kakitangan, langganan, invois & log aktiviti ialah
+**peringkat vendor** (tiada `cooperative_id`, ditapis `vendor_id` sesi). Setiap tindakan di bawah menulis `activity_logs`
+(`action` = kod, label `T('activity.action.' + action)`).
+
+**Bayaran** — `vendor/payments/settings` → `{ accept_cash, accept_online, drivers: [{ code, name, supports_refund, fields: [{ name, secret }], configured }],
+gateway: GatewayPublic|null, callback_url }` (hanya driver `is_enabled_for_vendors`). `GatewayPublic = { gateway_code, mode: 'sandbox|live', is_active,
+values: { medan_bukan_rahsia }, secrets_set: ['secret_key'] }` — **rahsia tidak pernah dipulangkan**. `vendor/payments/gateway { gateway_code }` → GatewayPublic|null.
+
+| Laluan (POST) | Input | Peraturan |
+|---|---|---|
+| `vendor/payments/save-gateway` | `gateway_code, mode, credentials: {}` | driver dibenarkan owner; rahsia kosong = kekal; satu gateway aktif setiap koperasi (yang lain disimpan tidak aktif) |
+| `vendor/payments/test-gateway` | — | Peringkat 2: panggil API gateway dengan kunci tersimpan |
+| `vendor/payments/save-methods` | `accept_cash, accept_online` | sekurang-kurangnya satu; online perlu gateway aktif |
+
+**PaymentRecord** — `vendor/payments/list` (tapis `q, method, status, date_from, date_to`; `data.summary: { cash_total, online_total, refunded_total, pending_count }`)
+```js
+{ id, order_id, order_no, short_code, customer_name, method: 'cash|online', gateway_code, gateway_ref, amount, refunded_amount,
+  status: 'paid|pending|failed|refunded', received_by, paid_at, created_at }
+```
+
+**Refund** — `vendor/refunds/list` (tapis `q, method, date_from, date_to`; `data.total_amount`)
+```js
+{ id, refund_no: 'RF-1001', order_id, order_no, short_code, customer_name, amount, method: 'cash|bank_transfer|gateway', reason, restock, item_count, user_name, created_at }
+```
+- `vendor/refunds/order { q | order_id }` → pesanan dibayar sahaja: `{ id, order_no, short_code, status, customer_name, payment_method, gateway_name,
+  gateway_supports_refund, total, refunded_amount, refundable_amount, items: [{ id, product_name, variant_label, child_name, unit_price, qty, collected_qty,
+  cancelled_qty, returned_qty, returnable_qty }] }`
+- `vendor/refunds/create { order_id, items: [{ item_id, qty }], restock, amount, method, reason }` — `0 < amount ≤ refundable`; `qty ≤ returnable`;
+  `gateway` hanya jika driver `supports_refund`. Unit **belum diambil → dibatalkan** (`order_items.cancelled_qty`, `qty_reserved` dilepas, pergerakan `release`);
+  unit **sudah diambil → dipulang** (`returned_qty`; `restock` → pergerakan `refund` +qty). Refund penuh → status `refunded`. Skrin serah & picking list
+  menolak `cancelled_qty` (baki = qty − collected − cancelled). OrderDetail kini ada `refunded_amount` dan item `cancelled_qty, returned_qty`
+
+**Promotion** — `vendor/promotions/list` (tapis `q, state`)
+```js
+{ id, cooperative_id, name, code /* null = diskaun automatik */, type: 'percent|fixed', value /* % atau sen */, min_spend, starts_on, ends_on,
+  max_uses /* null = tanpa had */, used_count, is_active, state: 'active|scheduled|expired|inactive|used_up' /* dikira pelayan */ }
+```
+`save` (kod `^[A-Z0-9-]{3,20}$` unik dalam koperasi, huruf besar; % 1–100; tamat ≥ mula) · `delete` (ditolak jika `used_count > 0` — nyahaktif sahaja)
+
+**VendorUser** — `vendor/staff/list` (tapis `q, role, status`; `data.limit: { max /* null = tanpa had */, used }` = kakitangan aktif vs `plans.max_staff`)
+```js
+{ id, full_name, email, phone, role: 'vendor_admin|coop_manager|cashier', cooperative_ids: [] /* admin = semua */, cooperative_names,
+  is_active, pin_set, totp_enabled, last_login_at, is_self }
+```
+`save { id?, full_name, email, phone, role, cooperative_ids, pin? }` — e-mel unik **seluruh platform** (ralat umum, tidak dedah vendor lain); bukan admin
+perlu ≥ 1 koperasi milik vendor; PIN 4–6 digit (hash Argon2id); had pelan; tidak boleh tukar peranan sendiri · `set-active` (bukan diri sendiri; had pelan) ·
+`send-reset { id }` → `{ email }`
+
+**CooperativeSettings** — `vendor/settings/get` / `save`
+```js
+{ alert_emails: [] /* 1–5 */, default_language, receipt_header, receipt_footer, receipt_show_logo, receipt_paper: '58|80', tax_rate /* % 0–10 */,
+  pickup_methods: ['A','B','C','D','E'?] /* ≥ 1 dari A–D */, pickup_code_required_above /* sen, 0 = tidak */, cash_order_expiry_days /* 1–14 */, low_stock_default }
+```
+`default_language` disimpan dalam `cooperatives`; selebihnya `cooperative_settings`. Skrin serah membaca `pickup_methods` & had kod yang sama.
+
+**Laporan** — `vendor/reports/run { type, date_from, date_to }`, `type: daily|monthly|payment|product|profit|stock|grade|class` →
+`{ type, school_name, date_from, date_to /* null untuk stock */, generated_at, columns: [{ key, label /* kunci terjemahan */, format: 'text|int|money|percent|date|month|grade|method' }],
+rows: [{…}], totals: {…}, chart: [{ label, value, format? }] | null }`. Satu pemapar untuk semua jenis. Jualan = pesanan `payment_status = paid` ikut tarikh bayar;
+refund ditolak dalam "Bersih"; kos = `cost_price` produk; darjah/kelas dari snapshot `order_items`. **CSV dijana di pelayar** dari data yang sama
+(`downloadCsv()`, BOM UTF-8, wang dalam RM 2 titik perpuluhan). Peringkat 2: `ReportJob` per jenis, julat tarikh maks 1 tahun.
+
+**Langganan** — `vendor/subscription/get` →
+```js
+{ plan: { id, code, name, price_monthly, price_yearly, max_cooperatives, max_products, max_staff, features }, billing_cycle, status, started_at,
+  current_period_start, current_period_end, days_left, usage: { cooperatives, products, staff },
+  cooperatives: [{ id, school_name, number, included /* ke-1 */, price, template_name, template_price, modules: [{ code, price, started_at, cancel_at_period_end }] }],
+  renewal: { lines: [{ type: 'plan|cooperative|module|template', label, cooperative_name, price, cancelling }], subtotal, tax, total, sst_rate },
+  pending_change: { plan_id, plan_name, billing_cycle, effective_at } | null, unpaid_count, unpaid_total }
+```
+- `vendor/subscription/plans` → `{ current_plan_id, billing_cycle, plans: [Plan] }`; `change { plan_id, billing_cycle }` → berkuat kuasa pada `current_period_end`
+  (turun taraf ditolak jika penggunaan > had baharu); `cancel-change`
+- `vendor/addons/catalog` → `{ billing_cycle, current_period_end, modules: [{ code, price_monthly, price_yearly, price, status: 'active|cancelling|available|unavailable', started_at }],
+  templates: [{ id, code, name, is_free, price, subscribed, in_use }] }`
+- `vendor/addons/quote { item_type: module|template, code }` → `{ item_name, cooperative_name, billing_cycle, unit_price, period_start, period_end, days_left, period_days,
+  amount /* = unit_price × days_left / period_days */, tax, total, sst_rate, owned }`
+- `vendor/addons/subscribe` → **aktif serta-merta** + invois prorata `issued` (bayar dalam 7 hari, tempoh tangguh PELAN 14) → `{ invoice_id, invoice_no, total }`
+- `vendor/addons/cancel { code, undo }` → modul kekal aktif hingga hujung tempoh, tidak dicaj pada pembaharuan (tiada refund)
+- **Invois** — `vendor/invoices/list` (tapis `q, status`) → InvoiceSummary (18.7) + `line_count`; `get` → + `lines, payments, vendor { code, company_name }, sst_rate`
+  (draf tidak dipapar kepada vendor); `pay { id }` → Peringkat 1 simulasi `{ paid: true }`; Peringkat 2 `{ redirect_url }` ke gateway pemilik, `paid` hanya selepas webhook
+
+**ActivityLog** — `vendor/activity-logs/list` (tapis `q, user_id, scope: ''|current (+ cooperative_id), date_from, date_to`; `data.users: [{ id, full_name }]`)
+```js
+{ id, cooperative_id, cooperative_name /* null = peringkat vendor */, user_id, user_name, action, entity, entity_id, detail, created_at }
+```
+

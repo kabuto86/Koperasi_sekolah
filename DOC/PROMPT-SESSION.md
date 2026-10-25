@@ -30,6 +30,9 @@ Setiap prompt di bawah bermula dengan "Ikut peraturan umum". Maksudnya:
    `onCooperativeReady()` + `withCoop()`; halaman berkaitan dikumpul dengan sub-navigasi (`$subNavGroup`).
    Mock mendaftar storan dengan `Mock.persist()` supaya rekod baharu kekal antara halaman.
    Halaman pesanan/serah barang guna `assets/js/vendor/order-common.js` (`childLine`, `paymentBadge`, `bindGradeClassFilters`).
+   Mock vendor: `vendor.js` (katalog/stok) · `vendor-orders.js` (kit/pesanan/serah) · `vendor-finance.js` (bayaran, refund, promosi,
+   kakitangan, tetapan, laporan, langganan, log aktiviti — panggil `mockActivity()` untuk tindakan baharu). Baki item pesanan =
+   qty − collected − cancelled (`mockItemRemaining`). CSV laporan: `downloadCsv()` dalam helpers.js.
    Sebelum commit jalankan `php tools/check-ui.php` (tiada inline CSS, kunci 4 bahasa sama).
 7. **Peringkat 2 (B):** jalankan ujian kebocoran dua vendor + dua ibu bapa (PELAN 15) sebelum tutup session.
 8. **Penutup wajib:**
@@ -167,7 +170,8 @@ getTotals) — boleh disalin, jangan tulis semula dari awal.
 Bina vendor/pos/index.php: skrin penuh, kategori + grid produk, carian, imbas barcode
 (medan sentiasa fokus), modal varian, troli, diskaun/kupon, bayar tunai (cadangan wang,
 baki) / online (QR gateway — UI), resit (assets/css/receipt.css 58/80mm), buka/tutup syif,
-log masuk PIN juruwang (UI). Tab "Serah barang" memaut ke skrin U3b.
+log masuk PIN juruwang (UI — kakitangan & `pin_set` dari `vendor/staff/list`, U3c). Guna promosi dari
+`vendor/promotions/list` (kod kupon / automatik) dan tetapan resit dari `vendor/settings/get`. Tab "Serah barang" memaut ke skrin U3b.
 Sahkan boleh digunakan dengan pengimbas USB (papan kekunci) dan skrin sentuh 1024px.
 ```
 

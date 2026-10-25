@@ -266,3 +266,20 @@
 .app-handover-input { font-size: 1.35rem; }
 .app-pin-input { max-width: 12rem; margin-inline: auto; }
 .app-handover-card:focus-within { outline: 3px solid var(--app-brand); outline-offset: 2px; }
+
+/* Bar penggunaan had pelan (<progress> — lebar tidak ditetapkan secara inline) */
+.app-progress {
+    width: 100%;
+    height: 0.5rem;
+    appearance: none;
+    border: 0;
+    border-radius: 1rem;
+    overflow: hidden;
+    background-color: var(--bs-secondary-bg);
+    accent-color: var(--app-brand);
+}
+.app-progress::-webkit-progress-bar { background-color: var(--bs-secondary-bg); }
+.app-progress::-webkit-progress-value { background-color: var(--app-brand); }
+.app-progress::-moz-progress-bar { background-color: var(--app-brand); }
+.app-progress.is-full::-webkit-progress-value { background-color: var(--bs-warning); }
+.app-progress.is-full::-moz-progress-bar { background-color: var(--bs-warning); }
