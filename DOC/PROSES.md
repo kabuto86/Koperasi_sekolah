@@ -27,7 +27,7 @@ Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 | U3a | UI Vendor — dashboard, koperasi, produk, inventori, pembekal | ✅ | 25 Okt 2026 | `41b3a2e` | 18 halaman, 231 kunci baharu, ujian kebocoran VENDOR02 lulus, `DOC/screenshots/U3a/` |
 | U3b | UI Vendor — kit sekolah, pesanan, serah barang, ibu bapa | ✅ | 25 Okt 2026 | `331aa9f` | 9 halaman, 154 kunci baharu, serah barang papan kekunci sahaja, `DOC/screenshots/U3b/` |
 | U3c | UI Vendor — bayaran, refund, promosi, kakitangan, laporan, tetapan, langganan | ✅ | 25 Okt 2026 | `26d3640` | 11 halaman, 328 kunci baharu, ujian kebocoran VENDOR02 lulus, `DOC/screenshots/U3c/` |
-| U4 | UI POS kaunter | ✅ | 25 Okt 2026 | (lihat git log) | Skrin penuh, PIN, syif, imbas, QR, resit 58/80, 116 kunci baharu, ujian kebocoran lulus, `DOC/screenshots/U4/` |
+| U4 | UI POS kaunter | ✅ | 25 Okt 2026 | `2bf72c8` | Skrin penuh, PIN, syif, imbas, QR, resit 58/80, 116 kunci baharu, ujian kebocoran lulus, `DOC/screenshots/U4/` |
 | U5 | UI Store ibu bapa — Template 1 | ⬜ | | | |
 | U6 | UI modul add-on | ⬜ | | | |
 | U7 | Semakan UI menyeluruh | ⬜ | | | |
