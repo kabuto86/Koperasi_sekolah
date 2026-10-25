@@ -4,9 +4,9 @@
 > Kemas kini fail ini di HUJUNG setiap session, sebelum commit & push.
 > Reka bentuk: [PELAN.md](PELAN.md) · Prompt kerja: [PROMPT-SESSION.md](PROMPT-SESSION.md)
 
-**Status keseluruhan:** Peringkat 1 · kerangka UI, panel owner & panel vendor (U3a–U3c) siap
-**Session terakhir siap:** U3c — UI Vendor bahagian 3
-**Session seterusnya:** **U4 — UI POS kaunter**
+**Status keseluruhan:** Peringkat 1 · kerangka UI, panel owner, panel vendor (U3a–U3c) & POS kaunter (U4) siap
+**Session terakhir siap:** U4 — UI POS kaunter
+**Session seterusnya:** **U5 — UI Store ibu bapa (Template 1)**
 
 Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 
@@ -27,7 +27,7 @@ Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 | U3a | UI Vendor — dashboard, koperasi, produk, inventori, pembekal | ✅ | 25 Okt 2026 | `41b3a2e` | 18 halaman, 231 kunci baharu, ujian kebocoran VENDOR02 lulus, `DOC/screenshots/U3a/` |
 | U3b | UI Vendor — kit sekolah, pesanan, serah barang, ibu bapa | ✅ | 25 Okt 2026 | `331aa9f` | 9 halaman, 154 kunci baharu, serah barang papan kekunci sahaja, `DOC/screenshots/U3b/` |
 | U3c | UI Vendor — bayaran, refund, promosi, kakitangan, laporan, tetapan, langganan | ✅ | 25 Okt 2026 | `26d3640` | 11 halaman, 328 kunci baharu, ujian kebocoran VENDOR02 lulus, `DOC/screenshots/U3c/` |
-| U4 | UI POS kaunter | ⬜ | | | |
+| U4 | UI POS kaunter | ✅ | 25 Okt 2026 | `2bf72c8` | Skrin penuh, PIN, syif, imbas, QR, resit 58/80, 116 kunci baharu, ujian kebocoran lulus, `DOC/screenshots/U4/` |
 | U5 | UI Store ibu bapa — Template 1 | ⬜ | | | |
 | U6 | UI modul add-on | ⬜ | | | |
 | U7 | Semakan UI menyeluruh | ⬜ | | | |
@@ -281,6 +281,58 @@ Tertangguh:
 - Bayaran invois sebenar melalui gateway pemilik + webhook — B12; refund automatik melalui API gateway — B8/B11
 - E-mel jemputan / pautan kata laluan kakitangan sebenar — B2; kawalan peranan (juruwang tidak nampak menu kewangan) — B2/U7
 - Kaitan promosi dengan pesanan (`orders.promotion_id`, `used_count`) — B7/B10
+
+### U4 — UI POS kaunter (25 Okt 2026)
+
+Dibuat:
+- `vendor/pos/index.php` — **skrin penuh** (layout baharu `vendor/_layout/pos-header.php` / `pos-footer.php`, tiada sidebar; tab "Jualan" | "Serah barang",
+  pemilih koperasi, juruwang semasa, menu syif, butang skrin penuh, bahasa). Tiga langkah dalam satu halaman:
+  1. **Log masuk PIN juruwang** — kakitangan aktif dengan `pin_set` & akses koperasi dari `vendor/staff/list` (U3c), papan kekunci PIN 3×4
+     (sentuh) atau taip; 5 PIN salah → dikunci
+  2. **Buka syif** — tunai permulaan laci
+  3. **Jualan** — medan imbas sentiasa difokus, pil kategori, grid produk (kad butang besar: harga, "dari RM" untuk varian, baki stok / habis),
+     modal varian (saiz + kuantiti), troli (+/−/taip kuantiti, buang, kosongkan), "Nama pembeli, kupon & diskaun" (kupon dari `vendor/promotions/list`,
+     diskaun automatik terbaik, diskaun manual), cukai dari tetapan, **Tunai** (wang pantas, baki) / **QR online** (QR gateway, menunggu bayaran,
+     batal), **resit** 58/80mm (tetapan resit `vendor/settings/get`), "Jualan syif ini" (cetak semula resit), **tutup syif** (jangkaan vs tunai sebenar,
+     beza, nota, cetak laporan syif)
+- `assets/js/vendor/pos-cart.js` — logik troli **disalin & diubah suai dari KedaiPOS** (`kabuto86/pos-system`: `makeLineId`, `calcUnitPrice`, `getTotals`,
+  `suggestCashAmounts`) dalam sen; dipakai halaman & mock
+- `assets/js/vendor/pos.js` — halaman; `assets/js/mock/vendor-pos.js` — sesi PIN, syif, katalog, checkout, status QR, resit
+- `assets/css/pos.css` (susun atur skrin penuh, kad sentuh, papan kekunci PIN), `assets/css/receipt.css` (resit & cetak)
+- Jualan POS disimpan sebagai pesanan `channel = 'pos'` → terus muncul dalam rekod bayaran, laporan, pergerakan stok (`pos_sale`), refund
+- `order.php` — pesanan POS: "Jualan kaunter (POS)", "Pelanggan kaunter", tiada label beg; `refunds.js`, `payment-records.js` — nama walk-in;
+  `vendor/orders/list` tidak menyenaraikan jualan POS; rekod bayaran tunai POS → nama juruwang; skrin serah barang ada butang "POS kaunter"
+- `lang/*.php` — 116 kunci baharu (jumlah 1322)
+- `DOC/screenshots/U4/` — 14 tangkap layar (1024 sentuh, 375, 1366 zh, cetakan resit & laporan syif)
+
+Disahkan:
+- `php tools/check-ui.php` → tiada inline CSS, 1322 kunci sama dalam 4 bahasa
+- Playwright: POS × 4 bahasa × 375px / 1024px (sentuh) / 1366px — log masuk → syif → imbas → bayar tunai → resit: tiada ralat konsol/CSP,
+  tiada kunci mentah, tiada skrol mendatar; halaman pesanan, refund, rekod bayaran, laporan, pergerakan stok, serah barang diuji semula
+- **Pengimbas USB (papan kekunci sahaja):** fokus pada medan imbas selepas syif dibuka → taip `5*955200000007` + Enter (5 pemadam) → `AT-P2B12` + Enter
+  → F2 → wang pantas / Enter → resit (fokus "Jualan baharu") → Enter → kembali ke medan imbas kosong. Sentuh kategori/produk → fokus kembali ke medan imbas
+- **Skrin sentuh 1024px:** kad produk ≥ 6.5rem, butang bayar 3.5rem, papan kekunci PIN, troli lajur kanan; < 992px troli jadi panel + bar bawah
+- Kupon JIMAT5 di bawah belanja minimum → amaran & bayaran disekat; tambah barang → -RM 5.00; stok melebihi baki ditolak; QR online → dibayar → resit;
+  QR dibatalkan → troli kekal, tahanan stok dilepas; kunci → PIN semula → syif & troli kekal; tutup syif → beza dikira → juruwang dilog keluar
+- **Ujian kebocoran** (mock, 15 laluan): sesi/katalog koperasi VENDOR02, PIN juruwang VENDOR02 di koperasi VENDOR01, juruwang tanpa akses koperasi,
+  checkout tanpa PIN, syif & produk & kupon VENDOR02, resit/batal/senarai jualan VENDOR02 — semuanya ditolak; harga & jumlah dari pelayar diabaikan
+  (pelayan mengira semula)
+
+Keputusan kecil (dicatat dalam PELAN 9.G & 18.11):
+- Jualan POS = `orders.channel = 'pos'` (tiada jadual berasingan); tidak dalam senarai "Pesanan online"; no. resit `POS-YYMMDD-001`, kod `P001`
+- Tambah lajur `orders`: `promotion_discount, manual_discount, tax_rate, tax, pos_shift_id, cashier_id, amount_received, change_given`; `pos_shifts.note`
+- Satu promosi setiap jualan (kupon, jika tidak automatik terbaik); cukai dikira **selepas** diskaun
+- Tunai sentiasa dibenarkan di POS; QR online perlu gateway aktif. Online menahan stok sehingga dibayar
+- Satu syif terbuka setiap juruwang setiap koperasi; "Kunci" tidak menutup syif; tutup syif ditolak jika ada QR belum selesai
+- Peranti kaunter guna sesi panel vendor + PIN juruwang (`$_SESSION['pos_user_id'][cooperative_id]`); log aktiviti & pergerakan stok atas nama juruwang
+- Kertas resit: lebar ikut tetapan (58/80mm), `@page { margin: 0 }`; saiz kertas sebenar dalam pemacu pencetak
+
+Tertangguh:
+- PIN sebenar (Argon2id), buka kunci PIN oleh pentadbir, webhook QR sebenar — B10/B8 (demo: PIN 1234, QR dibayar pada semakan ke-2)
+- Refund tunai POS tidak ditolak dari jangkaan tunai laci — B10/B11
+- Baris cukai dalam butiran pesanan (`order.php`) — U7 (cukai koperasi semasa 0%)
+- Imbas QR/barcode dengan kamera telefon — U7 (pengimbas USB disokong); pemilih koperasi POS disembunyikan < 768px
+- Sekatan peranan (juruwang hanya POS & serah barang) — B2/U7
 
 ---
 

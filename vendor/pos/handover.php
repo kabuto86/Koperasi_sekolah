@@ -6,6 +6,9 @@ require __DIR__ . '/../../core/bootstrap.php';
 $pageTitle = t('menu.handover');
 $activeMenu = 'menu.handover';
 $pageScripts = [View::asset('js/vendor/order-common.js'), View::asset('js/vendor/handover.js')];
+$pageActions = [
+    ['id' => 'btn-pos', 'label' => t('menu.pos'), 'icon' => 'bi-upc-scan', 'class' => 'btn-outline-secondary', 'href' => View::url('vendor/pos/index.php')],
+];
 require __DIR__ . '/../_layout/header.php';
 ?>
 <form class="card border-0 shadow-sm mb-3" id="handover-search" role="search">

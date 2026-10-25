@@ -33,6 +33,8 @@ Setiap prompt di bawah bermula dengan "Ikut peraturan umum". Maksudnya:
    Mock vendor: `vendor.js` (katalog/stok) · `vendor-orders.js` (kit/pesanan/serah) · `vendor-finance.js` (bayaran, refund, promosi,
    kakitangan, tetapan, laporan, langganan, log aktiviti — panggil `mockActivity()` untuk tindakan baharu). Baki item pesanan =
    qty − collected − cancelled (`mockItemRemaining`). CSV laporan: `downloadCsv()` dalam helpers.js.
+   POS (sejak U4): `vendor-pos.js` (mock) · `assets/js/vendor/pos-cart.js` (`posUnitPrice`, `posTotals`, `posBestAutomatic`,
+   `posSuggestCash`) — jualan POS ialah pesanan `channel = 'pos'`; layout skrin penuh `vendor/_layout/pos-header.php`.
    Sebelum commit jalankan `php tools/check-ui.php` (tiada inline CSS, kunci 4 bahasa sama).
 7. **Peringkat 2 (B):** jalankan ujian kebocoran dua vendor + dua ibu bapa (PELAN 15) sebelum tutup session.
 8. **Penutup wajib:**
@@ -362,10 +364,12 @@ Sahkan: juruwang koperasi lain tidak boleh serah pesanan koperasi ini; kod salah
 
 ```
 Ikut peraturan umum. Session: B10. Prasyarat: B9 ✅.
-Baca DOC/PELAN.md bahagian 5.2 (9), 17. Rujuk pos-system (calcUnitPrice, getTotals).
+Baca DOC/PELAN.md bahagian 5.2 (9), 17, 18.11 (kontrak POS dari U4). Logik troli sudah dalam
+assets/js/vendor/pos-cart.js (dari pos-system) — PosCalculateCartJob mesti memberi jumlah yang sama.
 Job: PosCatalogJob, FindByBarcodeJob, PosCalculateCartJob, PosCheckoutJob (order channel=pos,
 bayar serta-merta, tolak stok), ReceivePosCashForOrderJob (bayar tunai pesanan online),
-OpenShiftJob, CloseShiftJob, ShiftReportJob, GetReceiptJob.
+OpenShiftJob, CloseShiftJob, ShiftReportJob, GetReceiptJob, PosPinLoginJob (pin_hash Argon2id, 5 cubaan → kunci),
+PosOnlinePaymentJob (QR gateway + webhook → PAID, tahanan stok). Gantikan PIN demo 1234.
 Sahkan: cashier ditolak untuk endpoint katalog/tetapan (403).
 ```
 

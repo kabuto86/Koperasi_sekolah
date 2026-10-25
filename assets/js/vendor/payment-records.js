@@ -14,7 +14,7 @@ function loadRecords() {
         renderTable('records-body', res.data.items, [
             { className: 'small text-nowrap', render: function (row) { return formatDate(row.paid_at || row.created_at, true); } },
             { render: function (row) {
-                return createStack(createLink(row.order_no, pageUrl('vendor/order.php?id=' + row.order_id), 'fw-semibold'), row.short_code + ' · ' + row.customer_name);
+                return createStack(createLink(row.order_no, pageUrl('vendor/order.php?id=' + row.order_id), 'fw-semibold'), row.short_code + ' · ' + (row.customer_name || T('pos.walk_in')));
             } },
             { render: function (row) {
                 return createStack(T('payment.method.' + row.method), row.method === 'online' ? GATEWAY_NAMES[row.gateway_code] || row.gateway_code : T('payment.received_by', { name: row.received_by }));

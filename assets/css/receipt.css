@@ -1,0 +1,36 @@
+/* Resit POS & laporan syif — kertas termal 58mm / 80mm (tetapan receipt_paper koperasi).
+   Skrin: pratonton dalam modal. Cetak: hanya #receipt-print dipaparkan (lihat pos-footer.php).
+   Saiz kertas sebenar ditetapkan dalam pemacu pencetak; @page hanya membuang margin. */
+
+.app-receipt {
+    background-color: #fff;
+    color: #000;
+    font-family: var(--bs-font-monospace);
+    font-size: 12px;
+    line-height: 1.35;
+    padding: 4mm 3mm;
+}
+
+.app-receipt-58 { width: 58mm; max-width: 100%; }
+.app-receipt-80 { width: 80mm; max-width: 100%; }
+.app-receipt-58 { font-size: 11px; }
+
+.app-receipt-logo { max-width: 24mm; max-height: 18mm; display: block; margin: 0 auto 2mm; filter: grayscale(1); }
+.app-receipt-center { text-align: center; }
+.app-receipt-title { font-weight: 700; font-size: 1.15em; text-transform: uppercase; }
+.app-receipt-rule { border-top: 1px dashed #000; margin: 2mm 0; }
+.app-receipt-row { display: flex; justify-content: space-between; gap: 2mm; }
+.app-receipt-row > span:last-child { text-align: end; white-space: nowrap; }
+.app-receipt-item { margin-bottom: 1mm; }
+.app-receipt-sub { padding-inline-start: 3mm; }
+.app-receipt-total { font-weight: 700; font-size: 1.3em; }
+.app-receipt-muted { color: #444; }
+#receipt-paper .app-receipt { box-shadow: var(--bs-box-shadow-sm); }
+
+@media print {
+    @page { margin: 0; }
+
+    body.app-pos { background-color: #fff !important; }
+    .app-toasts, .modal, .modal-backdrop, .offcanvas, .offcanvas-backdrop { display: none !important; }
+    #receipt-print .app-receipt { box-shadow: none !important; margin: 0; }
+}

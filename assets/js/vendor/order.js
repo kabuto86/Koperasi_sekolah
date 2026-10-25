@@ -37,15 +37,17 @@ function renderOrder(order) {
     setText('ord-subtotal', formatRM(order.subtotal));
     setText('ord-discount', order.discount ? '-' + formatRM(order.discount) : formatRM(0));
     setText('ord-total', formatRM(order.total));
-    setText('ord-customer', order.customer_name);
+    var isPos = order.channel === 'pos';
+    setText('ord-customer', order.customer_name || (isPos ? T('pos.walk_in') : ''));
     setText('ord-phone', order.customer_phone);
     setText('ord-email', order.customer_email);
     document.getElementById('ord-payment').replaceChildren(paymentBadge(order));
-    setText('ord-pickup-by', T('pickup.by.' + order.pickup_by_type) + ': ' + order.pickup_by_name);
+    setText('ord-pickup-by', isPos ? T('pos.counter_sale') : T('pickup.by.' + order.pickup_by_type) + ': ' + order.pickup_by_name);
     setText('ord-code', order.requires_code ? (order.pickup_locked ? T('order.code_locked') : T('order.code_required')) : T('order.code_not_required'));
     setText('ord-expires', order.expires_at ? formatDate(order.expires_at, true) : '—');
 
     document.getElementById('btn-label').href = pageUrl('vendor/bag-labels.php?order_id=' + order.id);
+    document.getElementById('btn-label').classList.toggle('d-none', isPos);
     var canHandover = ['ready', 'partially_collected'].indexOf(order.status) !== -1;
     var handover = document.getElementById('btn-handover');
     handover.classList.toggle('d-none', !canHandover);
@@ -65,8 +67,11 @@ function renderGroups(groups) {
         var card = createEl('div', 'card border-0 shadow-sm mb-3');
         var header = createEl('div', 'card-header bg-body d-flex align-items-center gap-2');
         header.appendChild(createIcon('bi-person-badge text-brand'));
-        header.appendChild(createEl('span', 'fw-semibold', group.child_name));
-        header.appendChild(createEl('span', 'badge text-bg-light border', childClass(group)));
+        // Jualan POS tiada anak — satu kumpulan "Jualan kaunter"
+        header.appendChild(createEl('span', 'fw-semibold', group.child_id ? group.child_name : T('pos.counter_sale')));
+        if (group.child_id) {
+            header.appendChild(createEl('span', 'badge text-bg-light border', childClass(group)));
+        }
         card.appendChild(header);
 
         var wrap = createEl('div', 'table-responsive');
