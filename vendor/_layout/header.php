@@ -28,6 +28,9 @@ View::partial('partials/head.php', ['pageTitle' => $pageTitle, 'bodyClass' => 'a
 <div class="app-wrapper d-flex">
     <?php require __DIR__ . '/sidebar.php'; ?>
     <main class="app-main flex-grow-1 p-3 p-lg-4" id="main">
+        <?php if (!empty($subNavGroup)) {
+            require __DIR__ . '/sub-nav.php';
+        } ?>
         <?php View::partial('partials/page-title.php', [
             'pageTitle'   => $pageTitle,
             'backUrl'     => $backUrl ?? null,

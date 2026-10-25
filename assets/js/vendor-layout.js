@@ -11,6 +11,29 @@ function currentCooperativeId() {
     return VendorLayout.current ? VendorLayout.current.id : null;
 }
 
+function currentCooperative() {
+    return VendorLayout.current;
+}
+
+// Panggil fn(cooperative) sekarang (jika sudah dipilih) dan setiap kali koperasi ditukar.
+// Halaman vendor memuat data melalui fungsi ini supaya data sentiasa ikut koperasi semasa.
+function onCooperativeReady(fn) {
+    if (VendorLayout.current) {
+        fn(VendorLayout.current);
+    }
+    document.addEventListener('cooperativechange', function (event) {
+        fn(event.detail.cooperative);
+    });
+}
+
+// Tambah cooperative_id semasa pada parameter API.
+// Pelayan tetap mengesahkan koperasi milik vendor sesi (ValidateCooperativeJob).
+function withCoop(params) {
+    var result = Object.assign({}, params || {});
+    result.cooperative_id = currentCooperativeId();
+    return result;
+}
+
 function readSavedCooperativeId() {
     try {
         return Number(localStorage.getItem(VendorLayout.storageKey)) || null;

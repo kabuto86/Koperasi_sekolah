@@ -4,9 +4,9 @@
 > Kemas kini fail ini di HUJUNG setiap session, sebelum commit & push.
 > Reka bentuk: [PELAN.md](PELAN.md) · Prompt kerja: [PROMPT-SESSION.md](PROMPT-SESSION.md)
 
-**Status keseluruhan:** Peringkat 1 · kerangka UI & panel owner siap
-**Session terakhir siap:** U2 — UI Owner
-**Session seterusnya:** **U3a — UI Vendor (bahagian 1)**
+**Status keseluruhan:** Peringkat 1 · kerangka UI, panel owner & vendor bahagian 1 siap
+**Session terakhir siap:** U3a — UI Vendor bahagian 1
+**Session seterusnya:** **U3b — UI Vendor (bahagian 2): kit, pesanan, serah barang**
 
 Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 
@@ -24,7 +24,7 @@ Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 |---|---|---|---|---|---|
 | U1 | Kerangka UI: layout, Bootstrap, `t()` 4 bahasa, `api.js` mock | ✅ | 24 Okt 2026 | `1082584` | 3 layout, 4 bahasa (155 kunci), CSP, tangkap layar `DOC/screenshots/U1/` |
 | U2 | UI Owner | ✅ | 24 Okt 2026 | `98c608e` | 20 halaman, 338 kunci baharu, mock VENDOR01–07, tangkap layar `DOC/screenshots/U2/` |
-| U3a | UI Vendor — dashboard, koperasi, produk, inventori, pembekal | ⬜ | | | |
+| U3a | UI Vendor — dashboard, koperasi, produk, inventori, pembekal | ✅ | 25 Okt 2026 | (lihat git log) | 18 halaman, 231 kunci baharu, ujian kebocoran VENDOR02 lulus, `DOC/screenshots/U3a/` |
 | U3b | UI Vendor — kit sekolah, pesanan, serah barang, ibu bapa | ⬜ | | | |
 | U3c | UI Vendor — bayaran, refund, promosi, kakitangan, laporan, tetapan, langganan | ⬜ | | | |
 | U4 | UI POS kaunter | ⬜ | | | |
@@ -150,6 +150,49 @@ Keputusan kecil (dicatat dalam PELAN 18.6–18.7):
 Tertangguh:
 - Sekatan peranan `owner_staff` (sembunyi menu harga/pelan/tetapan) — kawalan sebenar di B2/B3, UI menyusul
 - Gambar pratonton template sebenar (`preview_image`) — bila template2/3 dibina
+
+### U3a — UI Vendor bahagian 1 (25 Okt 2026)
+
+Dibuat (`vendor/` + `assets/js/vendor/` satu fail JS setiap halaman; semua data ikut koperasi semasa):
+- `index.php` papan pemuka — jualan hari ini, menunggu disediakan / diambil, stok rendah, carta jualan 7 hari, pengumuman platform, senarai stok rendah
+- `cooperatives.php` (kad koperasi) · `cooperative-form.php` — maklumat sekolah (kod KPM `AAA9999`, jenis, negeri, daerah, alamat),
+  slug dijana dari nama + semakan unik seluruh platform, logo (pratonton), template (yang belum dilanggan dimatikan),
+  bahasa lalai, waktu operasi 7 hari, tunai/online (wajib satu), **amaran harga koperasi tambahan** & had pelan
+- `classes.php` — kelas ikut darjah (tambah beberapa sekali gus, tukar nama, padam; pendua ditolak)
+- `products.php` (carian, tapis kategori/darjah/status/stok rendah) · `categories.php` · `product-form.php`
+  (harga & kos + untung, had beli, gambar, darjah sasaran, varian dengan beza harga, terjemahan en/zh/ta pilihan)
+- `inventory.php` (stok masuk, pelarasan dengan sebab, stok minimum, amaran stok rendah) · `stock-movements.php`
+- `stock-takes.php` · `stock-take.php` (kiraan, Enter ke baris seterusnya, perbezaan langsung, selesai → laras stok)
+- `suppliers.php` · `purchase-orders.php` · `purchase-order.php` (draf boleh sunting → dipesan → terima separa/penuh → stok masuk automatik; batal; cetak)
+- `assets/js/mock/vendor.js` ditulis semula: 2 koperasi VENDOR01 + 1 koperasi VENDOR02, 24 produk (varian & terjemahan), stok,
+  pergerakan, 5 pembekal, 6 PO, stock take; setiap laluan menapis vendor sesi & mengesahkan koperasi
+- `mock.js`: `Mock.persist()` — data mock kekal antara halaman dalam `sessionStorage` (owner & vendor)
+- `vendor-layout.js`: `onCooperativeReady()`, `withCoop()`, `currentCooperative()`
+- `helpers.js`: `bindImageInput`, `showImagePreview`, `slugify`, `createIconLink`; `bindListFilters` kini sokong checkbox; lencana status PO
+- `partials/sub-nav.php` + `vendor/_layout/sub-nav.php` — Koperasi | Kelas · Produk | Kategori · Stok | Sejarah | Stock take · Pembekal | PO
+- `config/malaysia.php` — 16 negeri/wilayah, jenis sekolah, hari
+- `lang/*.php` — 231 kunci baharu (jumlah 724)
+
+Disahkan:
+- `php tools/check-ui.php` → tiada inline CSS, 724 kunci sama dalam 4 bahasa
+- Playwright: 18 halaman × 4 bahasa × 375px & 1366px — tiada ralat konsol/CSP, tiada kunci mentah, tiada skrol mendatar
+- **Ujian kebocoran**: VENDOR01 memanggil API dengan `cooperative_id` VENDOR02 / id produk, PO, pembekal VENDOR02 →
+  semuanya ditolak; senarai koperasi & pembekal hanya milik sendiri; slug VENDOR02 dilaporkan "sudah digunakan" tanpa dedah pemilik
+- Aliran: tukar koperasi mengubah data papan pemuka & produk; koperasi baharu (amaran RM 790 tahunan koperasi ke-3, slug diambil,
+  kod KPM salah, tiada kaedah bayaran, fail bukan gambar ditolak); kelas pendua; padam kategori berproduk ditolak; produk dengan
+  varian (harga akhir, payload sen); stok masuk & pelarasan (di bawah kuantiti ditahan ditolak); PO hantar → terima melebihi baki
+  ditolak → separa → penuh (stok bertambah); stock take mula → kira → selesai
+
+Keputusan kecil (dicatat dalam PELAN 18):
+- Sub-navigasi pills untuk halaman berkaitan; menu sidebar vendor kekal 18 modul (PELAN 5.2)
+- Pembekal dikongsi semua koperasi vendor; kategori, produk, stok, PO & stock take per koperasi (ikut skema 9.D)
+- Pelarasan stok = masukkan kuantiti sebenar (bukan +/-) + sebab wajib
+- Stock take: item belum dikira tidak dilaras; satu stock take terbuka setiap koperasi
+- Halaman satu rekod kembali ke senarai jika koperasi ditukar (rekod milik koperasi lain)
+
+Tertangguh:
+- Muat naik sebenar (logo, gambar produk) — B4 (`Uploader`, `finfo`); Peringkat 1 guna data URL
+- Kalendar cuti dalam waktu operasi (modul `calendar`) — U6
 
 ---
 

@@ -3,6 +3,8 @@
 
 var Mock = {
     routes: {},
+    stores: [],
+    storageVersion: 'v1',
 
     // handler(payload, method) mesti memulangkan Mock.ok(...) atau Mock.fail(...)
     register: function (path, handler) {
@@ -25,7 +27,54 @@ var Mock = {
 
         // Salinan dalam supaya halaman tidak mengubah data mock secara tidak sengaja
         var response = handler(payload, method);
+        if (method === 'POST' && response.ok) {
+            Mock.saveStores();
+        }
         return JSON.parse(JSON.stringify(response));
+    },
+
+    // Simpan data mock dalam sessionStorage supaya perubahan kekal bila halaman bertukar
+    // (seperti pangkalan data sebenar). Hilang bila tab ditutup. Peringkat 2: tiada.
+    persist: function (name, object, keys) {
+        Mock.stores.push({ name: name, object: object, keys: keys });
+        try {
+            var saved = sessionStorage.getItem('mock.' + Mock.storageVersion + '.' + name);
+            if (saved) {
+                var data = JSON.parse(saved);
+                keys.forEach(function (key) {
+                    if (data[key] !== undefined) {
+                        object[key] = data[key];
+                    }
+                });
+            }
+        } catch (error) {
+            // sessionStorage tidak tersedia — guna data asal
+        }
+    },
+
+    saveStores: function () {
+        Mock.stores.forEach(function (store) {
+            var data = {};
+            store.keys.forEach(function (key) {
+                data[key] = store.object[key];
+            });
+            try {
+                sessionStorage.setItem('mock.' + Mock.storageVersion + '.' + store.name, JSON.stringify(data));
+            } catch (error) {
+                // abaikan
+            }
+        });
+    },
+
+    // Kembali ke data contoh asal (cth. dari konsol: Mock.resetStores())
+    resetStores: function () {
+        Mock.stores.forEach(function (store) {
+            try {
+                sessionStorage.removeItem('mock.' + Mock.storageVersion + '.' + store.name);
+            } catch (error) {
+                // abaikan
+            }
+        });
     },
 
     findById: function (rows, id) {

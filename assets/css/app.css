@@ -193,3 +193,42 @@
 
 /* Teks .visually-hidden (position: absolute) dalam jadual kekal di dalam kawasan skrol jadual */
 .table-responsive { position: relative; }
+
+/* Sub-navigasi (pills) — skrol mendatar pada telefon, warna jenama */
+.app-sub-nav { --bs-nav-pills-link-active-bg: var(--app-brand); --bs-nav-link-color: var(--bs-body-color); }
+.app-sub-nav .nav-link { white-space: nowrap; }
+
+/* Logo koperasi / gambar produk kecil (tiada gambar → ikon) */
+.app-logo-box {
+    width: 3rem;
+    height: 3rem;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-radius: 0.5rem;
+    font-size: 1.4rem;
+    color: var(--app-brand);
+    background-color: rgba(15, 118, 110, 0.1);
+}
+
+.app-logo-box img { width: 100%; height: 100%; object-fit: cover; }
+.app-logo-box-lg { width: 6rem; height: 6rem; font-size: 2.5rem; }
+.app-border-brand { border-color: var(--app-brand) !important; }
+.app-time-input { min-width: 6.5rem; }
+.app-product-image {
+    width: 10rem;
+    height: 10rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-radius: 0.75rem;
+    font-size: 3rem;
+    color: var(--bs-secondary-color);
+    background-color: var(--bs-tertiary-bg);
+}
+
+.app-product-image img { width: 100%; height: 100%; object-fit: cover; }
+.app-po-product { min-width: 16rem; }

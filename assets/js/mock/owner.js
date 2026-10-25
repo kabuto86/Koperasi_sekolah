@@ -1158,3 +1158,7 @@ Mock.register('owner/two-factor/regenerate-codes', function (body) {
     }
     return Mock.ok({ recovery_codes: ['R1AB-2CDE', 'F3GH-4IJK', 'L5MN-6OPQ', 'R7ST-8UVW', 'X9YZ-1ABC', 'D2EF-3GHI', 'J4KL-5MNO', 'P6QR-7STU'] });
 });
+
+// Kekalkan perubahan antara halaman (sessionStorage) — mesti selepas data contoh dijana
+Mock.persist('owner', MockOwner, ['plans', 'tiers', 'vendors', 'vendorNotes', 'cooperatives', 'modules', 'templates', 'subscriptions',
+    'invoices', 'gateways', 'ownerGateway', 'translations', 'grades', 'emailTemplates', 'announcements', 'settings', 'staff', 'profile', 'auditLogs']);
