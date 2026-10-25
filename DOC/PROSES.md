@@ -4,9 +4,9 @@
 > Kemas kini fail ini di HUJUNG setiap session, sebelum commit & push.
 > Reka bentuk: [PELAN.md](PELAN.md) · Prompt kerja: [PROMPT-SESSION.md](PROMPT-SESSION.md)
 
-**Status keseluruhan:** Peringkat 1 · kerangka UI, panel owner & vendor bahagian 1–2 siap
-**Session terakhir siap:** U3b — UI Vendor bahagian 2
-**Session seterusnya:** **U3c — UI Vendor (bahagian 3): bayaran, refund, promosi, kakitangan, laporan, tetapan, langganan**
+**Status keseluruhan:** Peringkat 1 · kerangka UI, panel owner & panel vendor (U3a–U3c) siap
+**Session terakhir siap:** U3c — UI Vendor bahagian 3
+**Session seterusnya:** **U4 — UI POS kaunter**
 
 Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 
@@ -26,7 +26,7 @@ Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 | U2 | UI Owner | ✅ | 24 Okt 2026 | `98c608e` | 20 halaman, 338 kunci baharu, mock VENDOR01–07, tangkap layar `DOC/screenshots/U2/` |
 | U3a | UI Vendor — dashboard, koperasi, produk, inventori, pembekal | ✅ | 25 Okt 2026 | `41b3a2e` | 18 halaman, 231 kunci baharu, ujian kebocoran VENDOR02 lulus, `DOC/screenshots/U3a/` |
 | U3b | UI Vendor — kit sekolah, pesanan, serah barang, ibu bapa | ✅ | 25 Okt 2026 | `331aa9f` | 9 halaman, 154 kunci baharu, serah barang papan kekunci sahaja, `DOC/screenshots/U3b/` |
-| U3c | UI Vendor — bayaran, refund, promosi, kakitangan, laporan, tetapan, langganan | ⬜ | | | |
+| U3c | UI Vendor — bayaran, refund, promosi, kakitangan, laporan, tetapan, langganan | ✅ | 25 Okt 2026 | `26d3640` | 11 halaman, 328 kunci baharu, ujian kebocoran VENDOR02 lulus, `DOC/screenshots/U3c/` |
 | U4 | UI POS kaunter | ⬜ | | | |
 | U5 | UI Store ibu bapa — Template 1 | ⬜ | | | |
 | U6 | UI modul add-on | ⬜ | | | |
@@ -234,6 +234,53 @@ Tertangguh:
 - Notifikasi sebenar kepada ibu bapa (e-mel / WhatsApp) — B7/B9 & modul `whatsapp_sms`
 - Imbas QR dengan kamera telefon (pengimbas USB sudah disokong) — dinilai semula di U4/U7
 - Buka kunci pesanan oleh pengurus (selepas 5 cubaan) — B9
+
+### U3c — UI Vendor bahagian 3 (25 Okt 2026)
+
+Dibuat (`vendor/` + `assets/js/vendor/` satu fail JS setiap halaman):
+- `payments.php` — gateway koperasi (hanya driver dibenarkan owner, medan ikut `config_fields`, rahsia tidak dipapar — kosong = kekal,
+  mod sandbox/live dengan pengesahan, uji sambungan, URL webhook) + suis tunai/online · `payment-records.php` — rekod bayaran
+  (kad jumlah online/tunai/dipulang/menunggu, tapis kaedah/status/tarikh)
+- `refunds.php` — senarai + borang refund (cari no. pesanan / kod pendek, atau terus dari butiran pesanan `?order_id=`): kuantiti dipulang per item,
+  amaun dicadang (boleh ubah, ≤ baki), cara (tunai / pindahan bank / gateway jika sokong refund API), sebab wajib, "masukkan semula ke stok"
+- `promotions.php` — kupon & diskaun automatik (tanpa kod), % / RM tetap, belanja minimum, had guna, tempoh, status dikira (berjalan / dijadual / tamat / had habis)
+- `staff.php` — kakitangan vendor: peranan (pentadbir / pengurus koperasi / juruwang), akses koperasi, PIN POS juruwang, had pelan, aktif/nyahaktif, pautan kata laluan
+- `settings.php` — e-mel amaran (≤ 5), bahasa lalai, resit (tajuk, nota kaki, kertas 58/80, logo, cukai) + pratonton, cara ambil A–E (suis), had wajib kod,
+  tempoh luput tunai, stok minimum lalai — disegerakkan dengan skrin serah barang
+- `reports.php` — 8 laporan (harian, bulanan, tunai vs online, produk, untung ikut kategori, nilai stok, darjah, kelas), julat pantas, carta SVG,
+  jumlah, **CSV** (BOM UTF-8), cetak
+- `subscription.php` (pelan, kitaran, tempoh, penggunaan vs had dengan `<progress>`, koperasi + template + modul, anggaran pembaharuan, tukar pelan/kitaran
+  dijadualkan) · `addon-store.php` (kad modul & template, anggaran prorata, langgan, henti/teruskan) · `invoices.php` (senarai, butiran, bayar)
+- `activity-log.php` — siapa buat apa, tapis pengguna / koperasi semasa / tarikh
+- `assets/js/mock/vendor-finance.js` — gateway, refund, promosi, 7 kakitangan (2 vendor), tetapan, pelan & langganan, modul dilanggan, invois, log aktiviti, 8 laporan
+- `order.php` — butang "Refund baharu" + baris dibatal/dipulang; `vendor-orders.js` & `handover.js` — baki = qty − diambil − dibatal
+- `helpers.js` — `createIconLinkText`, `downloadCsv`, lencana promosi / rekod bayaran / modul; `app.css` — `.app-progress`
+- Sub-navigasi: Bayaran | Rekod bayaran · Langganan & bil | Kedai modul | Invois; menu add-on berkunci kini ke `addon-store.php?module=`
+- `lang/*.php` — 328 kunci baharu (jumlah 1206)
+
+Disahkan:
+- `php tools/check-ui.php` → tiada inline CSS, 1206 kunci sama dalam 4 bahasa
+- Playwright: 18 halaman (11 baharu + 7 U3a/U3b diuji semula) × 4 bahasa × 375px & 1366px — tiada ralat konsol/CSP, tiada kunci mentah, tiada skrol mendatar
+- **Ujian kebocoran** (mock, 12 laluan): tetapan/rekod bayaran, refund (senarai, cari, cipta), promosi (sunting, padam), tetapan, laporan, kedai modul,
+  invois (lihat, bayar), gateway & kakitangan VENDOR02 semuanya ditolak; e-mel kakitangan VENDOR02 → "sudah digunakan" tanpa dedah pemilik;
+  log aktiviti & senarai kakitangan hanya milik sendiri; rahsia gateway tidak pernah dalam jawapan API
+- Aliran UI: refund dari butiran pesanan (amaun automatik → disahkan → tersenarai), refund penuh → status Dipulangkan, barang belum diambil → tahanan
+  stok dilepas, barang diambil + restock → baki stok naik; kod kupon pendua ditanda; menu add-on berkunci → anggaran prorata → langgan → menu dibuka
+  + invois; bayar invois; tetapan cara ambil → skrin serah ikut; turun taraf melebihi had ditolak; CSV dimuat turun; log aktiviti merekod
+
+Keputusan kecil (dicatat dalam PELAN 9.G & 18.10):
+- Refund unit belum diambil = **batal** (`cancelled_qty`, tahanan dilepas); unit sudah diambil = **pulang** (`returned_qty`, restock pilihan). Jadual `refund_items` ditambah
+- Modul/template dilanggan **aktif serta-merta**, invois prorata diterbitkan (bayar dalam 7 hari); henti modul = hujung tempoh, tiada refund
+- Tukar pelan/kitaran berkuat kuasa pada tarikh pembaharuan; turun taraf ditolak jika penggunaan melebihi had baharu
+- Satu gateway aktif setiap koperasi; kunci driver lain kekal tersimpan (tukar balik tanpa taip semula)
+- CSV laporan dijana di pelayar dari jawapan API yang sama (tiada endpoint eksport berasingan)
+- Promosi tanpa kod = diskaun automatik; promosi yang pernah digunakan tidak boleh dipadam
+
+Tertangguh:
+- Halaman modul add-on `vendor/addons/{code}.php` (butang "Buka" & menu) — U6
+- Bayaran invois sebenar melalui gateway pemilik + webhook — B12; refund automatik melalui API gateway — B8/B11
+- E-mel jemputan / pautan kata laluan kakitangan sebenar — B2; kawalan peranan (juruwang tidak nampak menu kewangan) — B2/U7
+- Kaitan promosi dengan pesanan (`orders.promotion_id`, `used_count`) — B7/B10
 
 ---
 

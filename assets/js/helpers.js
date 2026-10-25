@@ -176,7 +176,20 @@ var BADGE_COLORS = {
     'po.status.ordered': 'text-bg-primary',
     'po.status.partial': 'text-bg-warning',
     'po.status.received': 'text-bg-success',
-    'po.status.cancelled': 'text-bg-secondary'
+    'po.status.cancelled': 'text-bg-secondary',
+    'promo.state.active': 'text-bg-success',
+    'promo.state.scheduled': 'text-bg-info',
+    'promo.state.expired': 'text-bg-secondary',
+    'promo.state.inactive': 'text-bg-light border',
+    'promo.state.used_up': 'text-bg-warning',
+    'payment.record.paid': 'text-bg-success',
+    'payment.record.pending': 'text-bg-warning',
+    'payment.record.failed': 'text-bg-danger',
+    'payment.record.refunded': 'text-bg-secondary',
+    'addon.status.active': 'text-bg-success',
+    'addon.status.cancelling': 'text-bg-warning',
+    'addon.status.available': 'text-bg-light border',
+    'addon.status.unavailable': 'text-bg-secondary'
 };
 
 // statusBadge('ready') → status pesanan; statusBadge('trial', 'vendor.status')
@@ -231,6 +244,35 @@ function createIconLink(href, iconClass, label, className) {
     link.title = label;
     link.appendChild(createIcon(iconClass));
     return link;
+}
+
+// Pautan butang dengan ikon + teks
+function createIconLinkText(href, iconClass, text, className) {
+    var link = createEl('a', 'btn btn-sm ' + (className || 'btn-outline-secondary'));
+    link.href = href;
+    link.appendChild(createIcon(iconClass));
+    link.appendChild(document.createTextNode(' ' + text));
+    return link;
+}
+
+// Muat turun CSV (Excel: BOM UTF-8 supaya aksara Cina/Tamil betul). rows = [[sel, ...], ...]
+function downloadCsv(filename, rows) {
+    var text = rows.map(function (row) {
+        return row.map(function (cell) {
+            var value = cell === null || cell === undefined ? '' : String(cell);
+            return /[",\n\r]/.test(value) ? '"' + value.replace(/"/g, '""') + '"' : value;
+        }).join(',');
+    }).join('\r\n');
+    var blob = new Blob(['\ufeff' + text], { type: 'text/csv;charset=utf-8' });
+    var link = createEl('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(function () {
+        URL.revokeObjectURL(link.href);
+        link.remove();
+    }, 0);
 }
 
 // Teks utama + teks kecil di bawah (cth. nama + kod)

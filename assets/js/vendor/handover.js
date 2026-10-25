@@ -10,7 +10,7 @@ function itemLabel(item) {
 }
 
 function remainingQty(item) {
-    return item.qty - item.collected_qty;
+    return item.qty - item.collected_qty - (item.cancelled_qty || 0);
 }
 
 function childrenText(order) {

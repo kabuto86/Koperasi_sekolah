@@ -246,6 +246,11 @@ function mockSeedLogs(order) {
 
 // ---------- Pembantu ----------
 
+// Baki belum diambil (item yang dibatalkan melalui refund tidak diserah lagi — U3c)
+function mockItemRemaining(item) {
+    return item.qty - item.collected_qty - (item.cancelled_qty || 0);
+}
+
 function mockFindOrder(id, cooperativeId) {
     return mockCoopRows(MockOrders.orders, cooperativeId).filter(function (order) {
         return order.id === Number(id);
@@ -289,6 +294,7 @@ function mockOrderDetail(order) {
     var data = mockOrderSummary(order);
     data.subtotal = order.subtotal;
     data.discount = order.discount;
+    data.refunded_amount = order.refunded_amount || 0;
     data.customer_email = order.customer_email;
     data.pickup_by_type = order.pickup_by_type;
     data.pickup_by_name = order.pickup_by_name;
@@ -299,7 +305,8 @@ function mockOrderDetail(order) {
     data.groups = mockChildrenOf(order).map(function (child) {
         child.items = child.items.map(function (item) {
             return { id: item.id, product_name: item.product_name, variant_label: item.variant_label, sku: item.sku, unit_price: item.unit_price,
-                qty: item.qty, line_total: item.line_total, collected_qty: item.collected_qty, source: item.source };
+                qty: item.qty, line_total: item.line_total, collected_qty: item.collected_qty, cancelled_qty: item.cancelled_qty || 0,
+                returned_qty: item.returned_qty || 0, source: item.source };
         });
         return child;
     });
@@ -610,8 +617,8 @@ Mock.register('vendor/orders/picking-list', function (params) {
                 items: child.items.map(function (item) {
                     var key = item.product_id + ':' + item.variant_id;
                     totals[key] = totals[key] || { product_name: item.product_name, variant_label: item.variant_label, sku: item.sku, qty: 0 };
-                    totals[key].qty += item.qty - item.collected_qty;
-                    return { product_name: item.product_name, variant_label: item.variant_label, qty: item.qty - item.collected_qty };
+                    totals[key].qty += mockItemRemaining(item);
+                    return { product_name: item.product_name, variant_label: item.variant_label, qty: mockItemRemaining(item) };
                 }) });
         });
     });
@@ -742,7 +749,7 @@ Mock.register('vendor/handover/collect', function (body) {
     }
     var invalid = lines.some(function (line) {
         var item = order.items.filter(function (i) { return i.id === Number(line.item_id); })[0];
-        return !item || line.qty > item.qty - item.collected_qty;
+        return !item || line.qty > mockItemRemaining(item);
     });
     if (invalid) {
         return Mock.fail(T('handover.too_many'));
@@ -763,7 +770,7 @@ Mock.register('vendor/handover/collect', function (body) {
         picked_by_type: body.picked_by_type, picked_by_name: body.picked_by_name, user_name: MockVendor.sessionUserName, created_at: Mock.now(),
         items: lines.map(function (line) { return { order_item_id: Number(line.item_id), qty: line.qty }; }) });
 
-    var complete = order.items.every(function (item) { return item.collected_qty >= item.qty; });
+    var complete = order.items.every(function (item) { return mockItemRemaining(item) <= 0; });
     mockLogStatus(order, complete ? 'collected' : 'partially_collected', body.picked_by_name);
     if (complete) {
         order.collected_at = Mock.now();

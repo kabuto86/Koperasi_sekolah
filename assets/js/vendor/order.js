@@ -94,9 +94,14 @@ function renderGroups(groups) {
             } },
             { key: 'qty', className: 'text-end' },
             { className: 'text-end', render: function (item) {
-                var done = item.collected_qty >= item.qty;
-                return createEl('span', done ? 'text-success fw-semibold' : (item.collected_qty ? 'text-warning-emphasis' : 'text-body-secondary'),
-                    item.collected_qty + ' / ' + item.qty);
+                var done = item.collected_qty + item.cancelled_qty >= item.qty;
+                var wrap = createEl('div');
+                wrap.appendChild(createEl('span', done ? 'text-success fw-semibold' : (item.collected_qty ? 'text-warning-emphasis' : 'text-body-secondary'),
+                    item.collected_qty + ' / ' + item.qty));
+                if (item.cancelled_qty || item.returned_qty) {
+                    wrap.appendChild(createEl('div', 'small text-danger', T('refund.item_refunded', { cancelled: item.cancelled_qty, returned: item.returned_qty })));
+                }
+                return wrap;
             } },
             { className: 'text-end', render: function (item) { return formatRM(item.unit_price); } },
             { className: 'text-end', render: function (item) { return formatRM(item.line_total); } }
@@ -118,8 +123,12 @@ function renderStatusActions(order) {
             showModal('cancel-modal');
         }));
     }
-    if (order.payment_status === 'paid' && ['collected', 'cancelled', 'refunded'].indexOf(order.status) === -1) {
+    if (order.payment_status === 'paid' && order.status !== 'refunded' && order.refunded_amount < order.total) {
+        box.appendChild(createIconLinkText(pageUrl('vendor/refunds.php?order_id=' + order.id), 'bi-arrow-return-left', T('refund.create'), 'btn-outline-danger'));
         box.appendChild(createEl('div', 'small text-body-secondary', T('order.refund_hint')));
+    }
+    if (order.refunded_amount > 0) {
+        box.appendChild(createEl('div', 'small text-danger', T('refund.order_refunded', { amount: formatRM(order.refunded_amount) })));
     }
     if (box.children.length === 0) {
         box.appendChild(createEl('div', 'small text-body-secondary', T('order.no_actions')));

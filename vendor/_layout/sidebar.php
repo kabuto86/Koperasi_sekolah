@@ -23,7 +23,7 @@
                 <?php foreach (require __DIR__ . '/addons.php' as $addon): ?>
                 <?php
                 $openHref = View::url('vendor/addons/' . $addon['code'] . '.php');
-                $lockedHref = View::url('vendor/subscription.php?module=' . $addon['code']);
+                $lockedHref = View::url('vendor/addon-store.php?module=' . $addon['code']);
                 $isActive = (($activeMenu ?? '') === 'module.' . $addon['code']);
                 ?>
                 <li class="nav-item">

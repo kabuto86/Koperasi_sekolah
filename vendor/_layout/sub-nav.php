@@ -18,6 +18,15 @@ $groups = [
         ['key' => 'menu.suppliers_list',  'url' => 'vendor/suppliers.php',       'icon' => 'bi-truck'],
         ['key' => 'menu.purchase_orders', 'url' => 'vendor/purchase-orders.php', 'icon' => 'bi-file-earmark-text'],
     ],
+    'payments' => [
+        ['key' => 'menu.payment_settings', 'url' => 'vendor/payments.php',        'icon' => 'bi-credit-card'],
+        ['key' => 'menu.payment_records',  'url' => 'vendor/payment-records.php', 'icon' => 'bi-list-check'],
+    ],
+    'billing' => [
+        ['key' => 'menu.subscription',  'url' => 'vendor/subscription.php', 'icon' => 'bi-receipt'],
+        ['key' => 'menu.addon_store',   'url' => 'vendor/addon-store.php',  'icon' => 'bi-puzzle'],
+        ['key' => 'menu.invoices',      'url' => 'vendor/invoices.php',     'icon' => 'bi-file-earmark-text'],
+    ],
 ];
 
 View::partial('partials/sub-nav.php', ['subNav' => $groups[$subNavGroup], 'subNavActive' => $subNavActive]);
