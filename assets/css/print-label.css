@@ -1,0 +1,44 @@
+/* Cetakan picking list & label beg (vendor/picking-list.php, vendor/bag-labels.php) */
+
+/* ---------- Label beg: grid 3 lajur (A4) ---------- */
+.app-label-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+    gap: 0.75rem;
+}
+
+.app-label {
+    display: flex;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border: 1px dashed var(--bs-border-color);
+    border-radius: 0.5rem;
+    background-color: #fff;
+    color: #000;
+    break-inside: avoid;
+}
+
+.app-label-qr { width: 5.5rem; height: 5.5rem; flex-shrink: 0; image-rendering: pixelated; }
+.app-label-school { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.app-label-child { font-size: 1.05rem; font-weight: 700; line-height: 1.2; }
+.app-label-code { font-family: var(--bs-font-monospace); font-size: 1.4rem; font-weight: 700; }
+
+/* ---------- Picking list ---------- */
+.app-pick-box { width: 1.1rem; height: 1.1rem; border: 1.5px solid #000; display: inline-block; vertical-align: middle; }
+
+@media print {
+    @page { size: A4; margin: 10mm; }
+
+    body.app-panel { background-color: #fff !important; }
+    .app-main { padding: 0 !important; }
+    .app-sub-nav, .app-toasts { display: none !important; }
+    .card { box-shadow: none !important; border: 0 !important; }
+    .table-responsive { overflow: visible !important; }
+
+    .app-label-grid { grid-template-columns: repeat(3, 1fr); gap: 4mm; }
+    .app-label { height: 36mm; padding: 3mm; border-color: #999; border-radius: 0; }
+    .app-label-qr { width: 24mm; height: 24mm; }
+
+    .app-print-break { break-before: page; }
+    .app-pick-group { break-inside: avoid-page; }
+}

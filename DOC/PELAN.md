@@ -5,7 +5,7 @@
 > tanpa bertanya. Status semasa: [PROSES.md](PROSES.md). Prompt kerja:
 > [PROMPT-SESSION.md](PROMPT-SESSION.md).
 
-Kemas kini terakhir: 25 Oktober 2026 (U3a — UI vendor bahagian 1)
+Kemas kini terakhir: 25 Oktober 2026 (U3b — UI vendor bahagian 2)
 Persekitaran sasaran: XAMPP · PHP 8.2 · MariaDB 10.4+ / MySQL 8 · Bootstrap 5
 
 ---
@@ -439,7 +439,7 @@ Koperasi_sekolah/
 │   ├── js/         api.js · lang.js · helpers.js · login.js · vendor-layout.js
 │   │   ├── owner/  satu fail per halaman owner (dashboard.js, vendors.js, …)
 │   │   ├── vendor/ satu fail per halaman vendor (dashboard.js, …)
-│   │   └── mock/   owner.js · vendor.js · store.js (Peringkat 1 sahaja)
+│   │   └── mock/   mock.js · owner.js · vendor.js · vendor-orders.js · store.js (Peringkat 1 sahaja)
 │   ├── img/
 │   └── fonts/      noto-sans-sc/ · noto-sans-tamil/ (woff2 400 & 700, unicode-range — dimuat bila perlu)
 ├── uploads/        {vendor_id}/{cooperative_id}/… (.gitignore isi, .htaccess halang PHP)
@@ -882,3 +882,65 @@ Gambar Peringkat 1: data URL; Peringkat 2: muat naik berasingan (`finfo`, ≤ 2M
 `get` + `items: [{ id, product_id, variant_id, product_name, variant_label, sku, category_name, qty_system, qty_counted /* null = belum */ }]`;
 `start` (satu terbuka sahaja; salin baki produk aktif), `save-counts { id, counts: [{ item_id, qty_counted }] }`,
 `complete { id }` → pergerakan `stocktake` untuk item yang dikira sahaja
+
+### 18.9 Objek vendor bahagian 2 (U3b) — `assets/js/mock/vendor-orders.js`
+
+**Status pesanan vs status bayaran.** `status` ikut PELAN 6. `payment_status: 'paid' | 'unpaid' | 'pending' | 'none'` dipulangkan
+berasingan (dikira dari jadual `payments`), kerana pesanan tunai bergerak `unpaid_cash → preparing → ready` dan hanya dibayar
+semasa diambil. Skrin serah meminta "Terima bayaran tunai" selagi `payment_status !== 'paid'`.
+
+**Rahsia pesanan:** `pickup_code` (4 digit) tidak pernah dipulangkan oleh mana-mana API vendor (disimpan sebagai hash);
+API hanya memulangkan `requires_code` dan `pickup_locked`. `qr_token` hanya dipulangkan oleh `vendor/orders/labels` (untuk dicetak).
+
+**Kit** — `vendor/kits/list { school_year }` → `{ school_year, grades: ['PRA',…], previous_year_count, kits: [KitSummary] }`
+```js
+KitSummary = { id, grade_level_code, school_year, name, note, is_published, item_count, total_price, mandatory_price }
+KitDetail  = KitSummary + { items: [{ id, product_id, variant_id /* null = ibu bapa pilih varian */, product_name, variant_label,
+                                      has_variants, unit_price, qty, is_mandatory, note, sort_order, is_active }] }
+```
+- `vendor/kits/product-options` → `[{ product_id, variant_id|null, name, variant_label, price, has_variants }]` (produk aktif sahaja)
+- `save { id?, grade_level_code, school_year, name, note, items: [{ product_id, variant_id, qty, is_mandatory, note }] /* susunan = sort_order */, publish }`
+  — UNIQUE(koperasi, darjah, tahun); `set-published { id, is_published }`; `delete { id }` (draf sahaja)
+- `copy-year { school_year }` → salin kit `school_year − 1` sebagai draf; darjah sedia ada dilangkau; item produk tidak aktif dibuang
+  → `{ copied, skipped, removed_items }`
+
+**OrderSummary** — `vendor/orders/list` (tapis `q` [no., kod pendek, nama murid/ibu bapa, telefon, token QR], `status` [boleh senarai
+dipisah koma], `grade`, `class_name`, `payment_method`, `date_from`, `date_to`; `data.status_counts: { ready: 7, … }`)
+```js
+{ id, order_no, short_code, status, payment_method: 'cash|online', payment_status, total, customer_name, customer_phone,
+  children: [{ child_name, grade_level_code, class_name }], item_count, created_at, expires_at }
+```
+**OrderDetail** — `vendor/orders/get {id}` = OrderSummary + `subtotal, discount, customer_email, pickup_by_type: 'student|parent|proxy',
+pickup_by_name, requires_code, pickup_locked, paid_at, collected_at`,
+`groups: [{ child_id, child_name, grade_level_code, class_name, items: [{ id, product_name, variant_label, sku, unit_price, qty, line_total,
+collected_qty, source: 'ala_carte|kit|pos' }] }]` (item dikumpul ikut anak),
+`logs: [{ from_status, to_status, actor: 'customer|system|vendor_user', actor_name, note, created_at }]`,
+`pickups: [{ method: 'A'…'E', picked_by_type, picked_by_name, user_name, created_at, items: [{ product_name, variant_label, child_name, qty }] }]`
+
+| Laluan (POST) | Input | Peraturan |
+|---|---|---|
+| `vendor/orders/set-status` | `id, status, note` | `paid/unpaid_cash → preparing → ready`, `ready → preparing`; batal hanya `pending_payment`/`unpaid_cash` (sebab wajib); dibayar → refund (U3c). `collected` hanya melalui serah |
+| `vendor/orders/bulk-status` | `ids[], status` | sama seperti di atas (tiada batal pukal) → `{ changed, skipped }` |
+| `vendor/handover/receive-cash` | `id, amount_received` (sen) | tunai sahaja, ≥ jumlah → `{ change, order }` |
+| `vendor/handover/collect` | `id, picked_by_type, picked_by_name, items: [{ item_id, qty }], code?` | status `ready`/`partially_collected`; dibayar; kod jika `requires_code` (5 salah → `pickup_locked`); qty ≤ baki; → `{ status, parent_notified: true, order }`; pergerakan stok `collect` |
+
+- `vendor/orders/picking-list { status (lalai 'paid,unpaid_cash,preparing'), grade, class_name }` →
+  `{ school_name, generated_at, order_count, groups: [{ grade_level_code, class_name, children: [{ child_name, order_no, short_code, status,
+  items: [{ product_name, variant_label, qty /* baki belum diambil */ }] }] }], totals: [{ product_name, variant_label, sku, qty }] }`
+- `vendor/orders/labels { grade, class_name, order_id? }` → `{ school_name, labels: [{ order_id, order_no, short_code, child_name,
+  grade_level_code, class_name, item_count, payment_status, qr_token }] }` — satu label setiap anak setiap pesanan
+- `vendor/orders/class-options` → `[{ grade_level_code, class_name }]`
+- `vendor/handover/search { q, grade, class_name }` → `{ items: [OrderDetail ×20], settings: { methods: ['A','B','C','D','E'?], code_required_above /* sen, 0 = tiada */ } }`
+  — padanan tepat token QR / kod pendek dahulu; jika tidak, pesanan aktif (`paid, unpaid_cash, preparing, ready, partially_collected`)
+  disusun `ready` dahulu
+
+**Customer** — `vendor/customers/list { q, grade, class_name }` (hanya ibu bapa yang ada anak di koperasi ini; hanya anak itu)
+```js
+{ id, full_name, phone, email, relationship: 'mother|father|guardian', children: [{ id, full_name, grade_level_code, class_name }],
+  order_count, total_spent, last_order_at, note /* nota vendor ini sahaja */ }
+```
+`vendor/customers/save-note { customer_id, note }` — ditolak jika ibu bapa tiada anak di koperasi ini
+
+**Skrin serah barang (vendor/pos/handover.php) — aliran papan kekunci:** fokus automatik pada carian → taip / imbas (pengimbas USB =
+papan kekunci + Enter) → satu hasil dibuka terus → [tunai: jumlah diterima diisi, Enter] → pilih siapa ambil (anak panah), Tab ke nama &
+item, Enter = sahkan → skrin berjaya ("Ibu bapa telah dimaklumkan"), fokus pada "Seterusnya" → Enter → kembali ke carian kosong

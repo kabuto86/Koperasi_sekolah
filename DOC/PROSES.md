@@ -4,9 +4,9 @@
 > Kemas kini fail ini di HUJUNG setiap session, sebelum commit & push.
 > Reka bentuk: [PELAN.md](PELAN.md) · Prompt kerja: [PROMPT-SESSION.md](PROMPT-SESSION.md)
 
-**Status keseluruhan:** Peringkat 1 · kerangka UI, panel owner & vendor bahagian 1 siap
-**Session terakhir siap:** U3a — UI Vendor bahagian 1
-**Session seterusnya:** **U3b — UI Vendor (bahagian 2): kit, pesanan, serah barang**
+**Status keseluruhan:** Peringkat 1 · kerangka UI, panel owner & vendor bahagian 1–2 siap
+**Session terakhir siap:** U3b — UI Vendor bahagian 2
+**Session seterusnya:** **U3c — UI Vendor (bahagian 3): bayaran, refund, promosi, kakitangan, laporan, tetapan, langganan**
 
 Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 
@@ -25,7 +25,7 @@ Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 | U1 | Kerangka UI: layout, Bootstrap, `t()` 4 bahasa, `api.js` mock | ✅ | 24 Okt 2026 | `1082584` | 3 layout, 4 bahasa (155 kunci), CSP, tangkap layar `DOC/screenshots/U1/` |
 | U2 | UI Owner | ✅ | 24 Okt 2026 | `98c608e` | 20 halaman, 338 kunci baharu, mock VENDOR01–07, tangkap layar `DOC/screenshots/U2/` |
 | U3a | UI Vendor — dashboard, koperasi, produk, inventori, pembekal | ✅ | 25 Okt 2026 | `41b3a2e` | 18 halaman, 231 kunci baharu, ujian kebocoran VENDOR02 lulus, `DOC/screenshots/U3a/` |
-| U3b | UI Vendor — kit sekolah, pesanan, serah barang, ibu bapa | ⬜ | | | |
+| U3b | UI Vendor — kit sekolah, pesanan, serah barang, ibu bapa | ✅ | 25 Okt 2026 | (lihat git log) | 9 halaman, 154 kunci baharu, serah barang papan kekunci sahaja, `DOC/screenshots/U3b/` |
 | U3c | UI Vendor — bayaran, refund, promosi, kakitangan, laporan, tetapan, langganan | ⬜ | | | |
 | U4 | UI POS kaunter | ⬜ | | | |
 | U5 | UI Store ibu bapa — Template 1 | ⬜ | | | |
@@ -193,6 +193,47 @@ Keputusan kecil (dicatat dalam PELAN 18):
 Tertangguh:
 - Muat naik sebenar (logo, gambar produk) — B4 (`Uploader`, `finfo`); Peringkat 1 guna data URL
 - Kalendar cuti dalam waktu operasi (modul `calendar`) — U6
+
+### U3b — UI Vendor bahagian 2 (25 Okt 2026)
+
+Dibuat:
+- `school-kits.php` — grid kit per darjah untuk tahun dipilih; "Salin dari tahun lepas" (draf, darjah sedia ada dilangkau, produk tidak aktif dibuang)
+- `school-kit.php` — item (produk/varian atau "ibu bapa pilih saiz"), kuantiti, wajib/pilihan, nota, susunan naik/turun,
+  jumlah semua & wajib, **pratonton ibu bapa** (semua siap ditanda + lencana "Item wajib sekolah"), draf / terbit / tarik balik / padam draf
+- `orders.php` — pil status dengan kiraan, tapis (carian, status, darjah → kelas, kaedah bayaran, tarikh), pilih & tukar status pukal,
+  pautan picking list & label ikut tapisan · `order.php` — item dikumpul ikut anak (diambil x/y), siapa ambil, kod 4 digit (wajib/tidak/dikunci),
+  tukar status, batal (sebab wajib), sejarah status (garis masa), rekod serahan
+- `picking-list.php` (ikut kelas → murid → barang + jumlah keseluruhan, satu kelas satu halaman cetak) · `bag-labels.php`
+  (label A4 3 lajur: sekolah, nama anak, kelas, no. pendek besar, QR, "BAYAR TUNAI") — `assets/css/print-label.css`
+- `pos/handover.php` — **skrin serah barang**: kotak carian besar (nama / no. pendek / imbas QR), tapis darjah & kelas, kad keputusan
+  (no. pendek, nama murid & kelas, ibu bapa, barang, status bayaran), "Terima tunai" → baki, "Serah": siapa ambil (murid/ibu bapa/wakil + nama),
+  ambil separa (tanda + kuantiti), kod 4 digit bila wajib (5 salah → dikunci), mesej berjaya + "Ibu bapa telah dimaklumkan"
+- `customers.php` — ibu bapa & anak di koperasi ini (baca sahaja) + nota dalaman vendor
+- `assets/js/mock/vendor-orders.js` — 15 ibu bapa (akaun global), 20 anak, 9 kit, ~45 pesanan, rekod serahan, tetapan cara ambil per koperasi
+- `assets/js/vendor/order-common.js`; `partials/page-title.php` pautan kembali tidak dicetak; layout vendor terima `$extraCss`
+- `lang/*.php` — 154 kunci baharu (jumlah 878)
+
+Disahkan:
+- `php tools/check-ui.php` → tiada inline CSS, 878 kunci sama dalam 4 bahasa
+- Playwright: 12 halaman × 4 bahasa × 375px & 1366px — tiada ralat konsol/CSP, tiada kunci mentah, tiada skrol mendatar; U3a diuji semula
+- **Ujian kebocoran**: pesanan, kit, carian serah & nota ibu bapa VENDOR02 ditolak; ibu bapa dengan anak di dua vendor hanya menampakkan
+  anak di koperasi sendiri; `pickup_code` tidak pernah muncul dalam jawapan API
+- **Serah barang papan kekunci sahaja**: fokus pada carian semasa dimuat → taip token QR + Enter → modal terbuka (fokus "Murid") →
+  Tab → Enter → berjaya (fokus "Seterusnya") → Enter → kembali ke carian kosong. Tunai: Enter → jumlah kurang ditolak → baki dikira →
+  terus ke serah; ambil separa → "Diambil sebahagian"; kod salah ×5 → dikunci → butang "Dikunci — panggil pengurus"
+- Kit: salin tahun lepas (5 disalin, 1 dilangkau), cipta & terbit, susunan; pesanan: tapis, pukal, tukar status, batal; cetak (media print)
+
+Keputusan kecil (dicatat dalam PELAN 18.9):
+- `payment_status` berasingan dari `status` (pesanan tunai boleh "Sedia diambil" tetapi belum dibayar)
+- Status `collected` / `partially_collected` hanya melalui skrin serah; panel pesanan tidak boleh menandanya
+- Batal dari panel hanya untuk pesanan belum dibayar; dibayar → Pemulangan & refund (U3c)
+- Kit: produk bervarian boleh dimasukkan tanpa varian → ibu bapa pilih saiz di store
+- Data contoh pesanan: koperasi tanpa tunai (SJKC Chung Hwa) tidak menerima pesanan tunai; `Mock.storageVersion` → `v2`
+
+Tertangguh:
+- Notifikasi sebenar kepada ibu bapa (e-mel / WhatsApp) — B7/B9 & modul `whatsapp_sms`
+- Imbas QR dengan kamera telefon (pengimbas USB sudah disokong) — dinilai semula di U4/U7
+- Buka kunci pesanan oleh pengurus (selepas 5 cubaan) — B9
 
 ---
 
