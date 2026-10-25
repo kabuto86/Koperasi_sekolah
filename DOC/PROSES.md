@@ -29,7 +29,7 @@ Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 | U3c | UI Vendor — bayaran, refund, promosi, kakitangan, laporan, tetapan, langganan | ✅ | 25 Okt 2026 | `26d3640` | 11 halaman, 328 kunci baharu, ujian kebocoran VENDOR02 lulus, `DOC/screenshots/U3c/` |
 | U4 | UI POS kaunter | ✅ | 25 Okt 2026 | `2bf72c8` | Skrin penuh, PIN, syif, imbas, QR, resit 58/80, 116 kunci baharu, ujian kebocoran lulus, `DOC/screenshots/U4/` |
 | U5 | UI Store ibu bapa — Template 1 | ✅ | 25 Okt 2026 | `597d2d1` | 17 halaman, 250 kunci baharu, aliran kit → troli → checkout → slip, ujian kebocoran lulus, `DOC/screenshots/U5/` |
-| U6 | UI modul add-on | ✅ | 25 Okt 2026 | (lihat butiran) | 9 halaman vendor, banner & slot ambil di store, 195 kunci baharu, ujian kebocoran lulus, `DOC/screenshots/U6/` |
+| U6 | UI modul add-on | ✅ | 25 Okt 2026 | `db41ded` | 9 halaman vendor, banner & slot ambil di store, 195 kunci baharu, ujian kebocoran lulus, `DOC/screenshots/U6/` |
 | U7 | Semakan UI menyeluruh | ⬜ | | | |
 
 ## Peringkat 2 — Backend & API
