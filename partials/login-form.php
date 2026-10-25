@@ -4,9 +4,9 @@
 View::partial('partials/head.php', ['pageTitle' => $loginTitle, 'bodyClass' => 'app-login bg-body-tertiary']);
 ?>
 <div class="d-flex justify-content-end p-3">
-    <?php View::partial('partials/lang-switcher.php'); ?>
+    <?php View::partial('partials/lang-switcher.php', ['switcherClass' => 'btn-outline-dark']); ?>
 </div>
-<main class="container app-login-main">
+<main class="container app-login-main" id="main">
     <div class="row justify-content-center">
         <div class="col-12 col-sm-10 col-md-7 col-lg-5 col-xl-4">
             <div class="text-center mb-4">

@@ -646,6 +646,13 @@ function renderBarChart(container, items, formatValue) {
     svg.setAttribute('class', 'app-chart');
     svg.setAttribute('role', 'img');
 
+    // Ringkasan untuk pembaca skrin: "Mei: RM 1.00, Jun: RM 2.00"
+    var summary = document.createElementNS(ns, 'title');
+    summary.textContent = items.map(function (item) {
+        return item.label + ': ' + (formatValue ? formatValue(item.value) : String(item.value));
+    }).join(', ');
+    svg.appendChild(summary);
+
     items.forEach(function (item, index) {
         var barHeight = (height - top - bottom) * (item.value / max);
         var x = index * slot + (slot - barWidth) / 2;

@@ -178,7 +178,7 @@ var MockOrders = {
         }
         var subtotal = items.reduce(function (sum, item) { return sum + item.line_total; }, 0);
         var day = 10 + (index % 15);
-        var created = '2026-10-' + (day < 10 ? '0' + day : day) + 'T' + (8 + index % 12) + ':' + (10 + index % 49) + ':00+08:00';
+        var created = '2026-10-' + String(day).padStart(2, '0') + 'T' + String(8 + index % 12).padStart(2, '0') + ':' + (10 + index % 49) + ':00+08:00';
         var paid = !isCash && ['pending_payment', 'cancelled', 'expired'].indexOf(status) === -1;
         var cashPaid = isCash && ['collected', 'partially_collected'].indexOf(status) !== -1;
         codes[group.coopId] += 7;
@@ -286,6 +286,7 @@ function mockOrderSummary(order) {
             return { child_name: child.child_name, grade_level_code: child.grade_level_code, class_name: child.class_name };
         }),
         item_count: order.items.reduce(function (sum, item) { return sum + item.qty; }, 0),
+        pickup_slot: addonOrderSlot(order),
         created_at: order.created_at, expires_at: order.expires_at
     };
 }
@@ -294,11 +295,12 @@ function mockOrderDetail(order) {
     var data = mockOrderSummary(order);
     data.subtotal = order.subtotal;
     data.discount = order.discount;
+    data.tax_rate = order.tax_rate || 0;
+    data.tax = order.tax || 0;
     data.refunded_amount = order.refunded_amount || 0;
     data.customer_email = order.customer_email;
     data.pickup_by_type = order.pickup_by_type;
     data.pickup_by_name = order.pickup_by_name;
-    data.pickup_slot = addonOrderSlot(order);
     data.requires_code = mockRequiresCode(order);
     data.pickup_locked = order.pickup_locked;
     data.paid_at = order.paid_at;
@@ -334,6 +336,7 @@ function mockOrderMatches(order, params) {
         .some(function (text) { return String(text).toLowerCase().indexOf(q) !== -1; });
     return (!statusList || statusList.indexOf(order.status) !== -1) && childMatch && textMatch
         && (!params.payment_method || order.payment_method === params.payment_method)
+        && (!params.pickup_slot_id || order.pickup_slot_id === Number(params.pickup_slot_id))
         && (!params.date_from || day >= params.date_from) && (!params.date_to || day <= params.date_to);
 }
 
@@ -659,7 +662,7 @@ Mock.register('vendor/orders/labels', function (params) {
             labels.push({ order_id: order.id, order_no: order.order_no, short_code: order.short_code, child_name: child.child_name,
                 grade_level_code: child.grade_level_code, class_name: child.class_name,
                 item_count: child.items.reduce(function (sum, item) { return sum + item.qty; }, 0),
-                payment_status: order.payment_status, qr_token: order.pickup_qr_token });
+                payment_status: order.payment_status, pickup_slot: addonOrderSlot(order), qr_token: order.pickup_qr_token });
         });
     });
     return Mock.ok({ school_name: coop.school_name, labels: labels });

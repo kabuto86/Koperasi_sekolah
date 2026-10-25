@@ -58,6 +58,12 @@ require __DIR__ . '/_layout/header.php';
                 <label class="visually-hidden" for="ord-to"><?= e(t('field.date_to')) ?></label>
                 <input type="date" class="form-control" id="ord-to" name="date_to" title="<?= e(t('field.date_to')) ?>">
             </div>
+            <div class="col-12 col-lg-4 js-slot-filter d-none">
+                <label class="visually-hidden" for="ord-slot"><?= e(t('store.slot.title')) ?></label>
+                <select class="form-select" id="ord-slot" name="pickup_slot_id">
+                    <option value=""><?= e(t('order.all_slots')) ?></option>
+                </select>
+            </div>
         </form>
     </div>
     <div class="card-body border-bottom py-2 d-flex flex-wrap align-items-center gap-2 d-none" id="bulk-bar">

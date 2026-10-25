@@ -10,6 +10,19 @@
 }
 
 .store-topbar .navbar-brand { max-width: 55vw; }
+
+/* Pautan navbar atas: kontras WCAG AA di atas warna jenama; aktif = garis bawah */
+.store-topbar.navbar { --bs-navbar-color: rgba(255, 255, 255, 0.9); --bs-navbar-hover-color: #fff; --bs-navbar-active-color: #fff; }
+.store-topbar .nav-link.active { font-weight: 600; text-decoration: underline; text-underline-offset: 0.4rem; }
+
+/* Label panjang (cth. Tamil) tidak membalut dua baris: skrin desktop kecil sembunyi ikon & rapatkan pautan */
+.store-topbar .nav-link,
+.store-topbar .btn { white-space: nowrap; }
+
+@media (min-width: 992px) and (max-width: 1399.98px) {
+    .store-topbar .navbar-nav .nav-link { padding-right: 0.4rem; padding-left: 0.4rem; font-size: 0.9rem; }
+    .store-topbar .navbar-nav .nav-link > .bi { display: none; }
+}
 .store-account-btn { max-width: 12rem; }
 .store-account-btn span { display: inline-block; max-width: 8rem; vertical-align: bottom; }
 

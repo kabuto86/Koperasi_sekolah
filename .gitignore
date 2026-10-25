@@ -4,3 +4,4 @@ uploads/*
 !uploads/.htaccess
 .DS_Store
 Thumbs.db
+tools/ui-audit-report.json

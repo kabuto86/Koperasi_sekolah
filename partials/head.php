@@ -20,3 +20,4 @@ $extraCss = $extraCss ?? [];
     <?php endforeach; ?>
 </head>
 <body class="<?= e($bodyClass) ?>" data-lang="<?= e(Lang::json()) ?>" data-base-url="<?= e(View::baseUrl()) ?>">
+<a class="visually-hidden-focusable app-skip-link" href="#main"><?= e(t('common.skip_to_content')) ?></a>

@@ -187,7 +187,7 @@ var MockVendor = {
                 type: type, qty_change: changes[type], balance_after: balance, ref_type: type === 'po_receive' ? 'purchase_order' : (type === 'restock' || type === 'adjust' ? null : 'order'),
                 ref_id: type === 'po_receive' ? 1 : (type === 'restock' || type === 'adjust' ? null : 5000 + id),
                 user_name: n % 2 ? 'Siti (juruwang)' : 'Encik Ahmad', note: type === 'adjust' ? 'Rosak' : '',
-                created_at: '2026-10-' + (day < 10 ? '0' + day : day) + 'T' + (9 + n) + ':20:00+08:00'
+                created_at: '2026-10-' + (day < 10 ? '0' + day : day) + 'T' + String(9 + n).padStart(2, '0') + ':20:00+08:00'
             });
             balance -= changes[type];
         }

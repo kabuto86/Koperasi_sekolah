@@ -10,7 +10,7 @@ return [
     'base_url'          => null,
 
     // Naikkan nombor ini bila CSS/JS berubah supaya pelayar tidak guna cache lama
-    'asset_version'     => '1',
+    'asset_version'     => '2',
 
     // Peringkat 1: data dari assets/js/mock/*.js. Peringkat 2: tukar ke false
     'use_mock'          => true,

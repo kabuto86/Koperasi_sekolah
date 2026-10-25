@@ -41,7 +41,10 @@ Setiap prompt di bawah bermula dengan "Ikut peraturan umum". Maksudnya:
    Modul add-on (sejak U6): halaman `vendor/addons/{code}.php` set `$moduleCode` → gerbang "Langgan modul ini" (`_layout/module-gate.php`);
    JS guna `onModuleReady()` + `moduleResponse()` (`assets/js/vendor/addon-common.js`). Data modul dalam mock `vendor-addons.js`
    (`MockAddons`, dikongsi panel & store; `addonRequire()` = koperasi + `ModuleAccess`) — PELAN 18.13.
-   Sebelum commit jalankan `php tools/check-ui.php` (tiada inline CSS, kunci 4 bahasa sama).
+   Sejak U7: menu panel ada `'roles'` (ditapis `core/PanelRole.php`; demo Peringkat 1 cookie `mock_role`); senarai penuh laluan API
+   dalam PELAN 18.14 — **laluan baharu mesti ditambah ke jadual itu**. Aksesibiliti: setiap medan ada `<label>` / `aria-label`,
+   butang ikon ada `aria-label`, carta SVG ada `<title>`, kontras teks ≥ 4.5:1 (WCAG AA).
+   Sebelum commit jalankan `php tools/check-ui.php` (tiada inline CSS, tiada CDN, tiada teks paparan ditulis terus dalam HTML, kunci 4 bahasa sama).
 7. **Peringkat 2 (B):** jalankan ujian kebocoran dua vendor + dua ibu bapa (PELAN 15) sebelum tutup session.
 8. **Penutup wajib:**
    - Kemas kini `DOC/PROSES.md`: status ✅, tarikh, commit, nota, dan "Butiran session yang siap"
@@ -229,6 +232,8 @@ Setiap modul berkunci jika tidak dilanggan: papar kad "Langgan modul ini".
 
 ```
 Ikut peraturan umum. Session: U7 — Semakan UI. Prasyarat: U6 ✅.
+(✅ siap 25 Okt 2026 — lihat PROSES.md. Juga diselesaikan: perkara tertangguh bertanda U7 — baris cukai, penapis slot ambil,
+banner tutup di POS, menu ikut peranan, navbar Tamil.)
 
 1. grep: tiada style=, tiada <style>, tiada CDN, tiada teks Melayu terus dalam fail .php/.js
    (semua melalui t()/T())
@@ -250,9 +255,10 @@ Ikut peraturan umum. Session: U7 — Semakan UI. Prasyarat: U6 ✅.
 
 ```
 Ikut peraturan umum. Session: B1 — Skema, seed & core. Prasyarat: U7 ✅.
+Rujukan laluan & skop: PELAN 18.14 (indeks 214 laluan). Senarai UI tertangguh: PROSES.md "Perkara UI tertangguh (U7)".
 Baca DOC/PELAN.md bahagian 8, 9 (semua), 10.1, 16 (perkara 9).
 
-1. database/schema.sql — 68 jadual, utf8mb4_unicode_ci, InnoDB, FK, UNIQUE & indeks ikut
+1. database/schema.sql — 69 jadual (PELAN 9), utf8mb4_unicode_ci, InnoDB, FK, UNIQUE & indeks ikut
    PELAN 8.6 (indeks bermula vendor_id). Baris pertama SET NAMES utf8mb4; UTF-8 tanpa BOM
 2. database/seed.sql — languages (ms lalai, en, zh, ta), grade_levels, satu owner, plan,
    plan_coop_tiers, modules, template1, payment_gateways, VENDOR01 (1 koperasi), VENDOR02

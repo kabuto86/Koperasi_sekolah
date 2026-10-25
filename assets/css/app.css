@@ -46,12 +46,18 @@
     --bs-btn-disabled-color: #fff;
     --bs-btn-disabled-bg: var(--app-brand);
     --bs-btn-disabled-border-color: var(--app-brand);
+    --bs-btn-focus-shadow-rgb: 15, 118, 110;
 }
 
 .min-w-0 { min-width: 0; }
 
 /* ---------- Panel owner & vendor ---------- */
 .app-panel { background-color: var(--bs-tertiary-bg); }
+
+/* Butang garis luar di atas latar panel kelabu: warna lebih gelap untuk kontras WCAG AA */
+.app-panel .btn-outline-secondary,
+.store-body .btn-outline-secondary { --bs-btn-color: #565e64; }
+.app-panel .btn-outline-danger { --bs-btn-color: #b02a37; }
 
 .app-topbar { min-height: var(--app-topbar-height); }
 
@@ -86,7 +92,7 @@
     font-weight: 600;
     letter-spacing: 0.05em;
     text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.72);
 }
 
 .app-sidebar-label { color: rgba(255, 255, 255, 0.6); }
@@ -114,7 +120,8 @@
     background-color: var(--app-brand);
 }
 
-.app-sidebar .nav-link.is-locked { color: rgba(255, 255, 255, 0.45); }
+.app-sidebar .nav-link.is-locked { color: rgba(255, 255, 255, 0.72); }
+.app-sidebar .nav-link.is-locked.active { color: #fff; }
 
 .app-sidebar .nav-link .badge { font-size: 0.65rem; }
 
@@ -339,4 +346,19 @@
     .app-cal-day { height: 4rem; }
     .app-cal-event { font-size: 0; padding: 0; height: 0.4rem; }
     .app-cal-event .bi { display: none; }
+}
+
+/* Pilihan juruwang POS yang dipilih: teks kecil ikut warna butang (kontras WCAG AA) */
+.btn-check:checked + .app-pos-choice .text-body-secondary { color: inherit !important; }
+
+/* Pautan "Langkau ke kandungan" — kelihatan bila difokus dengan papan kekunci */
+.app-skip-link:focus {
+    position: fixed;
+    top: 0.5rem;
+    left: 0.5rem;
+    z-index: 2000;
+    padding: 0.5rem 1rem;
+    color: #fff;
+    background-color: var(--app-brand-dark);
+    border-radius: 0.375rem;
 }

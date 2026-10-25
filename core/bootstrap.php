@@ -7,6 +7,7 @@ require APP_ROOT . '/core/Config.php';
 require APP_ROOT . '/core/SecurityHeaders.php';
 require APP_ROOT . '/core/View.php';
 require APP_ROOT . '/core/Lang.php';
+require APP_ROOT . '/core/PanelRole.php';
 
 date_default_timezone_set(Config::get('timezone'));
 
