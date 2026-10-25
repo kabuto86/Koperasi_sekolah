@@ -54,6 +54,10 @@
 /* ---------- Panel owner & vendor ---------- */
 .app-panel { background-color: var(--bs-tertiary-bg); }
 
+/* Butang garis luar di atas latar panel kelabu: warna lebih gelap untuk kontras WCAG AA */
+.app-panel .btn-outline-secondary { --bs-btn-color: #565e64; }
+.app-panel .btn-outline-danger { --bs-btn-color: #b02a37; }
+
 .app-topbar { min-height: var(--app-topbar-height); }
 
 .app-coop-select { min-width: 12rem; max-width: 18rem; }
@@ -115,7 +119,8 @@
     background-color: var(--app-brand);
 }
 
-.app-sidebar .nav-link.is-locked { color: rgba(255, 255, 255, 0.45); }
+.app-sidebar .nav-link.is-locked { color: rgba(255, 255, 255, 0.72); }
+.app-sidebar .nav-link.is-locked.active { color: #fff; }
 
 .app-sidebar .nav-link .badge { font-size: 0.65rem; }
 

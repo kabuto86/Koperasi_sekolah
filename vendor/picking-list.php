@@ -44,6 +44,7 @@ require __DIR__ . '/_layout/header.php';
         <div id="pick-groups"></div>
         <div class="app-print-break" id="pick-totals-section">
             <h2 class="h6 mt-4"><?= e(t('order.pick_totals')) ?></h2>
+            <div class="table-responsive">
             <table class="table table-sm table-bordered">
                 <thead>
                     <tr>
@@ -55,6 +56,7 @@ require __DIR__ . '/_layout/header.php';
                 </thead>
                 <tbody id="pick-totals"></tbody>
             </table>
+            </div>
         </div>
     </div>
 </div>

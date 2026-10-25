@@ -12,7 +12,7 @@
 .store-topbar .navbar-brand { max-width: 55vw; }
 
 /* Pautan navbar atas: kontras WCAG AA di atas warna jenama; aktif = garis bawah */
-.store-topbar { --bs-navbar-color: rgba(255, 255, 255, 0.9); --bs-navbar-hover-color: #fff; --bs-navbar-active-color: #fff; }
+.store-topbar.navbar { --bs-navbar-color: rgba(255, 255, 255, 0.9); --bs-navbar-hover-color: #fff; --bs-navbar-active-color: #fff; }
 .store-topbar .nav-link.active { font-weight: 600; text-decoration: underline; text-underline-offset: 0.4rem; }
 
 /* Label panjang (cth. Tamil) tidak membalut dua baris: skrin desktop kecil sembunyi ikon & rapatkan pautan */

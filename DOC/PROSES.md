@@ -461,11 +461,13 @@ Disemak:
 - **Tangkap layar:** `DOC/screenshots/U7/{ms,zh}-{375,1366}/` — 332 JPEG (setiap halaman) + 4 tangkap layar ciri baharu
 - **Aksesibiliti** (axe-core WCAG 2 A/AA pada 83 halaman, ms 1366px + skrip sendiri pada semua paparan): setiap medan berlabel, butang ikon
   bernama, gambar ada `alt`. Dibaiki: kontras tajuk seksyen sidebar (4.23 → ≥ 4.5), pautan navbar store (2.76 → ≥ 4.5; aktif bergaris bawah),
-  butang bahasa di halaman log masuk, teks kecil pilihan juruwang POS bila dipilih, carta SVG kini ada `<title>` ringkasan.
+  butang bahasa di halaman log masuk, menu modul berkunci (3.71 → ≥ 4.5), butang garis luar kelabu/merah di atas latar panel,
+  teks kecil pilihan juruwang POS bila dipilih, carta SVG kini ada `<title>` ringkasan.
   **Papan kekunci:** pautan "Langkau ke kandungan" (`.visually-hidden-focusable`, Tab pertama) di semua layout; `.btn-brand` tiada cincin fokus
   (pemboleh ubah `--bs-btn-focus-shadow-rgb` hilang) — dibaiki; Tab melalui 12 elemen pertama 5 halaman — semua ada cincin fokus
 
 Pepijat dijumpai & dibaiki:
+- Picking list (Tamil, 375px) menyebabkan skrol mendatar seluruh halaman → jadual dibungkus `.table-responsive`
 - Tarikh pesanan contoh & pergerakan stok tidak sah (`2026-10-10T8:10` — jam tanpa sifar) → "—" dalam butiran pesanan; `Mock.storageVersion` → `v5`
 
 Perkara tertangguh bertanda U7 yang diselesaikan:

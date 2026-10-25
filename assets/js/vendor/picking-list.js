@@ -67,7 +67,10 @@ function pickGroup(group, index) {
         body.appendChild(tr);
     });
     table.appendChild(body);
-    section.appendChild(table);
+    // Skrol dalam jadual pada telefon (label panjang, cth. Tamil) — bukan seluruh halaman
+    var wrap = createEl('div', 'table-responsive');
+    wrap.appendChild(table);
+    section.appendChild(wrap);
     return section;
 }
 
