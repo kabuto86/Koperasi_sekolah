@@ -36,3 +36,6 @@ View::partial('partials/head.php', ['pageTitle' => $pageTitle, 'bodyClass' => 'a
             'backUrl'     => $backUrl ?? null,
             'pageActions' => $pageActions ?? [],
         ]); ?>
+        <?php if (!empty($moduleCode)) {
+            require __DIR__ . '/module-gate.php';
+        } ?>

@@ -111,3 +111,4 @@
 .store-qr { width: 11rem; height: 11rem; image-rendering: pixelated; }
 .store-code-input { max-width: 8rem; font-family: var(--bs-font-monospace); font-size: 1.5rem; letter-spacing: 0.3em; text-align: center; }
 .store-news-body { white-space: pre-line; }
+.store-news-image { max-height: 16rem; object-fit: cover; }

@@ -49,7 +49,7 @@ var MockOwner = {
     ],
 
     cooperatives: [
-        { id: 1, vendor_id: 1, slug: 'sk-taman-melati', school_name: 'SK Taman Melati', school_code: 'BBA1234', school_type: 'SK', state: 'Selangor', district: 'Gombak', status: 'active', template_id: 1, modules: ['news', 'school_opening'], created_at: '2026-01-06T10:00:00+08:00' },
+        { id: 1, vendor_id: 1, slug: 'sk-taman-melati', school_name: 'SK Taman Melati', school_code: 'BBA1234', school_type: 'SK', state: 'Selangor', district: 'Gombak', status: 'active', template_id: 1, modules: ['news', 'school_opening', 'calendar', 'whatsapp_sms'], created_at: '2026-01-06T10:00:00+08:00' },
         { id: 2, vendor_id: 1, slug: 'sjkc-chung-hwa', school_name: 'SJKC Chung Hwa', school_code: 'BBC5678', school_type: 'SJKC', state: 'Selangor', district: 'Petaling', status: 'active', template_id: 2, modules: [], created_at: '2026-02-14T10:00:00+08:00' },
         { id: 3, vendor_id: 2, slug: 'smk-bukit-indah', school_name: 'SMK Bukit Indah', school_code: 'JEA9012', school_type: 'SMK', state: 'Johor', district: 'Johor Bahru', status: 'active', template_id: 1, modules: ['clearance'], created_at: '2026-02-12T10:00:00+08:00' },
         { id: 4, vendor_id: 3, slug: 'sk-seri-pagi', school_name: 'SK Seri Pagi', school_code: 'KBA3456', school_type: 'SK', state: 'Kedah', district: 'Kuala Muda', status: 'active', template_id: 1, modules: [], created_at: '2026-10-20T15:00:00+08:00' },

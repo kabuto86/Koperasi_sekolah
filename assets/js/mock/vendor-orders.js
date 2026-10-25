@@ -298,6 +298,7 @@ function mockOrderDetail(order) {
     data.customer_email = order.customer_email;
     data.pickup_by_type = order.pickup_by_type;
     data.pickup_by_name = order.pickup_by_name;
+    data.pickup_slot = addonOrderSlot(order);
     data.requires_code = mockRequiresCode(order);
     data.pickup_locked = order.pickup_locked;
     data.paid_at = order.paid_at;
@@ -570,6 +571,9 @@ Mock.register('vendor/orders/set-status', function (body) {
     }
     if (body.status === 'cancelled' && !String(body.note || '').trim()) {
         return Mock.fail(T('error.required'), { note: T('error.required') });
+    }
+    if (body.status === 'cancelled') {
+        addonReleaseSlot(order);
     }
     mockLogStatus(order, body.status, body.note);
     return Mock.ok(mockOrderDetail(order));

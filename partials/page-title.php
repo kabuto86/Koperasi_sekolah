@@ -13,7 +13,7 @@ $pageActions = $pageActions ?? [];
 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
     <h1 class="h4 mb-0" id="page-title"><?= e($pageTitle) ?></h1>
     <?php if ($pageActions): ?>
-    <div class="d-flex flex-wrap gap-2">
+    <div class="d-flex flex-wrap gap-2" id="page-actions">
         <?php foreach ($pageActions as $action): ?>
         <?php $actionClass = 'btn btn-sm ' . ($action['class'] ?? 'btn-brand'); ?>
         <?php if (!empty($action['href'])): ?>

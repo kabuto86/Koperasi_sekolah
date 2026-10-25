@@ -13,6 +13,9 @@ function pickupInstruction(order) {
     if (order.requires_code) {
         text += ' ' + T('store.success.pickup_code_note');
     }
+    if (order.pickup_slot) {
+        text += ' ' + T('store.slot.success_note', { slot: slotText(order.pickup_slot) });
+    }
     return text;
 }
 

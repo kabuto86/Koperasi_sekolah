@@ -364,7 +364,7 @@ Nama, harga dan maklumat anak **disalin** (snapshot) ke pesanan dan invois.
 
 - **`carts`** — id, customer_id, cooperative_id, vendor_id, updated_at · UNIQUE(customer_id, cooperative_id)
 - **`cart_items`** — id, cart_id, product_id, variant_id, child_id, qty, source ENUM(ala_carte, kit), school_kit_id NULL, school_kit_item_id NULL (U5: kit yang sama untuk anak yang sama diganti, bukan ditambah)
-- **`orders`** — id, vendor_id, cooperative_id, customer_id NULL (NULL = POS walk-in), order_no, short_code, channel ENUM(online, pos), payment_method ENUM(cash, online), status (lihat 6), subtotal, discount, promotion_discount, manual_discount, tax_rate, tax, total, promotion_id, pos_shift_id NULL, cashier_id NULL (vendor_user POS), amount_received NULL, change_given NULL, pickup_by_type ENUM(student, parent, proxy), pickup_by_name, pickup_code_hash NULL, pickup_qr_token UNIQUE, pickup_attempts, customer_name, customer_phone, customer_email (snapshot), expires_at, paid_at, collected_at, cancelled_at, created_at · UNIQUE(cooperative_id, order_no), UNIQUE(cooperative_id, short_code), INDEX(vendor_id, cooperative_id, status)
+- **`orders`** — id, vendor_id, cooperative_id, customer_id NULL (NULL = POS walk-in), order_no, short_code, channel ENUM(online, pos), payment_method ENUM(cash, online), status (lihat 6), subtotal, discount, promotion_discount, manual_discount, tax_rate, tax, total, promotion_id, pos_shift_id NULL, cashier_id NULL (vendor_user POS), amount_received NULL, change_given NULL, pickup_by_type ENUM(student, parent, proxy), pickup_by_name, pickup_slot_id NULL (U6, modul school_opening), pickup_code_hash NULL, pickup_qr_token UNIQUE, pickup_attempts, customer_name, customer_phone, customer_email (snapshot), expires_at, paid_at, collected_at, cancelled_at, created_at · UNIQUE(cooperative_id, order_no), UNIQUE(cooperative_id, short_code), INDEX(vendor_id, cooperative_id, status)
 - **`order_items`** — id, vendor_id, order_id, product_id, variant_id, product_name, variant_label, unit_price, qty, line_total, source ENUM(ala_carte, kit, pos), school_kit_id NULL, clearance_item_id NULL (U5), child_id NULL, child_name, grade_label, class_name, collected_qty, cancelled_qty (refund sebelum diambil), returned_qty (dipulang selepas diambil)
 - **`order_status_logs`** — id, vendor_id, order_id, from_status, to_status, actor_type, actor_id, note, created_at
 - **`order_pickups`** — id, vendor_id, order_id, method ENUM(A, B, C, D, E), picked_by_type ENUM(student, parent, proxy), picked_by_name, vendor_user_id, created_at
@@ -378,15 +378,18 @@ Nama, harga dan maklumat anak **disalin** (snapshot) ke pesanan dan invois.
   > U4: satu syif terbuka setiap juruwang setiap koperasi. Jangkaan tunai = tunai permulaan + jualan tunai POS syif itu
 - **`webhook_logs`** — id, gateway_code, cooperative_id NULL, payload, signature_valid, processed, created_at
 
-### H. Modul add-on (7)
+### H. Modul add-on (8)
 
-- **`news_posts`** — id, vendor_id, cooperative_id, title, body, image_path, published_at, send_email, is_active
+- **`news_posts`** — id, vendor_id, cooperative_id, title, body, image_path, published_at, send_email, email_sent_at NULL, email_recipients, is_active
+  > U6: e-mel dimasukkan ke `email_queue` **sekali** bila berita sudah terbit (`email_sent_at`); berita berjadual → cron semasa terbit
 - **`clearance_sales`** — id, vendor_id, cooperative_id, name, starts_at, ends_at, is_active
 - **`clearance_items`** — id, vendor_id, clearance_sale_id, product_id, variant_id, sale_price, qty_limit
 - **`calendar_events`** — id, vendor_id, cooperative_id, title, event_type ENUM(school_holiday, coop_closed, school_opening, other), starts_on, ends_on, blocks_orders
 - **`preorder_seasons`** — id, vendor_id, cooperative_id, school_year, opens_at, closes_at, pickup_starts_on, note
 - **`pickup_slots`** — id, vendor_id, cooperative_id, preorder_season_id, slot_date, time_start, time_end, grade_level_code NULL, capacity, booked
-- **`notification_queue`** — id, vendor_id, channel ENUM(push, whatsapp, sms), recipient, message, status, attempts, sent_at
+- **`notification_queue`** — id, vendor_id, cooperative_id NULL, channel ENUM(push, whatsapp, sms), event, recipient, message, status ENUM(pending, sent, failed), attempts, created_at, sent_at
+- **`messaging_settings`** (U6) — id, vendor_id, cooperative_id UNIQUE, provider, channel ENUM(whatsapp, sms), sender, api_key_enc, is_enabled, events_json, templates_json, updated_at
+  > Kunci API disulitkan (seperti gateway), tidak pernah dipulangkan; kosong semasa simpan = kekal
 
 ### I. Sistem (2)
 
@@ -394,7 +397,7 @@ Nama, harga dan maklumat anak **disalin** (snapshot) ke pesanan dan invois.
   > E-mel dihantar oleh `cron/send-emails.php`, bukan semasa checkout — checkout tidak lambat walaupun SMTP perlahan.
 - **`rate_limits`** — bucket_key, hits, window_start · PK(bucket_key)
 
-Jumlah: **68 jadual**.
+Jumlah: **69 jadual** (U6: + `messaging_settings`).
 
 ## 10. Backend, API & frontend
 
@@ -426,7 +429,9 @@ Koperasi_sekolah/
 │   └── _layout/    header · sidebar · footer · profile-menu · menu.php (senarai menu)
 ├── vendor/         panel vendor (halaman .php)
 │   ├── _layout/    header · sidebar · footer · profile-menu · menu.php · addons.php · sub-nav.php (kumpulan sub-navigasi)
-│   ├── addons/     halaman modul add-on: {code}.php (U6)
+│   │               module-gate.php (kad "Langgan modul ini") · addons/ (partial modul: clearance-sale-modal, coming-soon)
+│   ├── addons/     halaman modul add-on: {code}.php (U6) — news · clearance (+ clearance-sale) · calendar · school_opening ·
+│   │               whatsapp_sms · advanced_report / mobile_app / membership (halaman sementara)
 │   └── pos/        POS kaunter + skrin serah barang
 ├── store/          index.php (titik masuk ibu bapa: slug → koperasi → template)
 ├── templates/
@@ -440,8 +445,8 @@ Koperasi_sekolah/
 │   ├── css/        app.css · print-label.css · print-slip.css · receipt.css
 │   ├── js/         api.js · lang.js · helpers.js · login.js · vendor-layout.js
 │   │   ├── owner/  satu fail per halaman owner (dashboard.js, vendors.js, …)
-│   │   ├── vendor/ satu fail per halaman vendor (dashboard.js, …)
-│   │   └── mock/   mock.js · owner.js · vendor.js · vendor-orders.js · vendor-finance.js · store.js (Peringkat 1 sahaja)
+│   │   ├── vendor/ satu fail per halaman vendor (dashboard.js, …) · addon-common.js · addons/{code}.js (U6)
+│   │   └── mock/   mock.js · owner.js · vendor.js · vendor-orders.js · vendor-finance.js · vendor-addons.js · store.js (Peringkat 1 sahaja)
 │   ├── img/
 │   └── fonts/      noto-sans-sc/ · noto-sans-tamil/ (woff2 400 & 700, unicode-range — dimuat bila perlu)
 ├── uploads/        {vendor_id}/{cooperative_id}/… (.gitignore isi, .htaccess halang PHP)
@@ -694,6 +699,10 @@ Mock demo: kata laluan `salah` → ralat log masuk; kod 2FA `000000` → ditolak
 - Helpers: `formatRM(sen)`, `formatDate(iso, withTime)`, `showToast(msg, type)`,
   `confirmDialog(msg, {title, okText, okClass})` → Promise<boolean>,
   `renderTable(tbody, items, [{key, className, render}])`, `statusBadge(status)`, `createEl(tag, class, text)`
+- Halaman modul add-on (sejak U6): set `$moduleCode = 'news'` sebelum header → layout memapar `module-gate.php` (kad "Langgan modul ini",
+  pautan `addon-store.php?module=`) dan membungkus kandungan dalam `#module-content`. JS halaman guna `onModuleReady(fn)` (dari
+  `assets/js/vendor/addon-common.js`, bukan `onCooperativeReady`) — fn dipanggil hanya jika modul aktif untuk koperasi semasa; jawapan API
+  disemak dengan `moduleResponse(res)` (`module_locked: true` → kad langgan). Butang `$pageActions` disembunyikan semasa berkunci
 - Data pengguna tidak pernah dimasukkan melalui `innerHTML` — guna `textContent` / `createEl()`
 - Semakan sebelum commit: `php tools/check-ui.php` — juga memastikan setiap `t('kunci')` / `T('kunci')`
   literal wujud dalam `lang/ms.php`. Kunci dinamik (cth. `T('vendor.status.' + status)`) mesti disemak sendiri
@@ -1108,7 +1117,7 @@ Harga, diskaun, cukai & stok dikira semula di pelayan; `expected_total` dari pel
 | Laluan | Kaedah | Input | `data` / peraturan |
 |---|---|---|---|
 | `store/schools/list` | GET | `q, state, page` | senarai `{ slug, school_name, school_type, state, district }` (koperasi aktif) |
-| `store/school` | GET | `slug` | + `address, phone, logo_url, default_language, opening_hours, grades, modules: ['news','clearance'] (aktif sahaja), payment_methods` |
+| `store/school` | GET | `slug` | + `address, phone, logo_url, default_language, opening_hours, grades, modules: ['news','clearance','calendar','school_opening'] (aktif sahaja), payment_methods, notices` (U6 — 18.13) |
 | `store/classes` | GET | `slug, grade` | `[{ grade_level_code, class_name }]` (cadangan datalist) |
 | `store/session` | GET | `slug?` | `{ customer: Customer\|null, cart_count, schools: [sekolah anak-anak] }` |
 | `store/auth/register` | POST | `full_name, phone, email, password, password_confirm, relationship, language, pdpa` | telefon MY dinormalkan `012-3456789`; e-mel & telefon unik global (ralat umum); kata laluan ≥ 8; PDPA wajib → log masuk terus, `email_verified: false` |
@@ -1122,8 +1131,8 @@ Harga, diskaun, cukai & stok dikira semula di pelayan; `expected_total` dari pel
 | `store/cart/get` · `update { id, qty }` · `remove { id }` · `clear` | | | CartQuote |
 | `store/cart/add` | POST | `product_id, variant_id, qty, child_id` | anak milik ibu bapa & di sekolah ini; varian wajib jika ada; stok (`on_hand − reserved`) & had beli dikira merentas troli |
 | `store/cart/add-kit` | POST | `child_id, kit_id, items: [{ kit_item_id, qty, variant_id }]` | item yang ditanda sahaja; saiz wajib untuk "ibu bapa pilih saiz"; menggantikan baris kit yang sama untuk anak itu |
-| `store/checkout/quote` | GET | `coupon_code` | CartQuote + `customer_name, email_verified` |
-| `store/checkout/place` | POST | `pickup_by_type, pickup_by_name (wakil), payment_method, coupon_code, pickup_code (jika requires_code), expected_total` | e-mel disahkan; troli tanpa masalah; kaedah dibenarkan koperasi → tunai `unpaid_cash` (+ `expires_at` = `cash_order_expiry_days`), online `pending_payment`; stok **ditahan** (`reserve`); promosi `used_count++`; troli dikosongkan → `{ order_id, order_no, short_code, payment: null \| { reference, gateway_name, amount, mode, redirect_url } }` |
+| `store/checkout/quote` | GET | `coupon_code` | CartQuote + `customer_name, email_verified` + (U6) `pickup_slots, slot_required, orders_blocked` |
+| `store/checkout/place` | POST | `pickup_by_type, pickup_by_name (wakil), payment_method, coupon_code, pickup_code (jika requires_code), pickup_slot_id (jika slot_required), expected_total` | (U6) ditolak jika `orders_blocked`; slot disahkan semula (koperasi, darjah, baki) → `booked++`; | e-mel disahkan; troli tanpa masalah; kaedah dibenarkan koperasi → tunai `unpaid_cash` (+ `expires_at` = `cash_order_expiry_days`), online `pending_payment`; stok **ditahan** (`reserve`); promosi `used_count++`; troli dikosongkan → `{ order_id, order_no, short_code, payment: null \| { reference, gateway_name, amount, mode, redirect_url } }` |
 | `store/payment/simulate` | POST | `order_id, result: paid\|cancel` | **Peringkat 1 sahaja** (B8: redirect gateway + webhook) |
 | `store/orders/list` | GET | `slug, child_id, year, page` | pesanan online ibu bapa di koperasi ini + `children, years, ready_count` |
 | `store/orders/get` | GET | `slug, id` | StoreOrderDetail |
@@ -1153,3 +1162,53 @@ pelayar (paparan sahaja). **Kod 4 digit:** jika koperasi mewajibkan (cara E atau
 semasa checkout (B7: hash Argon2id, tidak boleh dipapar semula) dan memberitahu anak / wakil. **Jualan murah:** harga `clearance_items.sale_price`
 digunakan automatik oleh pelayan (modul aktif, dalam tempoh) dengan had `qty_limit`. **Promosi:** sama seperti POS — satu setiap pesanan, kupon atau
 diskaun automatik terbaik, cukai selepas diskaun. **Slip beg** (cara D): satu setiap anak (sekolah, nama, kelas, no. pendek besar, QR, "BAYAR TUNAI").
+
+### 18.13 Objek modul add-on (U6) — `assets/js/mock/vendor-addons.js`
+
+Data modul (`MockAddons`: `news, clearanceSales, clearanceItems, calendarEvents, seasons, slots, messaging, notifications`) dikongsi panel vendor
+**dan** store (layout template1 memuat `vendor-addons.js` sebelum `store.js`) — apa yang vendor cipta terus kelihatan di store dalam tab yang sama.
+`Mock.storageVersion` → `v4`. Data contoh: SK Taman Melati melanggan `news, school_opening, calendar, whatsapp_sms` (`clearance` belum — untuk
+menguji kad "Langgan modul ini"); SJKC Chung Hwa tiada modul; SMK Bukit Indah (VENDOR02) `clearance`.
+
+**Keselamatan:** setiap laluan `vendor/{modul}/*` memanggil `addonRequire(params, kod)` = `ValidateCooperativeJob` + `ModuleAccess::has()` —
+koperasi bukan milik vendor → `error.not_found`; modul tidak dilanggan → `{ ok:false, error, module_locked: true }`. Rekod dicari ikut
+vendor sesi + koperasi (id rekod vendor lain → tidak dijumpai). `vendor_id` rekod baharu dari sesi. Kunci API WhatsApp/SMS tidak pernah dipulangkan.
+
+| Laluan | Kaedah | Input | `data` / peraturan |
+|---|---|---|---|
+| `vendor/news/list` | GET | `q, state (published\|scheduled\|draft), page` | senarai NewsPost; berita berjadual yang kini terbit → e-mel dimasukkan baris gilir |
+| `vendor/news/recipients` | GET | — | `{ count }` ibu bapa dengan anak aktif di koperasi ini |
+| `vendor/news/save` | POST | `id?, title (≤150), body, image_url? (data URL; B13: Uploader), published_at ('YYYY-MM-DDTHH:MM'), is_active, send_email` | `{ post: NewsPost, emails_queued }` — e-mel sekali sahaja |
+| `vendor/news/delete` | POST | `id` | |
+| `vendor/clearance/list` | GET | `q, state (active\|scheduled\|ended\|inactive), page` | senarai `{ id, name, starts_on, ends_on, is_active, state, item_count }` |
+| `vendor/clearance/get` | GET | `id` | jualan + `items: [ClearanceItem]` |
+| `vendor/clearance/save` · `delete` | POST | `id?, name, starts_on, ends_on, is_active` | `starts_at = starts_on 00:00`, `ends_at = ends_on 23:59:59`; padam = buang item juga |
+| `vendor/clearance/item-save` · `item-delete` | POST | `sale_id, id?, product_id, variant_id (null = semua saiz), sale_price (sen), qty_limit?` | produk milik koperasi; `sale_price` < harga biasa; produk+varian unik dalam jualan |
+| `vendor/calendar/list` | GET | `from, to` | `{ items: [CalendarEvent] (bertindih julat), today, today_blocked: CalendarEvent\|null }` |
+| `vendor/calendar/save` · `delete` | POST | `id?, title, event_type (school_holiday\|coop_closed\|school_opening\|other), starts_on, ends_on, blocks_orders` | |
+| `vendor/school-opening/seasons` | GET | — | `{ items: [Season], grades }` |
+| `vendor/school-opening/season-save` · `season-delete` | POST | `id?, school_year, opens_at, closes_at, pickup_starts_on (≥ closes_at), note` | satu musim setiap tahun; padam ditolak jika ada slot bertempah |
+| `vendor/school-opening/slots` | GET | `season_id` | `{ season: Season, items: [Slot] }` |
+| `vendor/school-opening/slot-save` | POST | `season_id, id?, slot_date (≥ pickup_starts_on), time_start, time_end, capacity (1–1000, ≥ booked), grades: []` | tambah: satu slot setiap darjah (kosong = semua darjah) → `{ created, items }`; sunting: satu darjah |
+| `vendor/school-opening/slot-delete` | POST | `id` | ditolak jika `booked > 0` |
+| `vendor/messaging/get` · `save` | | `provider (whatsapp_cloud\|twilio\|isms), channel, sender (60…), api_key (kosong = kekal), is_enabled, events.{ev}, templates.{ev}` | `{ …, api_key_set, placeholders }`; pemegang tempat tidak dikenali ditolak |
+| `vendor/messaging/test` | POST | `phone` | perlu `is_enabled`; masuk `notification_queue` (Peringkat 1: terus "sent") |
+| `vendor/messaging/log` | GET | `status, page` | senarai `{ channel, recipient (bertopeng 012-***4556), event, message, status, attempts, created_at, sent_at }` |
+
+```js
+NewsPost        = { id, title, body, image_url, published_at, is_active, send_email, email_sent_at, email_recipients, state }
+ClearanceItem   = { id, product_id, variant_id, product_name, sku, variant_label, has_variants, regular_price, sale_price, qty_limit, discount_percent, available }
+CalendarEvent   = { id, title, event_type, starts_on, ends_on, blocks_orders }
+Season          = { id, school_year, opens_at, closes_at, pickup_starts_on, note, state: 'upcoming|open|closed', slot_count, capacity, booked }
+Slot            = { id, slot_date, time_start, time_end, grade_level_code /* null = semua darjah */, capacity, booked, remaining }
+StoreNotices    = { closure: { title, starts_on, ends_on, is_today, reopens_on } | null,   // acara blocks_orders hari ini / dalam 14 hari
+                    preorder: { school_year, closes_at, pickup_starts_on, note, has_slots } | null }  // musim sedang dibuka
+```
+
+**Store (U6):** `store/school.notices` → banner `#store-closure` (semua halaman sekolah) & `#store-preorder` (utama & kit) dalam
+`templates/template1/partials/notices.php`, diisi `assets/js/store/layout.js`. **Checkout:** `orders_blocked` (acara `blocks_orders` hari ini) →
+amaran + butang dimatikan, `place` ditolak. Musim dibuka + ada slot → `slot_required`; `pickup_slots` = slot musim itu untuk darjah anak dalam troli
+(atau semua darjah), slot penuh dimatikan. Satu pesanan = satu tempat. Pesanan menyimpan `pickup_slot_id` + salinan `pickup_slot`
+`{ slot_date, time_start, time_end, grade_level_code }` (dipapar di `order-success`, `order-detail`, panel vendor `order.php`); batal (ibu bapa atau
+vendor) → `booked--`. **Lencana "Jualan murah"** (sedia sejak U5) kini dari `MockAddons.clearanceItems` yang ditulis panel vendor.
+

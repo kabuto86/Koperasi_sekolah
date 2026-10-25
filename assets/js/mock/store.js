@@ -1,6 +1,6 @@
 // Data mock store ibu bapa (U5). Bentuk objek = kontrak API (PELAN 18.12).
 // Bergantung pada mock/vendor.js (katalog & stok), vendor-orders.js (ibu bapa, anak, kit, pesanan),
-// vendor-finance.js (gateway, promosi, tetapan) dan vendor/pos-cart.js (posTotals) — "pangkalan data" yang sama,
+// vendor-finance.js (gateway, promosi, tetapan), vendor-addons.js (modul add-on) dan vendor/pos-cart.js (posTotals) — "pangkalan data" yang sama,
 // jadi pesanan dari store terus muncul dalam panel vendor (tab yang sama).
 //
 // Keselamatan (sama seperti Peringkat 2):
@@ -14,36 +14,11 @@ var MockStore = {
     carts: [],
     cartSeq: 0,
     tokens: [],
-    failedLogins: {},
-
-    // Modul add-on (U6 membina panel vendor). Dipapar di store hanya jika modul aktif untuk koperasi itu
-    news: [
-        { id: 1, vendor_id: 1, cooperative_id: 1, title: 'Pre-order kit sekolah 2027 kini dibuka',
-          body: 'Ibu bapa boleh membuat tempahan kit Darjah 1 hingga 6 untuk sesi 2027. Barang boleh diambil mulai 4 Januari 2027 di koperasi sekolah.',
-          image_url: null, published_at: '2026-10-20T09:00:00+08:00', is_active: true },
-        { id: 2, vendor_id: 1, cooperative_id: 1, title: 'Waktu operasi koperasi semasa cuti sekolah',
-          body: 'Koperasi ditutup sepanjang cuti akhir tahun (20 Disember – 3 Januari). Pesanan online masih boleh dibuat dan diambil selepas cuti.',
-          image_url: null, published_at: '2026-10-12T10:30:00+08:00', is_active: true },
-        { id: 3, vendor_id: 1, cooperative_id: 1, title: 'Stok baju sekolah saiz L & XL telah tiba',
-          body: 'Stok baru telah tiba minggu ini. Sila tempah awal kerana kuantiti terhad.',
-          image_url: null, published_at: '2026-09-28T08:00:00+08:00', is_active: true },
-        { id: 4, vendor_id: 2, cooperative_id: 3, title: 'Hari Terbuka koperasi',
-          body: 'Modul berita tidak aktif untuk koperasi ini — berita ini tidak dipaparkan.',
-          image_url: null, published_at: '2026-10-01T08:00:00+08:00', is_active: true }
-    ],
-    clearanceSales: [
-        { id: 1, vendor_id: 2, cooperative_id: 3, name: 'Jualan murah hujung tahun', starts_at: '2026-10-01T00:00:00+08:00', ends_at: '2026-12-31T23:59:59+08:00', is_active: true },
-        { id: 2, vendor_id: 1, cooperative_id: 1, name: 'Modul tidak aktif — tidak dipaparkan', starts_at: '2026-10-01T00:00:00+08:00', ends_at: '2026-12-31T23:59:59+08:00', is_active: true }
-    ],
-    clearanceItems: [
-        { id: 1, vendor_id: 2, clearance_sale_id: 1, product_id: 24, variant_id: null, sale_price: 4500, qty_limit: 1 },
-        { id: 2, vendor_id: 2, clearance_sale_id: 1, product_id: 23, variant_id: 17, sale_price: 3900, qty_limit: 2 },
-        { id: 3, vendor_id: 1, clearance_sale_id: 2, product_id: 17, variant_id: null, sale_price: 5900, qty_limit: 1 }
-    ]
+    failedLogins: {}
 };
 
-// Modul add-on yang mempengaruhi store
-var STORE_MODULES = ['news', 'clearance'];
+// Modul add-on yang mempengaruhi store. Data modul dalam mock/vendor-addons.js (MockAddons) — ditulis oleh panel vendor (U6)
+var STORE_MODULES = ['news', 'clearance', 'calendar', 'school_opening'];
 
 // ---------- Pembantu: konteks sekolah & sesi ----------
 
@@ -166,10 +141,10 @@ function storeClearanceItem(coop, product, variantId) {
         return null;
     }
     var now = Mock.now();
-    var sales = storeRows(MockStore.clearanceSales, coop).filter(function (sale) {
+    var sales = storeRows(MockAddons.clearanceSales, coop).filter(function (sale) {
         return sale.is_active && sale.starts_at <= now && sale.ends_at >= now;
     }).map(function (sale) { return sale.id; });
-    return MockStore.clearanceItems.filter(function (item) {
+    return MockAddons.clearanceItems.filter(function (item) {
         return item.vendor_id === coop.vendor_id && sales.indexOf(item.clearance_sale_id) !== -1 && item.product_id === product.id
             && (item.variant_id === null || item.variant_id === Number(variantId || 0));
     })[0] || null;
@@ -334,6 +309,8 @@ function storeQuote(customer, coop, couponCode) {
     var taxRate = MockFinance.settings[coop.id].tax_rate || 0;
     var totals = posTotals(valid, { promotion: promotion, taxRate: taxRate });
     var settings = MockOrders.pickupSettings[coop.id];
+    var slots = storeSlotsFor(coop, valid);
+    var blocking = addonBlockingEvent(coop, mockToday());
     var gateway = storeGateway(coop);
     var driver = gateway ? mockDriver(gateway.gateway_code) : null;
     var methods = [];
@@ -353,7 +330,10 @@ function storeQuote(customer, coop, couponCode) {
             payment_methods: methods, gateway_name: driver ? driver.name : null,
             cash_expiry_days: MockFinance.settings[coop.id].cash_order_expiry_days,
             requires_code: settings.methods.indexOf('E') !== -1 || (settings.code_required_above > 0 && totals.total > settings.code_required_above),
-            code_required_above: settings.code_required_above
+            code_required_above: settings.code_required_above,
+            pickup_slots: slots,
+            slot_required: slots.length > 0,
+            orders_blocked: blocking ? { title: blocking.title, reopens_on: addonNextDay(blocking.ends_on) } : null
         }
     };
 }
@@ -398,8 +378,33 @@ Mock.register('store/school', function (params) {
     data.grades = mockGradesFor(coop.school_type);
     data.modules = storeModules(coop);
     data.payment_methods = (coop.accept_cash ? ['cash'] : []).concat(coop.accept_online ? ['online'] : []);
+    data.notices = storeNotices(coop);
     return Mock.ok(data);
 });
+
+// Banner store: koperasi tutup (modul calendar) & musim pre-order (modul school_opening)
+function storeNotices(coop) {
+    var closure = addonUpcomingClosure(coop);
+    var season = addonOpenSeason(coop);
+    var today = mockToday();
+    return {
+        closure: closure ? { title: closure.title, starts_on: closure.starts_on, ends_on: closure.ends_on, is_today: closure.starts_on <= today,
+            reopens_on: addonNextDay(closure.ends_on) } : null,
+        preorder: season ? { school_year: season.school_year, closes_at: season.closes_at, pickup_starts_on: season.pickup_starts_on, note: season.note,
+            has_slots: addonSeasonSlots(season).length > 0 } : null
+    };
+}
+
+// Slot ambil untuk troli ini (darjah anak-anak dalam troli)
+function storeSlotsFor(coop, lines) {
+    var grades = [];
+    lines.forEach(function (line) {
+        if (line.child && grades.indexOf(line.child.grade_level_code) === -1) {
+            grades.push(line.child.grade_level_code);
+        }
+    });
+    return addonSlotsFor(coop, grades).map(addonSlotRow);
+}
 
 Mock.register('store/classes', function (params) {
     var coop = storeCoop(params);
@@ -1099,6 +1104,10 @@ Mock.register('store/checkout/place', function (body) {
     if (data.has_problem) {
         return Mock.fail(T('store.checkout.fix_cart'));
     }
+    // Modul calendar: tempahan ditutup pada hari koperasi tutup
+    if (data.orders_blocked) {
+        return Mock.fail(T('store.closed.blocked', { title: data.orders_blocked.title, date: formatDate(data.orders_blocked.reopens_on) }));
+    }
     if (quote.coupon_error) {
         return Mock.fail(quote.coupon_error, { coupon_code: quote.coupon_error });
     }
@@ -1114,6 +1123,18 @@ Mock.register('store/checkout/place', function (body) {
     }
     if (data.requires_code && !/^[0-9]{4}$/.test(String(body.pickup_code || ''))) {
         errors.pickup_code = T('handover.code_format');
+    }
+    // Modul school_opening: slot mesti dari senarai yang sesuai dan masih ada tempat (dikira semula di sini)
+    var slot = null;
+    if (data.slot_required) {
+        var chosen = data.pickup_slots.filter(function (row) { return row.id === Number(body.pickup_slot_id); })[0];
+        if (!chosen) {
+            errors.pickup_slot_id = T('store.slot.choose');
+        } else if (chosen.remaining < 1) {
+            errors.pickup_slot_id = T('store.slot.full');
+        } else {
+            slot = Mock.findById(MockAddons.slots, chosen.id);
+        }
     }
     if (Mock.hasErrors(errors)) {
         return Mock.fail(T('error.check_form'), errors);
@@ -1136,6 +1157,8 @@ Mock.register('store/checkout/place', function (body) {
         subtotal: data.subtotal, promotion_id: quote.promotion ? quote.promotion.id : null, promotion_discount: data.discount, manual_discount: 0,
         discount: data.discount, tax_rate: data.tax_rate, tax: data.tax, total: data.total,
         pickup_by_type: body.pickup_by_type,
+        pickup_slot_id: slot ? slot.id : null,
+        pickup_slot: slot ? { slot_date: slot.slot_date, time_start: slot.time_start, time_end: slot.time_end, grade_level_code: slot.grade_level_code } : null,
         pickup_by_name: body.pickup_by_type === 'parent' ? ctx.customer.full_name : (body.pickup_by_type === 'proxy' ? pickupName : ''),
         // Peringkat 2: hash Argon2id; ibu bapa yang menetapkan kod (diberi kepada anak). Tidak wajib → kod rawak, tidak digunakan
         pickup_code: data.requires_code ? String(body.pickup_code) : String(1000 + (orderId * 739) % 9000),
@@ -1160,6 +1183,9 @@ Mock.register('store/checkout/place', function (body) {
     }
     MockOrders.orders.push(order);
     storeReserve(ctx.coop, order, 'reserve');
+    if (slot) {
+        slot.booked++;
+    }
     if (quote.promotion) {
         quote.promotion.used_count++;
     }
@@ -1232,6 +1258,7 @@ function storeOrderDetail(ctx, order) {
     data.collected_at = order.collected_at;
     data.pickup_by_type = order.pickup_by_type;
     data.pickup_by_name = order.pickup_by_name;
+    data.pickup_slot = addonOrderSlot(order);
     data.requires_code = mockRequiresCode(order);
     data.qr_token = order.pickup_qr_token;
     data.gateway_ref = order.payment_method === 'online' ? order.gateway_ref : null;
@@ -1324,6 +1351,7 @@ Mock.register('store/orders/cancel', function (body) {
         return Mock.fail(T('store.order.cannot_cancel'));
     }
     storeReserve(ctx.coop, order, 'release');
+    addonReleaseSlot(order);
     order.logs.push({ from_status: order.status, to_status: 'cancelled', actor: 'customer', actor_name: ctx.customer.full_name, note: T('store.order.cancelled_by_parent'), created_at: Mock.now() });
     order.status = 'cancelled';
     order.payment_status = 'none';
@@ -1341,7 +1369,7 @@ Mock.register('store/news/list', function (params) {
     if (storeModules(coop).indexOf('news') === -1) {
         return Mock.fail(T('store.module_unavailable'));
     }
-    var rows = storeRows(MockStore.news, coop).filter(function (post) {
+    var rows = storeRows(MockAddons.news, coop).filter(function (post) {
         return post.is_active && post.published_at <= Mock.now();
     }).sort(function (a, b) { return a.published_at < b.published_at ? 1 : -1; }).map(function (post) {
         return { id: post.id, title: post.title, body: post.body, image_url: post.image_url, published_at: post.published_at };
@@ -1358,12 +1386,12 @@ Mock.register('store/clearance/list', function (params) {
         return Mock.fail(T('store.module_unavailable'));
     }
     var now = Mock.now();
-    var sales = storeRows(MockStore.clearanceSales, coop).filter(function (sale) {
+    var sales = storeRows(MockAddons.clearanceSales, coop).filter(function (sale) {
         return sale.is_active && sale.starts_at <= now && sale.ends_at >= now;
     });
     return Mock.ok(sales.map(function (sale) {
         return { id: sale.id, name: sale.name, ends_at: sale.ends_at,
-            items: MockStore.clearanceItems.filter(function (item) { return item.clearance_sale_id === sale.id && item.vendor_id === coop.vendor_id; })
+            items: MockAddons.clearanceItems.filter(function (item) { return item.clearance_sale_id === sale.id && item.vendor_id === coop.vendor_id; })
                 .map(function (item) {
                     var product = storeProduct(coop, item.product_id);
                     if (!product) {

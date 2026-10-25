@@ -34,6 +34,9 @@ require __DIR__ . '/partials/header.php';
 ?>
 <main class="container store-main py-3" id="main">
     <div class="alert alert-danger d-none" id="store-error" role="alert"></div>
+    <?php if ($schoolSlug !== '') {
+        require __DIR__ . '/partials/notices.php';
+    } ?>
     <?php require __DIR__ . '/pages/' . $storePage . '.php'; ?>
 </main>
 <?php
@@ -42,6 +45,6 @@ require __DIR__ . '/partials/bottom-nav.php';
 
 View::partial('partials/ui-shell.php');
 View::partial('partials/scripts.php', [
-    'mockFiles'   => ['vendor.js', 'vendor-orders.js', 'vendor-finance.js', 'store.js'],
+    'mockFiles'   => ['vendor.js', 'vendor-orders.js', 'vendor-finance.js', 'vendor-addons.js', 'store.js'],
     'pageScripts' => $pageScripts,
 ]);

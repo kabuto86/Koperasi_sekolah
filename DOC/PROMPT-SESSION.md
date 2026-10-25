@@ -38,6 +38,9 @@ Setiap prompt di bawah bermula dengan "Ikut peraturan umum". Maksudnya:
    Store ibu bapa (sejak U5): logik dalam `assets/js/store/{halaman}.js` + `common.js` (`storeGet/storePost` dengan slug & auth_required,
    `storeUrl`, `onStoreReady`, `renderSlips`, `storeStartPayment`) + `layout.js`; template (`templates/template1/`) paparan sahaja.
    Mock `store.js` berkongsi data vendor (pesanan store muncul di panel vendor) — PELAN 18.12.
+   Modul add-on (sejak U6): halaman `vendor/addons/{code}.php` set `$moduleCode` → gerbang "Langgan modul ini" (`_layout/module-gate.php`);
+   JS guna `onModuleReady()` + `moduleResponse()` (`assets/js/vendor/addon-common.js`). Data modul dalam mock `vendor-addons.js`
+   (`MockAddons`, dikongsi panel & store; `addonRequire()` = koperasi + `ModuleAccess`) — PELAN 18.13.
    Sebelum commit jalankan `php tools/check-ui.php` (tiada inline CSS, kunci 4 bahasa sama).
 7. **Peringkat 2 (B):** jalankan ujian kebocoran dua vendor + dua ibu bapa (PELAN 15) sebelum tutup session.
 8. **Penutup wajib:**

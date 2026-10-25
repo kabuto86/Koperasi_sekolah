@@ -5,6 +5,9 @@
     <i class="bi bi-envelope-exclamation" aria-hidden="true"></i> <?= e(t('store.checkout.verify_first')) ?>
     <a class="alert-link" href="<?= e(View::storeUrl($schoolSlug, 'profile')) ?>"><?= e(t('store.verify.open')) ?></a>
 </div>
+<div class="alert alert-danger d-none" id="checkout-blocked" role="alert">
+    <i class="bi bi-door-closed" aria-hidden="true"></i> <span id="checkout-blocked-text"></span>
+</div>
 <form class="row g-3" id="checkout-form" novalidate>
     <div class="col-12 col-lg-7">
         <section class="card border-0 shadow-sm mb-3">
@@ -33,6 +36,12 @@
                     <input class="form-control" type="text" id="checkout-proxy-name" name="pickup_by_name" maxlength="100" placeholder="<?= e(t('store.checkout.proxy_placeholder')) ?>">
                     <div class="invalid-feedback"><?= e(t('error.required')) ?></div>
                 </div>
+                <fieldset class="mt-3 d-none" id="checkout-slot">
+                    <legend class="form-label fs-6 fw-semibold mb-1"><i class="bi bi-clock" aria-hidden="true"></i> <?= e(t('store.slot.title')) ?></legend>
+                    <p class="small text-body-secondary mb-2"><?= e(t('store.slot.help')) ?></p>
+                    <div class="d-grid gap-2" id="checkout-slot-list"></div>
+                    <div class="invalid-feedback d-block d-none" id="checkout-slot-error"><?= e(t('store.slot.choose')) ?></div>
+                </fieldset>
                 <div class="mt-3 d-none" id="checkout-code">
                     <label class="form-label" for="checkout-code-input"><?= e(t('store.checkout.code_label')) ?></label>
                     <input class="form-control store-code-input" type="text" id="checkout-code-input" name="pickup_code" inputmode="numeric"

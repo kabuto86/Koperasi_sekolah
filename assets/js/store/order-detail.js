@@ -49,6 +49,9 @@ function renderDetailInfo(order) {
         infoRow(info, T('order.expires_at'), formatDate(order.expires_at));
     }
     infoRow(info, T('order.pickup_by'), T('pickup.by.' + order.pickup_by_type) + (order.pickup_by_name ? ': ' + order.pickup_by_name : ''));
+    if (order.pickup_slot) {
+        infoRow(info, T('store.slot.title'), slotText(order.pickup_slot));
+    }
     if (order.requires_code) {
         infoRow(info, T('order.pickup_code'), T('store.order.code_needed'));
     }

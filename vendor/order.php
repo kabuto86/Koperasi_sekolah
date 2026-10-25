@@ -58,6 +58,7 @@ require __DIR__ . '/_layout/header.php';
                 <dl class="row mb-0">
                     <dt class="col-5 fw-normal text-body-secondary"><?= e(t('order.payment')) ?></dt><dd class="col-7" id="ord-payment"></dd>
                     <dt class="col-5 fw-normal text-body-secondary"><?= e(t('order.pickup_by')) ?></dt><dd class="col-7" id="ord-pickup-by">—</dd>
+                    <dt class="col-5 fw-normal text-body-secondary d-none" id="ord-slot-label"><?= e(t('store.slot.title')) ?></dt><dd class="col-7 d-none" id="ord-slot">—</dd>
                     <dt class="col-5 fw-normal text-body-secondary"><?= e(t('order.pickup_code')) ?></dt><dd class="col-7" id="ord-code">—</dd>
                     <dt class="col-5 fw-normal text-body-secondary"><?= e(t('order.expires_at')) ?></dt><dd class="col-7 mb-0" id="ord-expires">—</dd>
                 </dl>
