@@ -79,6 +79,20 @@ mencatat **nama anak, darjah dan kelas**, dan barang diambil di koperasi sekolah
 
 > Kebenaran disemak **di dalam setiap endpoint**. Menyorok butang di UI bukan kawalan keselamatan.
 
+**Menu ikut peranan (U7).** `owner/_layout/menu.php` & `vendor/_layout/menu.php` — item ada `'roles'` (tiada = semua peranan);
+`core/PanelRole.php` menapis menu (`filterMenu`); seksyen modul add-on vendor disembunyikan untuk juruwang. Peringkat 1: peranan dari
+cookie demo `mock_role` (hanya bila `use_mock`), lalai peranan tertinggi (`owner` / `vendor_admin`). B2: `PanelRole::current()` membaca sesi
+**dan** setiap halaman/API menyekat peranan yang tidak dibenarkan (halaman → kembali ke halaman pertama yang dibenarkan).
+
+Owner: `owner_staff` nampak papan pemuka, vendor, koperasi, langganan & invois, log audit sahaja; selebihnya `owner` sahaja.
+
+| Menu | `vendor_admin` | `coop_manager` | `cashier` |
+|---|---|---|---|
+| Papan pemuka, koperasi, produk, inventori, pembekal, kit, pesanan, ibu bapa | ✔ | ✔ | — |
+| Serah barang, POS kaunter | ✔ | ✔ | ✔ |
+| Refund, promosi, laporan, log aktiviti, modul add-on | ✔ | ✔ | — |
+| Bayaran (gateway), kakitangan, tetapan, langganan & bil | ✔ | — | — |
+
 ## 5. Modul
 
 ### 5.1 Owner — `/owner/`
@@ -920,12 +934,13 @@ KitDetail  = KitSummary + { items: [{ id, product_id, variant_id /* null = ibu b
   → `{ copied, skipped, removed_items }`
 
 **OrderSummary** — `vendor/orders/list` (tapis `q` [no., kod pendek, nama murid/ibu bapa, telefon, token QR], `status` [boleh senarai
-dipisah koma], `grade`, `class_name`, `payment_method`, `date_from`, `date_to`; `data.status_counts: { ready: 7, … }`)
+dipisah koma], `grade`, `class_name`, `payment_method`, `date_from`, `date_to`, `pickup_slot_id` (U7); `data.status_counts: { ready: 7, … }`)
 ```js
 { id, order_no, short_code, status, payment_method: 'cash|online', payment_status, total, customer_name, customer_phone,
-  children: [{ child_name, grade_level_code, class_name }], item_count, created_at, expires_at }
+  children: [{ child_name, grade_level_code, class_name }], item_count,
+  pickup_slot: { slot_date, time_start, time_end, grade_level_code } | null /* U7 */, created_at, expires_at }
 ```
-**OrderDetail** — `vendor/orders/get {id}` = OrderSummary + `subtotal, discount, customer_email, pickup_by_type: 'student|parent|proxy',
+**OrderDetail** — `vendor/orders/get {id}` = OrderSummary + `subtotal, discount, tax_rate, tax /* U7: baris cukai dipapar bila > 0 */, customer_email, pickup_by_type: 'student|parent|proxy',
 pickup_by_name, requires_code, pickup_locked, paid_at, collected_at`,
 `groups: [{ child_id, child_name, grade_level_code, class_name, items: [{ id, product_name, variant_label, sku, unit_price, qty, line_total,
 collected_qty, source: 'ala_carte|kit|pos' }] }]` (item dikumpul ikut anak),
@@ -939,12 +954,14 @@ collected_qty, source: 'ala_carte|kit|pos' }] }]` (item dikumpul ikut anak),
 | `vendor/handover/receive-cash` | `id, amount_received` (sen) | tunai sahaja, ≥ jumlah → `{ change, order }` |
 | `vendor/handover/collect` | `id, picked_by_type, picked_by_name, items: [{ item_id, qty }], code?` | status `ready`/`partially_collected`; dibayar; kod jika `requires_code` (5 salah → `pickup_locked`); qty ≤ baki; → `{ status, parent_notified: true, order }`; pergerakan stok `collect` |
 
-- `vendor/orders/picking-list { status (lalai 'paid,unpaid_cash,preparing'), grade, class_name }` →
+- `vendor/orders/picking-list { status (lalai 'paid,unpaid_cash,preparing'), grade, class_name, pickup_slot_id }` →
   `{ school_name, generated_at, order_count, groups: [{ grade_level_code, class_name, children: [{ child_name, order_no, short_code, status,
   items: [{ product_name, variant_label, qty /* baki belum diambil */ }] }] }], totals: [{ product_name, variant_label, sku, qty }] }`
-- `vendor/orders/labels { grade, class_name, order_id? }` → `{ school_name, labels: [{ order_id, order_no, short_code, child_name,
-  grade_level_code, class_name, item_count, payment_status, qr_token }] }` — satu label setiap anak setiap pesanan
+- `vendor/orders/labels { grade, class_name, pickup_slot_id, order_id? }` → `{ school_name, labels: [{ order_id, order_no, short_code, child_name,
+  grade_level_code, class_name, item_count, payment_status, pickup_slot, qr_token }] }` — satu label setiap anak setiap pesanan (slot dicetak pada label)
 - `vendor/orders/class-options` → `[{ grade_level_code, class_name }]`
+- `vendor/orders/slot-options` (U7) → `[Slot]` semua slot musim koperasi ini; `[]` jika modul `school_opening` tidak aktif → tapisan slot
+  disembunyikan di senarai pesanan, picking list & label beg (`bindSlotFilter()` dalam `order-common.js`)
 - `vendor/handover/search { q, grade, class_name }` → `{ items: [OrderDetail ×20], settings: { methods: ['A','B','C','D','E'?], code_required_above /* sen, 0 = tiada */ } }`
   — padanan tepat token QR / kod pendek dahulu; jika tidak, pesanan aktif (`paid, unpaid_cash, preparing, ready, partially_collected`)
   disusun `ready` dahulu
@@ -1062,7 +1079,7 @@ Ia muncul dalam rekod bayaran, laporan, pergerakan stok (`pos_sale`) dan pemulan
 
 | Laluan | Kaedah | Input | `data` / peraturan |
 |---|---|---|---|
-| `vendor/pos/session` | GET | — | `{ cooperative: { id, school_name, address, phone, logo_url }, cashier: { id, full_name, role } \| null, shift: PosShift \| null, online_available, gateway_name }` |
+| `vendor/pos/session` | GET | — | `{ cooperative: { id, school_name, address, phone, logo_url }, cashier: { id, full_name, role } \| null, shift: PosShift \| null, online_available, gateway_name, closed_today: { title, reopens_on } \| null }` — U7: hari "koperasi tutup" (modul `calendar`) → banner amaran di POS, jualan kaunter tidak disekat |
 | `vendor/pos/pin-login` | POST | `user_id, pin` | kakitangan vendor sesi, aktif, `pin_set`, ada akses koperasi (admin = semua); 5 PIN salah → dikunci (pentadbir tetapkan semula di Kakitangan) → `{ cashier, shift }` |
 | `vendor/pos/lock` | POST | — | buang juruwang dari sesi kaunter; syif kekal dibuka |
 | `vendor/pos/shift-open` | POST | `opening_cash` (sen ≥ 0) | satu syif terbuka setiap juruwang setiap koperasi → PosShift |
@@ -1212,3 +1229,247 @@ amaran + butang dimatikan, `place` ditolak. Musim dibuka + ada slot → `slot_re
 `{ slot_date, time_start, time_end, grade_level_code }` (dipapar di `order-success`, `order-detail`, panel vendor `order.php`); batal (ibu bapa atau
 vendor) → `booked--`. **Lencana "Jualan murah"** (sedia sejak U5) kini dari `MockAddons.clearanceItems` yang ditulis panel vendor.
 
+
+### 18.14 Indeks laluan API lengkap (U7) — spesifikasi backend
+
+Senarai **semua** laluan yang didaftar dalam `assets/js/mock/*.js` (214 laluan, dijana dari kod mock pada U7). Bentuk `data` setiap laluan
+ada dalam 18.4–18.13; jadual ini ialah senarai semak Peringkat 2 — setiap baris mesti menjadi `api/v1/{laluan}.php` (nipis, tiada SQL)
+yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan CSRF, B14).
+
+**Skop disahkan pelayan:**
+- `owner` — sesi owner (2FA lengkap); `owner_staff` disekat untuk harga/pelan/tetapan (PELAN 4)
+- `vendor sesi` — `vendor_id` dari sesi sahaja; rekod dicari `WHERE vendor_id = :sesi`
+- `vendor sesi + koperasi` — juga `cooperative_id` disahkan milik vendor (`ValidateCooperativeJob`); id rekod dicari dalam koperasi itu
+- `koperasi + modul` — juga `ModuleAccess::has(cooperative_id, kod)`; tidak dilanggan → `module_locked: true`
+- `awam + slug` — sekolah dari slug (koperasi aktif sahaja); `ibu bapa (sesi)` — `customer_id` dari sesi/token sahaja
+- Peranan vendor (B2): laluan kewangan/kakitangan/langganan hanya `vendor_admin`; juruwang hanya `vendor/pos/*`, `vendor/handover/*`
+  dan bacaan yang diperlukan oleh skrin itu (lihat jadual peranan dalam PELAN 4)
+
+**owner/** 
+
+| Laluan | Kaedah | Skop disahkan pelayan | Session | Mock |
+|---|---|---|---|---|
+| `owner/announcements/delete` | POST | owner | B3 | `owner.js` |
+| `owner/announcements/list` | GET | owner | B3 | `owner.js` |
+| `owner/announcements/save` | POST | owner | B3 | `owner.js` |
+| `owner/audit-logs/list` | GET | owner | B3 | `owner.js` |
+| `owner/auth/login` | POST | awam | B2 | `owner.js` |
+| `owner/auth/verify-2fa` | POST | awam | B2 | `owner.js` |
+| `owner/cooperatives/list` | GET | owner | B3 | `owner.js` |
+| `owner/dashboard/summary` | GET | owner | B3 | `owner.js` |
+| `owner/email-templates/get` | GET | owner | B3 | `owner.js` |
+| `owner/email-templates/list` | GET | owner | B3 | `owner.js` |
+| `owner/email-templates/save` | POST | owner | B3 | `owner.js` |
+| `owner/gateways/list` | GET | owner | B3 | `owner.js` |
+| `owner/gateways/save-owner` | POST | owner | B3 | `owner.js` |
+| `owner/gateways/toggle` | POST | owner | B3 | `owner.js` |
+| `owner/grades/list` | GET | owner | B3 | `owner.js` |
+| `owner/grades/save` | POST | owner | B3 | `owner.js` |
+| `owner/invoices/get` | GET | owner | B12 | `owner.js` |
+| `owner/invoices/issue` | POST | owner | B12 | `owner.js` |
+| `owner/invoices/list` | GET | owner | B12 | `owner.js` |
+| `owner/invoices/mark-paid` | POST | owner | B12 | `owner.js` |
+| `owner/invoices/void` | POST | owner | B12 | `owner.js` |
+| `owner/modules/list` | GET | owner | B3 | `owner.js` |
+| `owner/modules/save` | POST | owner | B3 | `owner.js` |
+| `owner/plans/delete` | POST | owner | B3 | `owner.js` |
+| `owner/plans/list` | GET | owner | B3 | `owner.js` |
+| `owner/plans/save` | POST | owner | B3 | `owner.js` |
+| `owner/plans/save-tiers` | POST | owner | B3 | `owner.js` |
+| `owner/plans/tiers` | GET | owner | B3 | `owner.js` |
+| `owner/profile/change-password` | POST | owner | B2 | `owner.js` |
+| `owner/profile/get` | GET | owner | B2 | `owner.js` |
+| `owner/profile/save` | POST | owner | B2 | `owner.js` |
+| `owner/settings/get` | GET | owner | B3 | `owner.js` |
+| `owner/settings/save` | POST | owner | B3 | `owner.js` |
+| `owner/settings/test-email` | POST | owner | B3 | `owner.js` |
+| `owner/staff/list` | GET | owner | B2 | `owner.js` |
+| `owner/staff/reset-2fa` | POST | owner | B2 | `owner.js` |
+| `owner/staff/save` | POST | owner | B2 | `owner.js` |
+| `owner/staff/set-active` | POST | owner | B2 | `owner.js` |
+| `owner/subscriptions/list` | GET | owner | B12 | `owner.js` |
+| `owner/templates/list` | GET | owner | B3 | `owner.js` |
+| `owner/templates/save` | POST | owner | B3 | `owner.js` |
+| `owner/translations/list` | GET | owner | B14 | `owner.js` |
+| `owner/translations/save` | POST | owner | B14 | `owner.js` |
+| `owner/two-factor/enable` | POST | owner | B2 | `owner.js` |
+| `owner/two-factor/regenerate-codes` | POST | owner | B2 | `owner.js` |
+| `owner/two-factor/setup` | GET | owner | B2 | `owner.js` |
+| `owner/vendors/add-note` | POST | owner | B3 | `owner.js` |
+| `owner/vendors/get` | GET | owner | B3 | `owner.js` |
+| `owner/vendors/list` | GET | owner | B3 | `owner.js` |
+| `owner/vendors/options` | GET | owner | B3 | `owner.js` |
+| `owner/vendors/set-status` | POST | owner | B3 | `owner.js` |
+
+**store/** 
+
+| Laluan | Kaedah | Skop disahkan pelayan | Session | Mock |
+|---|---|---|---|---|
+| `store/auth/forgot` | POST | awam | B2/B6 | `store.js` |
+| `store/auth/login` | POST | awam | B2/B6 | `store.js` |
+| `store/auth/logout` | POST | awam | B2/B6 | `store.js` |
+| `store/auth/register` | POST | awam | B2/B6 | `store.js` |
+| `store/auth/resend-verification` | POST | ibu bapa (sesi) | B2/B6 | `store.js` |
+| `store/auth/reset` | POST | awam | B2/B6 | `store.js` |
+| `store/auth/verify-email` | POST | awam | B2/B6 | `store.js` |
+| `store/cart/add` | POST | ibu bapa (sesi) + slug | B6 | `store.js` |
+| `store/cart/add-kit` | POST | ibu bapa (sesi) + slug | B6 | `store.js` |
+| `store/cart/clear` | POST | ibu bapa (sesi) + slug | B6 | `store.js` |
+| `store/cart/get` | GET | ibu bapa (sesi) + slug | B6 | `store.js` |
+| `store/cart/remove` | POST | ibu bapa (sesi) + slug | B6 | `store.js` |
+| `store/cart/summary` | GET | awam + slug | B6 | `store.js` |
+| `store/cart/update` | POST | ibu bapa (sesi) + slug | B6 | `store.js` |
+| `store/catalog` | GET | awam + slug | B6 | `store.js` |
+| `store/checkout/place` | POST | ibu bapa (sesi) + slug | B7 | `store.js` |
+| `store/checkout/quote` | GET | ibu bapa (sesi) + slug | B7 | `store.js` |
+| `store/children/list` | GET | ibu bapa (sesi) | B6 | `store.js` |
+| `store/children/promote` | POST | ibu bapa (sesi) | B6 | `store.js` |
+| `store/children/remove` | POST | ibu bapa (sesi) | B6 | `store.js` |
+| `store/children/save` | POST | ibu bapa (sesi) | B6 | `store.js` |
+| `store/classes` | GET | awam + slug | B6 | `store.js` |
+| `store/clearance/list` | GET | awam + slug | B6 | `store.js` |
+| `store/kit` | GET | ibu bapa (sesi) + slug | B6 | `store.js` |
+| `store/news/list` | GET | awam + slug | B6 | `store.js` |
+| `store/orders/cancel` | POST | ibu bapa (sesi) + slug | B7 | `store.js` |
+| `store/orders/get` | GET | ibu bapa (sesi) + slug | B7 | `store.js` |
+| `store/orders/list` | GET | ibu bapa (sesi) + slug | B7 | `store.js` |
+| `store/orders/pay` | POST | ibu bapa (sesi) + slug | B7 | `store.js` |
+| `store/payment/simulate` | POST | ibu bapa (sesi) + slug | B8 | `store.js` |
+| `store/product` | GET | awam + slug | B6 | `store.js` |
+| `store/profile/delete` | POST | ibu bapa (sesi) | B2/B6 | `store.js` |
+| `store/profile/get` | GET | ibu bapa (sesi) | B2/B6 | `store.js` |
+| `store/profile/password` | POST | ibu bapa (sesi) | B2/B6 | `store.js` |
+| `store/profile/save` | POST | ibu bapa (sesi) | B2/B6 | `store.js` |
+| `store/school` | GET | awam + slug | B6 | `store.js` |
+| `store/schools/list` | GET | awam | B6 | `store.js` |
+| `store/session` | GET | awam + slug | B2/B6 | `store.js` |
+
+**vendor/** 
+
+| Laluan | Kaedah | Skop disahkan pelayan | Session | Mock |
+|---|---|---|---|---|
+| `vendor/activity-logs/list` | GET | vendor sesi + koperasi | B11 | `vendor-finance.js` |
+| `vendor/addons/cancel` | POST | vendor sesi + koperasi | B13 | `vendor-finance.js` |
+| `vendor/addons/catalog` | GET | vendor sesi + koperasi | B13 | `vendor-finance.js` |
+| `vendor/addons/quote` | GET | vendor sesi + koperasi | B13 | `vendor-finance.js` |
+| `vendor/addons/subscribe` | POST | vendor sesi + koperasi | B13 | `vendor-finance.js` |
+| `vendor/auth/login` | POST | awam | B2 | `vendor.js` |
+| `vendor/calendar/delete` | POST | koperasi + modul `calendar` | B13 | `vendor-addons.js` |
+| `vendor/calendar/list` | GET | koperasi + modul `calendar` | B13 | `vendor-addons.js` |
+| `vendor/calendar/save` | POST | koperasi + modul `calendar` | B13 | `vendor-addons.js` |
+| `vendor/categories/delete` | POST | vendor sesi + koperasi | B4 | `vendor.js` |
+| `vendor/categories/list` | GET | vendor sesi + koperasi | B4 | `vendor.js` |
+| `vendor/categories/save` | POST | vendor sesi + koperasi | B4 | `vendor.js` |
+| `vendor/classes/add` | POST | vendor sesi + koperasi | B4 | `vendor.js` |
+| `vendor/classes/delete` | POST | vendor sesi | B4 | `vendor.js` |
+| `vendor/classes/list` | GET | vendor sesi + koperasi | B4 | `vendor.js` |
+| `vendor/classes/update` | POST | vendor sesi | B4 | `vendor.js` |
+| `vendor/clearance/delete` | POST | koperasi + modul `clearance` | B13 | `vendor-addons.js` |
+| `vendor/clearance/get` | GET | koperasi + modul `clearance` | B13 | `vendor-addons.js` |
+| `vendor/clearance/item-delete` | POST | koperasi + modul `clearance` | B13 | `vendor-addons.js` |
+| `vendor/clearance/item-save` | POST | koperasi + modul `clearance` | B13 | `vendor-addons.js` |
+| `vendor/clearance/list` | GET | koperasi + modul `clearance` | B13 | `vendor-addons.js` |
+| `vendor/clearance/save` | POST | koperasi + modul `clearance` | B13 | `vendor-addons.js` |
+| `vendor/cooperatives/check-slug` | GET | vendor sesi | B4 | `vendor.js` |
+| `vendor/cooperatives/get` | GET | vendor sesi | B4 | `vendor.js` |
+| `vendor/cooperatives/list` | GET | vendor sesi | B4 | `vendor.js` |
+| `vendor/cooperatives/pricing-preview` | GET | vendor sesi | B4 | `vendor.js` |
+| `vendor/cooperatives/save` | POST | vendor sesi | B4 | `vendor.js` |
+| `vendor/customers/list` | GET | vendor sesi + koperasi | B9 | `vendor-orders.js` |
+| `vendor/customers/save-note` | POST | vendor sesi + koperasi | B9 | `vendor-orders.js` |
+| `vendor/dashboard/summary` | GET | vendor sesi + koperasi | B4 | `vendor.js` |
+| `vendor/grades/list` | GET | vendor sesi + koperasi | B4 | `vendor.js` |
+| `vendor/handover/collect` | POST | vendor sesi + koperasi | B9 | `vendor-orders.js` |
+| `vendor/handover/receive-cash` | POST | vendor sesi + koperasi | B9 | `vendor-orders.js` |
+| `vendor/handover/search` | GET | vendor sesi + koperasi | B9 | `vendor-orders.js` |
+| `vendor/inventory/adjust` | POST | vendor sesi + koperasi | B4 | `vendor.js` |
+| `vendor/inventory/list` | GET | vendor sesi + koperasi | B4 | `vendor.js` |
+| `vendor/inventory/movements` | GET | vendor sesi + koperasi | B4 | `vendor.js` |
+| `vendor/inventory/stock-in` | POST | vendor sesi + koperasi | B4 | `vendor.js` |
+| `vendor/invoices/get` | GET | vendor sesi | B12 | `vendor-finance.js` |
+| `vendor/invoices/list` | GET | vendor sesi | B12 | `vendor-finance.js` |
+| `vendor/invoices/pay` | POST | vendor sesi | B12 | `vendor-finance.js` |
+| `vendor/kits/copy-year` | POST | vendor sesi + koperasi | B5 | `vendor-orders.js` |
+| `vendor/kits/delete` | POST | vendor sesi | B5 | `vendor-orders.js` |
+| `vendor/kits/get` | GET | vendor sesi | B5 | `vendor-orders.js` |
+| `vendor/kits/list` | GET | vendor sesi + koperasi | B5 | `vendor-orders.js` |
+| `vendor/kits/product-options` | GET | vendor sesi + koperasi | B5 | `vendor-orders.js` |
+| `vendor/kits/save` | POST | vendor sesi + koperasi | B5 | `vendor-orders.js` |
+| `vendor/kits/set-published` | POST | vendor sesi | B5 | `vendor-orders.js` |
+| `vendor/messaging/get` | GET | koperasi + modul `whatsapp_sms` | B13 | `vendor-addons.js` |
+| `vendor/messaging/log` | GET | koperasi + modul `whatsapp_sms` | B13 | `vendor-addons.js` |
+| `vendor/messaging/save` | POST | koperasi + modul `whatsapp_sms` | B13 | `vendor-addons.js` |
+| `vendor/messaging/test` | POST | koperasi + modul `whatsapp_sms` | B13 | `vendor-addons.js` |
+| `vendor/modules/active` | GET | vendor sesi + koperasi | B13 | `vendor.js` |
+| `vendor/news/delete` | POST | koperasi + modul `news` | B13 | `vendor-addons.js` |
+| `vendor/news/list` | GET | koperasi + modul `news` | B13 | `vendor-addons.js` |
+| `vendor/news/recipients` | GET | koperasi + modul `news` | B13 | `vendor-addons.js` |
+| `vendor/news/save` | POST | koperasi + modul `news` | B13 | `vendor-addons.js` |
+| `vendor/orders/bulk-status` | POST | vendor sesi + koperasi | B9 | `vendor-orders.js` |
+| `vendor/orders/class-options` | GET | vendor sesi + koperasi | B9 | `vendor-orders.js` |
+| `vendor/orders/get` | GET | vendor sesi + koperasi | B9 | `vendor-orders.js` |
+| `vendor/orders/labels` | GET | vendor sesi + koperasi | B9 | `vendor-orders.js` |
+| `vendor/orders/list` | GET | vendor sesi + koperasi | B9 | `vendor-orders.js` |
+| `vendor/orders/picking-list` | GET | vendor sesi + koperasi | B9 | `vendor-orders.js` |
+| `vendor/orders/set-status` | POST | vendor sesi + koperasi | B9 | `vendor-orders.js` |
+| `vendor/orders/slot-options` | GET | vendor sesi + koperasi | B9 | `vendor-addons.js` |
+| `vendor/payments/gateway` | GET | vendor sesi + koperasi | B8 | `vendor-finance.js` |
+| `vendor/payments/list` | GET | vendor sesi + koperasi | B8 | `vendor-finance.js` |
+| `vendor/payments/save-gateway` | POST | vendor sesi + koperasi | B8 | `vendor-finance.js` |
+| `vendor/payments/save-methods` | POST | vendor sesi + koperasi | B8 | `vendor-finance.js` |
+| `vendor/payments/settings` | GET | vendor sesi + koperasi | B8 | `vendor-finance.js` |
+| `vendor/payments/test-gateway` | POST | vendor sesi + koperasi | B8 | `vendor-finance.js` |
+| `vendor/pos/cancel-payment` | POST | vendor sesi | B10 | `vendor-pos.js` |
+| `vendor/pos/catalog` | GET | vendor sesi + koperasi | B10 | `vendor-pos.js` |
+| `vendor/pos/checkout` | POST | vendor sesi | B10 | `vendor-pos.js` |
+| `vendor/pos/lock` | POST | vendor sesi + koperasi | B10 | `vendor-pos.js` |
+| `vendor/pos/payment-status` | GET | vendor sesi | B10 | `vendor-pos.js` |
+| `vendor/pos/pin-login` | POST | vendor sesi + koperasi | B10 | `vendor-pos.js` |
+| `vendor/pos/receipt` | GET | vendor sesi | B10 | `vendor-pos.js` |
+| `vendor/pos/sales` | GET | vendor sesi | B10 | `vendor-pos.js` |
+| `vendor/pos/session` | GET | vendor sesi + koperasi | B10 | `vendor-pos.js` |
+| `vendor/pos/shift-close` | POST | vendor sesi | B10 | `vendor-pos.js` |
+| `vendor/pos/shift-open` | POST | vendor sesi | B10 | `vendor-pos.js` |
+| `vendor/pos/shift-summary` | GET | vendor sesi | B10 | `vendor-pos.js` |
+| `vendor/products/get` | GET | vendor sesi | B4 | `vendor.js` |
+| `vendor/products/list` | GET | vendor sesi + koperasi | B4 | `vendor.js` |
+| `vendor/products/options` | GET | vendor sesi + koperasi | B4 | `vendor.js` |
+| `vendor/products/save` | POST | vendor sesi + koperasi | B4 | `vendor.js` |
+| `vendor/products/set-active` | POST | vendor sesi | B4 | `vendor.js` |
+| `vendor/promotions/delete` | POST | vendor sesi | B10 | `vendor-finance.js` |
+| `vendor/promotions/list` | GET | vendor sesi + koperasi | B10 | `vendor-finance.js` |
+| `vendor/promotions/save` | POST | vendor sesi + koperasi | B10 | `vendor-finance.js` |
+| `vendor/purchase-orders/cancel` | POST | vendor sesi | B11 | `vendor.js` |
+| `vendor/purchase-orders/get` | GET | vendor sesi | B11 | `vendor.js` |
+| `vendor/purchase-orders/list` | GET | vendor sesi + koperasi | B11 | `vendor.js` |
+| `vendor/purchase-orders/receive` | POST | vendor sesi | B11 | `vendor.js` |
+| `vendor/purchase-orders/save` | POST | vendor sesi + koperasi | B11 | `vendor.js` |
+| `vendor/refunds/create` | POST | vendor sesi + koperasi | B11 | `vendor-finance.js` |
+| `vendor/refunds/list` | GET | vendor sesi + koperasi | B11 | `vendor-finance.js` |
+| `vendor/refunds/order` | GET | vendor sesi + koperasi | B11 | `vendor-finance.js` |
+| `vendor/reports/run` | GET | vendor sesi + koperasi | B11 | `vendor-finance.js` |
+| `vendor/school-opening/season-delete` | POST | koperasi + modul `school_opening` | B13 | `vendor-addons.js` |
+| `vendor/school-opening/season-save` | POST | koperasi + modul `school_opening` | B13 | `vendor-addons.js` |
+| `vendor/school-opening/seasons` | GET | koperasi + modul `school_opening` | B13 | `vendor-addons.js` |
+| `vendor/school-opening/slot-delete` | POST | koperasi + modul `school_opening` | B13 | `vendor-addons.js` |
+| `vendor/school-opening/slot-save` | POST | koperasi + modul `school_opening` | B13 | `vendor-addons.js` |
+| `vendor/school-opening/slots` | GET | koperasi + modul `school_opening` | B13 | `vendor-addons.js` |
+| `vendor/session/cooperative` | POST | vendor sesi + koperasi | B2 | `vendor.js` |
+| `vendor/settings/get` | GET | vendor sesi + koperasi | B4 | `vendor-finance.js` |
+| `vendor/settings/save` | POST | vendor sesi + koperasi | B4 | `vendor-finance.js` |
+| `vendor/staff/list` | GET | vendor sesi | B2 | `vendor-finance.js` |
+| `vendor/staff/save` | POST | vendor sesi | B2 | `vendor-finance.js` |
+| `vendor/staff/send-reset` | POST | vendor sesi | B2 | `vendor-finance.js` |
+| `vendor/staff/set-active` | POST | vendor sesi | B2 | `vendor-finance.js` |
+| `vendor/stock-takes/complete` | POST | vendor sesi | B11 | `vendor.js` |
+| `vendor/stock-takes/get` | GET | vendor sesi | B11 | `vendor.js` |
+| `vendor/stock-takes/list` | GET | vendor sesi + koperasi | B11 | `vendor.js` |
+| `vendor/stock-takes/save-counts` | POST | vendor sesi | B11 | `vendor.js` |
+| `vendor/stock-takes/start` | POST | vendor sesi + koperasi | B11 | `vendor.js` |
+| `vendor/subscription/cancel-change` | POST | vendor sesi | B12 | `vendor-finance.js` |
+| `vendor/subscription/change` | POST | vendor sesi | B12 | `vendor-finance.js` |
+| `vendor/subscription/get` | GET | vendor sesi | B12 | `vendor-finance.js` |
+| `vendor/subscription/plans` | GET | vendor sesi | B12 | `vendor-finance.js` |
+| `vendor/suppliers/list` | GET | vendor sesi | B4 | `vendor.js` |
+| `vendor/suppliers/save` | POST | vendor sesi | B4 | `vendor.js` |
+| `vendor/templates/options` | GET | vendor sesi | B12 | `vendor.js` |

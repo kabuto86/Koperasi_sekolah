@@ -19,7 +19,7 @@ require __DIR__ . '/_layout/header.php';
                     <select class="form-select" id="class-grade" name="grade_level_code" required></select>
                 </div>
                 <label class="form-label" for="class-names"><?= e(t('class.names')) ?></label>
-                <textarea class="form-control" id="class-names" name="names" data-type="lines" rows="4" required placeholder="Bestari&#10;Cemerlang"></textarea>
+                <textarea class="form-control" id="class-names" name="names" data-type="lines" rows="4" required placeholder="<?= e(t('class.names_placeholder')) ?>"></textarea>
                 <div class="form-text"><?= e(t('class.names_help')) ?></div>
                 <div class="invalid-feedback"><?= e(t('error.required')) ?></div>
             </div>

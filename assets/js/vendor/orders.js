@@ -1,6 +1,6 @@
 // Senarai pesanan online
 
-var orderList = { page: 1, per_page: 20, q: queryParam('q') || '', status: queryParam('status') || '', grade: '', class_name: '', payment_method: '', date_from: '', date_to: '' };
+var orderList = { page: 1, per_page: 20, q: queryParam('q') || '', status: queryParam('status') || '', grade: '', class_name: '', payment_method: '', date_from: '', date_to: '', pickup_slot_id: queryParam('pickup_slot_id') || '' };
 var selectedOrders = [];
 var STATUS_PILLS = ['', 'pending_payment', 'unpaid_cash', 'paid', 'preparing', 'ready', 'partially_collected', 'collected'];
 
@@ -20,6 +20,9 @@ function loadOrders() {
             { render: function (row) {
                 var stack = createStack(createLink(row.order_no, pageUrl('vendor/order.php?id=' + row.id), 'fw-semibold'),
                     T('order.short_code_line', { code: row.short_code }) + ' · ' + formatDate(row.created_at, true));
+                if (row.pickup_slot) {
+                    stack.appendChild(createEl('div', 'small text-body-secondary', T('order.slot_line', { slot: slotText(row.pickup_slot) })));
+                }
                 return stack;
             } },
             { render: function (row) {
@@ -85,7 +88,7 @@ function updateBulkBar() {
 }
 
 function updateHeaderLinks() {
-    var query = filterQuery(orderList, ['grade', 'class_name']);
+    var query = filterQuery(orderList, ['grade', 'class_name', 'pickup_slot_id']);
     document.getElementById('btn-picking').href = pageUrl('vendor/picking-list.php' + query);
     document.getElementById('btn-labels').href = pageUrl('vendor/bag-labels.php' + query);
 }
@@ -120,9 +123,10 @@ bindListFilters('order-filters', orderList, loadOrders);
 
 onCooperativeReady(function () {
     orderList.page = 1;
-    bindGradeClassFilters('ord-grade', 'ord-class').then(function () {
+    Promise.all([bindGradeClassFilters('ord-grade', 'ord-class'), bindSlotFilter('ord-slot', orderList.pickup_slot_id)]).then(function (results) {
         orderList.grade = document.getElementById('ord-grade').value;
         orderList.class_name = document.getElementById('ord-class').value;
+        orderList.pickup_slot_id = results[1];
         loadOrders();
     });
 });

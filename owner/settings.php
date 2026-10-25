@@ -118,7 +118,7 @@ require __DIR__ . '/_layout/header.php';
                 <div class="card-footer bg-body">
                     <label class="form-label small" for="test-email-to"><?= e(t('settings.test_email')) ?></label>
                     <div class="input-group input-group-sm">
-                        <input type="email" class="form-control" id="test-email-to" placeholder="nama@contoh.my">
+                        <input type="email" class="form-control" id="test-email-to" placeholder="<?= e(t('settings.test_email_placeholder')) ?>">
                         <button type="button" class="btn btn-outline-secondary" id="btn-test-email"><?= e(t('btn.submit')) ?></button>
                     </div>
                 </div>

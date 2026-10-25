@@ -4,9 +4,9 @@
 > Kemas kini fail ini di HUJUNG setiap session, sebelum commit & push.
 > Reka bentuk: [PELAN.md](PELAN.md) · Prompt kerja: [PROMPT-SESSION.md](PROMPT-SESSION.md)
 
-**Status keseluruhan:** Peringkat 1 · kerangka UI, panel owner, panel vendor (U3a–U3c), POS kaunter (U4), store ibu bapa (U5) & modul add-on (U6) siap
-**Session terakhir siap:** U6 — UI modul add-on
-**Session seterusnya:** **U7 — Semakan UI menyeluruh**
+**Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · semua skrin desktop/web dengan data mock, disemak 4 bahasa × 2 lebar
+**Session terakhir siap:** U7 — Semakan UI menyeluruh
+**Session seterusnya:** **B1 — Skema, seed & core** (Peringkat 2)
 
 Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 
@@ -30,7 +30,7 @@ Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 | U4 | UI POS kaunter | ✅ | 25 Okt 2026 | `2bf72c8` | Skrin penuh, PIN, syif, imbas, QR, resit 58/80, 116 kunci baharu, ujian kebocoran lulus, `DOC/screenshots/U4/` |
 | U5 | UI Store ibu bapa — Template 1 | ✅ | 25 Okt 2026 | `597d2d1` | 17 halaman, 250 kunci baharu, aliran kit → troli → checkout → slip, ujian kebocoran lulus, `DOC/screenshots/U5/` |
 | U6 | UI modul add-on | ✅ | 25 Okt 2026 | `db41ded` | 9 halaman vendor, banner & slot ambil di store, 195 kunci baharu, ujian kebocoran lulus, `DOC/screenshots/U6/` |
-| U7 | Semakan UI menyeluruh | ⬜ | | | |
+| U7 | Semakan UI menyeluruh | 🟡 | | | |
 
 ## Peringkat 2 — Backend & API
 
@@ -447,6 +447,75 @@ Tertangguh:
 - Penapis pesanan / picking list ikut slot ambil; slot dalam label beg — U7/B13
 - Banner "koperasi tutup" dalam POS kaunter (amaran sahaja) — U7
 - Halaman sebenar `advanced_report`, `mobile_app` (F1–F4), `membership` (kemudian)
+
+### U7 — Semakan UI menyeluruh (25 Okt 2026)
+
+Disemak:
+- **Grep / `tools/check-ui.php`** (kini lebih ketat): tiada `style=` / `<style>`, **tiada CDN** (skrip/gaya dari luar), **tiada teks paparan
+  ditulis terus** dalam HTML fail `.php` (teks & atribut `placeholder/title/aria-label/alt`; senarai dibenarkan: `RM`, `58 mm`, `TLS`, `Enter` …),
+  kunci literal `t()`/`T()` wujud, kunci 4 bahasa sama. Teks dalam JS diimbas dengan skrip berasingan — hanya nama contoh pratonton templat
+  WhatsApp (data). Dua pemegang tempat Melayu ditukar ke `t()` (`settings.test_email_placeholder`, `class.names_placeholder`)
+- **Kunci bahasa:** 1773 kunci sama (6 kunci baharu) dalam `ms/en/zh/ta`
+- **Playwright** (`tools/ui-audit.js`): 83 halaman (21 owner, 45 vendor termasuk modul & POS, 17 store) × 4 bahasa × 375px & 1366px = 664 paparan —
+  RINGKASAN_AUDIT
+- **Tangkap layar:** `DOC/screenshots/U7/{ms,zh}-{375,1366}/` — 332 JPEG (setiap halaman) + 4 tangkap layar ciri baharu
+- **Aksesibiliti** (axe-core WCAG 2 A/AA pada 83 halaman, ms 1366px + skrip sendiri pada semua paparan): setiap medan berlabel, butang ikon
+  bernama, gambar ada `alt`. Dibaiki: kontras tajuk seksyen sidebar (4.23 → ≥ 4.5), pautan navbar store (2.76 → ≥ 4.5; aktif bergaris bawah),
+  butang bahasa di halaman log masuk, teks kecil pilihan juruwang POS bila dipilih, carta SVG kini ada `<title>` ringkasan.
+  **Papan kekunci:** pautan "Langkau ke kandungan" (`.visually-hidden-focusable`, Tab pertama) di semua layout; `.btn-brand` tiada cincin fokus
+  (pemboleh ubah `--bs-btn-focus-shadow-rgb` hilang) — dibaiki; Tab melalui 12 elemen pertama 5 halaman — semua ada cincin fokus
+
+Pepijat dijumpai & dibaiki:
+- Tarikh pesanan contoh & pergerakan stok tidak sah (`2026-10-10T8:10` — jam tanpa sifar) → "—" dalam butiran pesanan; `Mock.storageVersion` → `v5`
+
+Perkara tertangguh bertanda U7 yang diselesaikan:
+- **Baris cukai** dalam butiran pesanan vendor (`order.php`) — dipapar bila `tax > 0` (`Cukai (6%)`); `vendor/orders/get` kini memulangkan `tax_rate, tax`
+- **Penapis slot ambil** di senarai pesanan, picking list & label beg (disembunyikan bila koperasi tiada modul `school_opening` / tiada slot);
+  slot dicetak pada label beg & dipapar di senarai pesanan; pautan picking/label membawa `pickup_slot_id`. Laluan baharu `vendor/orders/slot-options`
+- **Banner "koperasi tutup"** dalam POS kaunter (amaran sahaja, di atas katalog) — `vendor/pos/session.closed_today`
+- **Menu ikut peranan** — `core/PanelRole.php` + `'roles'` dalam menu owner & vendor: juruwang hanya Serah barang & POS (tiada modul add-on);
+  pengurus koperasi tanpa bayaran/kakitangan/tetapan/langganan; `owner_staff` hanya papan pemuka, vendor, koperasi, langganan, log audit.
+  Demo Peringkat 1: cookie `mock_role` (hanya bila `use_mock`)
+- **Navbar store Tamil** tidak lagi membalut dua baris (992–1399px: ikon disembunyi, pautan dirapatkan, `nowrap`)
+- **Imbas QR dengan kamera telefon** — dinilai: `BarcodeDetector` tiada di Safari iOS & Firefox; tiada pustaka tanpa CDN yang ringan.
+  Keputusan: web kekal pengimbas USB/papan kekunci; imbasan kamera dalam app Flutter (F1)
+
+Ujian ciri (18 semakan lulus): menu 3 peranan vendor + peranan tidak sah → lalai; pesanan store dengan slot → penapis slot menapis 1 pesanan,
+pautan picking membawa slot, label beg memapar slot, picking list ikut slot; koperasi tanpa modul → penapis tersembunyi; kadar cukai 6% →
+pesanan baharu memapar baris cukai, pesanan lama tiada; acara tutup hari ini → banner POS; **kebocoran**: `slot-options`, `pos/session`,
+`orders/list` (+`vendor_id` dalam input), `orders/labels` dengan koperasi VENDOR02 → semua ditolak
+
+Dokumen:
+- **PELAN 18.14 — indeks 214 laluan API** (kaedah, skop yang mesti disahkan pelayan, session B, fail mock) — spesifikasi backend
+- PELAN 4 — jadual menu ikut peranan; 18.9 (OrderSummary `pickup_slot`, OrderDetail `tax_rate/tax`, `slot-options`, label `pickup_slot`);
+  18.11 (`closed_today`)
+- `tools/ui-audit.js` — skrip semakan boleh diguna semula (tangkap layar dengan `shots`); `config/app.php` `asset_version` → `2`
+
+### Perkara UI tertangguh (U7) — senarai lengkap untuk Peringkat 2
+
+| Perkara | Session |
+|---|---|
+| Sekatan halaman & API ikut peranan (menu sudah ditapis di U7); halaman tidak dibenarkan → halaman pertama dibenarkan | B2 |
+| Log masuk sebenar, sesi, 2FA, throttle; buang `demo_token` "lupa kata laluan" & cookie `mock_role` | B2 |
+| E-mel jemputan / reset kata laluan kakitangan sebenar | B2 |
+| Owner `owner_staff`: sekatan harga/pelan/tetapan di pelayan | B2/B3 |
+| Muat naik sebenar (logo, gambar produk, gambar berita) — `Uploader` + `finfo`; Peringkat 1 guna data URL / ikon gantian | B4/B13 |
+| Gambar pratonton template sebenar (`preview_image`) | bila template2/3 dibina |
+| E-mel sebenar (pengesahan, reset, pesanan baharu, slip, invois) melalui `email_queue` + cron | B7 |
+| Luput automatik pesanan tunai/online (cron) | B7 |
+| Kaitan promosi dengan pesanan (`orders.promotion_id`, `used_count`) | B7/B10 |
+| Gateway sebenar (redirect + webhook), QR POS sebenar | B8 |
+| Buka kunci pesanan oleh pengurus (selepas 5 cubaan kod) | B9 |
+| Muat turun resit / slip PDF (sekarang cetak sahaja) | B6/B9 |
+| PIN Argon2id, buka kunci PIN oleh pentadbir | B10 |
+| Refund tunai POS ditolak dari jangkaan tunai laci; refund automatik melalui API gateway | B10/B11/B8 |
+| Bayaran invois vendor melalui gateway pemilik + webhook | B12 |
+| Penghantaran WhatsApp/SMS sebenar; mesej automatik "sedia diambil / telah diambil" | B13 |
+| E-mel berita sebenar | B13 |
+| URL cantik store `/{slug}/` (.htaccess); pratonton `?template=` hadkan kepada owner | B6 |
+| Halaman `advanced_report`, `membership` (sementara "sedang dibina"); `mobile_app` | kemudian / F1–F4 |
+| Imbas QR/barcode dengan kamera | F1 (app) |
+| Pemilih koperasi POS disembunyikan < 768px (tukar koperasi dari panel) | kekal — reka bentuk |
 
 ---
 

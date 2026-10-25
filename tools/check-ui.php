@@ -2,6 +2,7 @@
 // Semakan UI (CLI): php tools/check-ui.php
 // 1. Tiada atribut style= atau tag <style> dalam kod projek (assets/lib & fonts dikecualikan)
 // 2. Keempat-empat fail bahasa mempunyai kunci yang sama
+// 3. Tiada CDN (skrip/gaya dari luar) dan tiada teks paparan ditulis terus dalam HTML fail .php
 if (PHP_SAPI !== 'cli') {
     exit;
 }
@@ -50,6 +51,35 @@ foreach (projectFiles($root) as $path) {
     }
 }
 
+// Teks yang dibenarkan ditulis terus (unit, singkatan teknikal, nama kekunci)
+$allowedText = ['RM', 'RM 0.00', 'RM 1.80', '58 mm', '80 mm', 'TLS', 'SSL', 'Enter', 'Esc', 'F2'];
+
+foreach (projectFiles($root) as $path) {
+    $relative = substr($path, strlen($root) + 1);
+    $source = file_get_contents($path);
+
+    if (preg_match('/<(script|link)[^>]+(src|href)\s*=\s*["\'](https?:)?\/\//i', $source)) {
+        $errors[] = 'CDN / sumber luar: ' . $relative;
+    }
+    if (substr($path, -4) !== '.php' || strpos($relative, 'lang/') === 0) {
+        continue;
+    }
+
+    // Buang kod PHP & skrip, kemudian cari teks atau atribut paparan yang bukan dari t()
+    $html = preg_replace('/<\?(php|=).*?(\?>|$)/s', ' ', $source);
+    if (preg_match_all('/\s(placeholder|title|aria-label|alt)="([^"]*[A-Za-z]{2,}[^"]*)"/', $html, $matches)) {
+        foreach ($matches[2] as $value) {
+            $errors[] = 'Atribut paparan ditulis terus: ' . $relative . ' → ' . $value;
+        }
+    }
+    foreach (explode("\n", preg_replace('/<[^>]*>/', "\n", $html)) as $text) {
+        $text = trim($text);
+        if (preg_match('/[A-Za-z]{2,}/', $text) && !in_array($text, $allowedText, true)) {
+            $errors[] = 'Teks ditulis terus: ' . $relative . ' → ' . $text;
+        }
+    }
+}
+
 foreach (['en', 'zh', 'ta'] as $code) {
     $keys = array_keys(require $root . '/lang/' . $code . '.php');
     foreach (array_diff($reference, $keys) as $missing) {
@@ -65,4 +95,4 @@ if ($errors) {
     exit(1);
 }
 
-echo 'OK — tiada inline CSS, ' . count($reference) . ' kunci sama dalam 4 bahasa.' . PHP_EOL;
+echo 'OK — tiada inline CSS, tiada CDN, tiada teks ditulis terus, ' . count($reference) . ' kunci sama dalam 4 bahasa.' . PHP_EOL;

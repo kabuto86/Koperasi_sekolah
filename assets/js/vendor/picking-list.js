@@ -1,6 +1,7 @@
 // Picking list ikut kelas (cetak)
 
-var pickState = { grade: queryParam('grade') || '', class_name: queryParam('class_name') || '', status: 'paid,unpaid_cash,preparing' };
+var pickState = { grade: queryParam('grade') || '', class_name: queryParam('class_name') || '', status: 'paid,unpaid_cash,preparing',
+    pickup_slot_id: queryParam('pickup_slot_id') || '' };
 
 function itemName(item) {
     return item.variant_label ? item.product_name + ' — ' + item.variant_label : item.product_name;
@@ -15,7 +16,8 @@ function loadPickingList() {
         var data = res.data;
         document.getElementById('pick-school').textContent = data.school_name;
         document.getElementById('pick-scope').textContent = document.getElementById('pick-status').selectedOptions[0].textContent
-            + (pickState.grade ? ' · ' + T('grade.' + pickState.grade) : '') + (pickState.class_name ? ' ' + pickState.class_name : '');
+            + (pickState.grade ? ' · ' + T('grade.' + pickState.grade) : '') + (pickState.class_name ? ' ' + pickState.class_name : '')
+            + (pickState.pickup_slot_id ? ' · ' + document.getElementById('pick-slot').selectedOptions[0].textContent : '');
         document.getElementById('pick-meta').textContent = T('order.pick_meta', { n: data.order_count, date: formatDate(data.generated_at, true) });
 
         var box = document.getElementById('pick-groups');
@@ -76,16 +78,18 @@ document.getElementById('pick-status').addEventListener('change', function (even
     pickState.status = event.target.value;
     loadPickingList();
 });
-['pick-grade', 'pick-class'].forEach(function (id) {
+['pick-grade', 'pick-class', 'pick-slot'].forEach(function (id) {
     document.getElementById(id).addEventListener('change', function () {
         pickState.grade = document.getElementById('pick-grade').value;
         pickState.class_name = document.getElementById('pick-class').value;
+        pickState.pickup_slot_id = document.getElementById('pick-slot').value;
         loadPickingList();
     });
 });
 
 onCooperativeReady(function () {
-    bindGradeClassFilters('pick-grade', 'pick-class').then(function () {
+    Promise.all([bindGradeClassFilters('pick-grade', 'pick-class'), bindSlotFilter('pick-slot', pickState.pickup_slot_id)]).then(function (results) {
+        pickState.pickup_slot_id = results[1];
         document.getElementById('pick-grade').value = pickState.grade;
         fillClassOptions(document.getElementById('pick-grade'), document.getElementById('pick-class'));
         document.getElementById('pick-class').value = pickState.class_name;

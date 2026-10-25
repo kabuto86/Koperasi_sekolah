@@ -88,6 +88,9 @@ require __DIR__ . '/../_layout/pos-header.php';
 <section class="d-none" id="pos-sale" aria-label="<?= e(t('pos.tab_sale')) ?>">
     <div class="row g-0 app-pos-layout">
         <div class="col-12 col-lg-7 col-xl-8 d-flex flex-column app-pos-catalog">
+            <div class="alert alert-warning rounded-0 border-0 border-bottom mb-0 py-2 small d-none" id="pos-closed" role="status">
+                <i class="bi bi-calendar-x" aria-hidden="true"></i> <span id="pos-closed-text"></span>
+            </div>
             <form class="p-2 p-lg-3 pb-2 border-bottom bg-body" id="pos-scan-form" role="search">
                 <label class="visually-hidden" for="pos-scan"><?= e(t('pos.scan_label')) ?></label>
                 <div class="input-group input-group-lg">

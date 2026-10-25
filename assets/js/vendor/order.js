@@ -36,6 +36,12 @@ function renderOrder(order) {
     document.getElementById('ord-status').replaceChildren(statusBadge(order.status));
     setText('ord-subtotal', formatRM(order.subtotal));
     setText('ord-discount', order.discount ? '-' + formatRM(order.discount) : formatRM(0));
+    // Baris cukai hanya bila koperasi mengenakan cukai jualan
+    document.querySelectorAll('.js-tax-row').forEach(function (el) {
+        el.classList.toggle('d-none', !order.tax);
+    });
+    setText('ord-tax-label', T('pos.tax_rate', { rate: order.tax_rate }));
+    setText('ord-tax', formatRM(order.tax));
     setText('ord-total', formatRM(order.total));
     var isPos = order.channel === 'pos';
     setText('ord-customer', order.customer_name || (isPos ? T('pos.walk_in') : ''));

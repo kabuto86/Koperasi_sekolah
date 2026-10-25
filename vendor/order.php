@@ -30,6 +30,7 @@ require __DIR__ . '/_layout/header.php';
                 <dl class="row mb-0">
                     <dt class="col-6 fw-normal"><?= e(t('field.subtotal')) ?></dt><dd class="col-6 text-end" id="ord-subtotal">—</dd>
                     <dt class="col-6 fw-normal"><?= e(t('order.discount')) ?></dt><dd class="col-6 text-end" id="ord-discount">—</dd>
+                    <dt class="col-6 fw-normal d-none js-tax-row" id="ord-tax-label"><?= e(t('field.tax')) ?></dt><dd class="col-6 text-end d-none js-tax-row" id="ord-tax">—</dd>
                     <dt class="col-6"><?= e(t('field.total')) ?></dt><dd class="col-6 text-end fw-bold mb-0" id="ord-total">—</dd>
                 </dl>
             </div>

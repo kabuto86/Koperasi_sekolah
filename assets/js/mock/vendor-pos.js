@@ -245,6 +245,12 @@ function mockPosMarkPaid(order, user) {
 
 // ---------- Sesi & log masuk PIN ----------
 
+// Kalendar (modul calendar): hari "koperasi tutup" — amaran sahaja, jualan kaunter tidak disekat
+function mockPosClosedToday(coop) {
+    var event = addonBlockingEvent(coop, mockToday());
+    return event ? { title: event.title, reopens_on: addonNextDay(event.ends_on) } : null;
+}
+
 Mock.register('vendor/pos/session', function (params) {
     var coop = mockRequireCoop(params);
     if (!coop) {
@@ -255,7 +261,8 @@ Mock.register('vendor/pos/session', function (params) {
     return Mock.ok({
         cooperative: { id: coop.id, school_name: coop.school_name, address: coop.address, phone: coop.phone, logo_url: coop.logo_url },
         cashier: mockPosCashierPublic(user), shift: shift ? mockPosShiftSummary(shift) : null,
-        online_available: Boolean(mockCoopGateway(coop.id)), gateway_name: mockPosGatewayName(coop.id)
+        online_available: Boolean(mockCoopGateway(coop.id)), gateway_name: mockPosGatewayName(coop.id),
+        closed_today: mockPosClosedToday(coop)
     });
 });
 

@@ -54,6 +54,25 @@ function bindGradeClassFilters(gradeId, classId) {
     });
 }
 
+// "12/01/2027 · 08:00–10:00 · Darjah 4"
+function slotText(slot) {
+    return formatDate(slot.slot_date) + ' · ' + slot.time_start + '–' + slot.time_end
+        + ' · ' + (slot.grade_level_code ? T('grade.' + slot.grade_level_code) : T('store.slot.all_grades'));
+}
+
+// Tapisan slot ambil (modul pembukaan sekolah). Disembunyikan jika koperasi tiada slot.
+// Bekas medan mesti ada kelas .js-slot-filter
+function bindSlotFilter(selectId, current) {
+    var select = document.getElementById(selectId);
+    return Api.get('vendor/orders/slot-options', withCoop()).then(function (res) {
+        var slots = res.ok ? res.data : [];
+        fillSelect(select, slots, 'id', slotText, true);
+        select.value = slots.some(function (slot) { return String(slot.id) === String(current); }) ? String(current) : '';
+        select.closest('.js-slot-filter').classList.toggle('d-none', slots.length === 0);
+        return select.value;
+    });
+}
+
 // Salin tapisan semasa ke pautan picking list / label
 function filterQuery(state, keys) {
     var params = new URLSearchParams();

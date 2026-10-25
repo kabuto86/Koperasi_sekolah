@@ -19,7 +19,11 @@ require __DIR__ . '/_layout/header.php';
         <label class="form-label small" for="pick-class"><?= e(t('field.class')) ?></label>
         <select class="form-select" id="pick-class" name="class_name"><option value=""><?= e(t('order.all_classes')) ?></option></select>
     </div>
-    <div class="col-12 col-md-4">
+    <div class="col-12 col-md-3 js-slot-filter d-none">
+        <label class="form-label small" for="pick-slot"><?= e(t('store.slot.title')) ?></label>
+        <select class="form-select" id="pick-slot" name="pickup_slot_id"><option value=""><?= e(t('order.all_slots')) ?></option></select>
+    </div>
+    <div class="col-12 col-md-3">
         <label class="form-label small" for="pick-status"><?= e(t('order.pick_scope')) ?></label>
         <select class="form-select" id="pick-status" name="status">
             <option value="paid,unpaid_cash,preparing"><?= e(t('order.pick_scope_to_prepare')) ?></option>

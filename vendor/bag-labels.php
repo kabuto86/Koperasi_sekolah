@@ -19,7 +19,11 @@ require __DIR__ . '/_layout/header.php';
         <label class="form-label small" for="label-class"><?= e(t('field.class')) ?></label>
         <select class="form-select" id="label-class" name="class_name"><option value=""><?= e(t('order.all_classes')) ?></option></select>
     </div>
-    <div class="col-12 col-md-6 d-flex align-items-end small text-body-secondary" id="label-count"></div>
+    <div class="col-12 col-md-3 js-slot-filter d-none">
+        <label class="form-label small" for="label-slot"><?= e(t('store.slot.title')) ?></label>
+        <select class="form-select" id="label-slot" name="pickup_slot_id"><option value=""><?= e(t('order.all_slots')) ?></option></select>
+    </div>
+    <div class="col-12 col-md-3 d-flex align-items-end small text-body-secondary" id="label-count"></div>
 </form>
 <div class="app-label-grid" id="label-grid"></div>
 <p class="small text-body-secondary mt-3 d-print-none"><?= e(t('order.labels_help')) ?></p>

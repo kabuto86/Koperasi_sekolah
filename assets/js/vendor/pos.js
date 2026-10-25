@@ -181,6 +181,9 @@ function openShift(data) {
 function startSale() {
     showStep('sale');
     byId('pos-online-off').classList.toggle('d-none', pos.session.online_available);
+    var closed = pos.session.closed_today;
+    byId('pos-closed').classList.toggle('d-none', !closed);
+    byId('pos-closed-text').textContent = closed ? T('pos.closed_today', { title: closed.title, date: formatDate(closed.reopens_on) }) : '';
     Promise.all([
         Api.get('vendor/settings/get', withCoop()),
         Api.get('vendor/promotions/list', withCoop({ per_page: 100, state: 'active' })),

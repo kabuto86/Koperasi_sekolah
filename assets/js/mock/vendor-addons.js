@@ -588,6 +588,22 @@ function addonOrderSlot(order) {
     return order.pickup_slot ? Object.assign({}, order.pickup_slot) : null;
 }
 
+// Pilihan slot ambil untuk tapisan pesanan / picking list / label (kosong jika modul tidak aktif)
+Mock.register('vendor/orders/slot-options', function (params) {
+    var coop = mockRequireCoop(params);
+    if (!coop) {
+        return mockCoopError();
+    }
+    if ((MockVendor.activeModules[coop.id] || []).indexOf('school_opening') === -1) {
+        return Mock.ok([]);
+    }
+    var rows = [];
+    mockCoopRows(MockAddons.seasons, coop.id).forEach(function (season) {
+        rows = rows.concat(addonSeasonSlots(season).map(addonSlotRow));
+    });
+    return Mock.ok(rows);
+});
+
 Mock.register('vendor/school-opening/seasons', function (params) {
     var ctx = addonRequire(params, 'school_opening');
     if (ctx.error) {

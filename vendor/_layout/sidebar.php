@@ -13,10 +13,11 @@
         </div>
 
         <?php View::partial('partials/sidebar-menu.php', [
-            'menuSections' => require __DIR__ . '/menu.php',
+            'menuSections' => PanelRole::filterMenu(require __DIR__ . '/menu.php', PanelRole::current('vendor')),
             'activeMenu'   => $activeMenu ?? '',
         ]); ?>
 
+        <?php if (PanelRole::current('vendor') !== 'cashier'): // juruwang tidak mengurus modul add-on ?>
         <div class="app-sidebar-nav w-100 pb-3">
             <div class="app-sidebar-section"><?= e(t('menu.section.addons')) ?></div>
             <ul class="nav flex-column">
@@ -40,5 +41,6 @@
                 <?php endforeach; ?>
             </ul>
         </div>
+        <?php endif; ?>
     </div>
 </aside>
