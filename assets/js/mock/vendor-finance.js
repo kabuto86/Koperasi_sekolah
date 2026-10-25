@@ -435,7 +435,7 @@ function mockPaymentRows(coop) {
         if (order.payment_method === 'online' && ['pending_payment', 'cancelled'].indexOf(order.status) === -1 || order.payment_status === 'pending') {
             rows.push({ id: order.id, order_id: order.id, order_no: order.order_no, short_code: order.short_code, customer_name: order.customer_name,
                 method: 'online', gateway_code: gateway ? gateway.gateway_code : 'toyyibpay',
-                gateway_ref: order.payment_status === 'pending' ? null : 'TP' + String(880000 + order.id * 37),
+                gateway_ref: order.gateway_ref || (order.payment_status === 'pending' ? null : 'TP' + String(880000 + order.id * 37)),
                 amount: order.total, refunded_amount: refunded,
                 status: order.payment_status === 'pending' ? 'pending' : (refunded >= order.total ? 'refunded' : 'paid'),
                 received_by: null, paid_at: order.paid_at, created_at: order.created_at });
@@ -446,7 +446,7 @@ function mockPaymentRows(coop) {
         } else if (order.payment_method === 'cash' && order.payment_status === 'paid') {
             rows.push({ id: order.id, order_id: order.id, order_no: order.order_no, short_code: order.short_code, customer_name: order.customer_name,
                 method: 'cash', gateway_code: null, gateway_ref: null, amount: order.total, refunded_amount: refunded,
-                status: refunded >= order.total ? 'refunded' : 'paid', received_by: 'Siti Hajar binti Yusof',
+                status: refunded >= order.total ? 'refunded' : 'paid', received_by: order.cashier_id ? mockStaffName(order.cashier_id) : 'Siti Hajar binti Yusof',
                 paid_at: order.paid_at || order.collected_at || order.created_at, created_at: order.created_at });
         }
     });

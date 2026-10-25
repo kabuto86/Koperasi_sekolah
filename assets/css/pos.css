@@ -1,0 +1,71 @@
+/* POS kaunter (vendor/pos/index.php) — skrin penuh, mesra sentuh (≥ 1024px) dan pengimbas USB */
+
+.app-pos { --app-pos-topbar: 3.25rem; background-color: var(--bs-tertiary-bg); }
+
+.app-pos-topbar { min-height: var(--app-pos-topbar); flex-wrap: nowrap; }
+.app-pos-tabs { --bs-nav-pills-link-active-bg: var(--app-brand); --bs-nav-link-color: rgba(255, 255, 255, 0.8); --bs-nav-link-hover-color: #fff; }
+.app-pos-tabs .nav-link { white-space: nowrap; padding: 0.35rem 0.75rem; }
+
+/* Lajur katalog & troli mengisi skrin; hanya kandungan dalam yang skrol */
+@media (min-width: 992px) {
+    .app-pos-layout { height: calc(100vh - var(--app-pos-topbar)); }
+    .app-pos-catalog, .app-pos-cart { height: 100%; min-height: 0; }
+    .app-pos-scroll { min-height: 0; }
+}
+
+/* Telefon / tablet menegak: ruang untuk bar troli di bawah */
+@media (max-width: 991.98px) {
+    .app-pos-catalog { padding-bottom: 4.5rem; }
+    .app-pos-cart .app-pos-scroll { min-height: 6rem; }
+}
+
+/* Kad produk = butang besar (sasaran sentuh ≥ 44px) */
+.app-pos-product {
+    width: 100%;
+    height: 100%;
+    min-height: 6.5rem;
+    text-align: start;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 0.25rem;
+    padding: 0.6rem 0.7rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.6rem;
+    background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    transition: border-color 0.1s ease-in-out;
+}
+
+.app-pos-product:hover { border-color: var(--app-brand); }
+.app-pos-product:focus-visible { outline: 3px solid var(--app-brand); outline-offset: 1px; }
+.app-pos-product:active { transform: scale(0.98); }
+.app-pos-product:disabled { opacity: 0.55; }
+.app-pos-product-name { font-weight: 600; line-height: 1.25; overflow-wrap: anywhere; }
+.app-pos-product-price { font-size: 1.05rem; font-weight: 700; color: var(--app-brand); }
+.app-pos-category { white-space: nowrap; }
+
+/* Baris troli */
+.app-pos-line { border-bottom: 1px solid var(--bs-border-color-translucent); padding: 0.5rem 0; }
+.app-pos-line:last-child { border-bottom: 0; }
+.app-pos-line.is-new { background-color: var(--bs-success-bg-subtle); }
+.app-pos-qty { width: 3.25rem; text-align: center; }
+.app-pos-pay { min-height: 3.5rem; }
+
+/* Papan kekunci PIN 3 × 4 */
+.app-pos-keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; max-width: 18rem; }
+.app-pos-keypad .btn { min-height: 3.5rem; font-size: 1.35rem; }
+
+/* Pilihan juruwang & varian */
+.app-pos-choice { min-height: 3.5rem; }
+.app-pos-cartbar { z-index: 1030; }
+
+/* Kawalan kuantiti dalam troli kekal sempit (atasi .input-group > .form-control) */
+.input-group > .app-pos-qty { flex: 0 0 3.25rem; width: 3.25rem; }
+
+/* Toast di atas kanan supaya tidak menutup butang bayar */
+.app-pos .app-toasts { top: var(--app-pos-topbar) !important; bottom: auto !important; }
+
+@media (max-width: 991.98px) {
+    .app-pos .app-toasts { top: auto !important; bottom: 4.5rem !important; }
+}

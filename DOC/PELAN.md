@@ -5,7 +5,7 @@
 > tanpa bertanya. Status semasa: [PROSES.md](PROSES.md). Prompt kerja:
 > [PROMPT-SESSION.md](PROMPT-SESSION.md).
 
-Kemas kini terakhir: 25 Oktober 2026 (U3b — UI vendor bahagian 2)
+Kemas kini terakhir: 25 Oktober 2026 (U4 — UI POS kaunter)
 Persekitaran sasaran: XAMPP · PHP 8.2 · MariaDB 10.4+ / MySQL 8 · Bootstrap 5
 
 ---
@@ -364,7 +364,7 @@ Nama, harga dan maklumat anak **disalin** (snapshot) ke pesanan dan invois.
 
 - **`carts`** — id, customer_id, cooperative_id, vendor_id, updated_at · UNIQUE(customer_id, cooperative_id)
 - **`cart_items`** — id, cart_id, product_id, variant_id, child_id, qty, source ENUM(ala_carte, kit), school_kit_id NULL
-- **`orders`** — id, vendor_id, cooperative_id, customer_id NULL (NULL = POS walk-in), order_no, short_code, channel ENUM(online, pos), payment_method ENUM(cash, online), status (lihat 6), subtotal, discount, total, promotion_id, pickup_by_type ENUM(student, parent, proxy), pickup_by_name, pickup_code_hash NULL, pickup_qr_token UNIQUE, pickup_attempts, customer_name, customer_phone, customer_email (snapshot), expires_at, paid_at, collected_at, cancelled_at, created_at · UNIQUE(cooperative_id, order_no), UNIQUE(cooperative_id, short_code), INDEX(vendor_id, cooperative_id, status)
+- **`orders`** — id, vendor_id, cooperative_id, customer_id NULL (NULL = POS walk-in), order_no, short_code, channel ENUM(online, pos), payment_method ENUM(cash, online), status (lihat 6), subtotal, discount, promotion_discount, manual_discount, tax_rate, tax, total, promotion_id, pos_shift_id NULL, cashier_id NULL (vendor_user POS), amount_received NULL, change_given NULL, pickup_by_type ENUM(student, parent, proxy), pickup_by_name, pickup_code_hash NULL, pickup_qr_token UNIQUE, pickup_attempts, customer_name, customer_phone, customer_email (snapshot), expires_at, paid_at, collected_at, cancelled_at, created_at · UNIQUE(cooperative_id, order_no), UNIQUE(cooperative_id, short_code), INDEX(vendor_id, cooperative_id, status)
 - **`order_items`** — id, vendor_id, order_id, product_id, variant_id, product_name, variant_label, unit_price, qty, line_total, source ENUM(ala_carte, kit, pos), school_kit_id NULL, child_id NULL, child_name, grade_label, class_name, collected_qty, cancelled_qty (refund sebelum diambil), returned_qty (dipulang selepas diambil)
 - **`order_status_logs`** — id, vendor_id, order_id, from_status, to_status, actor_type, actor_id, note, created_at
 - **`order_pickups`** — id, vendor_id, order_id, method ENUM(A, B, C, D, E), picked_by_type ENUM(student, parent, proxy), picked_by_name, vendor_user_id, created_at
@@ -374,7 +374,8 @@ Nama, harga dan maklumat anak **disalin** (snapshot) ke pesanan dan invois.
 - **`payments`** — id, vendor_id, cooperative_id, order_id, method ENUM(cash, online), gateway_code NULL, gateway_ref UNIQUE NULL, amount, status ENUM(pending, paid, failed, refunded), raw_payload, verified_at, received_by NULL (juruwang), created_at
 - **`refunds`** — id, vendor_id, cooperative_id, refund_no, order_id, payment_id, amount, reason, method ENUM(cash, bank_transfer, gateway), restock, status, vendor_user_id, created_at
   > Butiran barang: **`refund_items`** — id, vendor_id, refund_id, order_item_id, qty, cancelled_qty (U3c)
-- **`pos_shifts`** — id, vendor_id, cooperative_id, vendor_user_id, opened_at, opening_cash, closed_at, closing_cash, expected_cash, variance, status
+- **`pos_shifts`** — id, vendor_id, cooperative_id, vendor_user_id, opened_at, opening_cash, closed_at, closing_cash, expected_cash, variance, note, status ENUM(open, closed)
+  > U4: satu syif terbuka setiap juruwang setiap koperasi. Jangkaan tunai = tunai permulaan + jualan tunai POS syif itu
 - **`webhook_logs`** — id, gateway_code, cooperative_id NULL, payload, signature_valid, processed, created_at
 
 ### H. Modul add-on (7)
@@ -1033,3 +1034,57 @@ refund ditolak dalam "Bersih"; kos = `cost_price` produk; darjah/kelas dari snap
 { id, cooperative_id, cooperative_name /* null = peringkat vendor */, user_id, user_name, action, entity, entity_id, detail, created_at }
 ```
 
+### 18.11 Objek POS kaunter (U4) — `assets/js/mock/vendor-pos.js`
+
+Skrin `vendor/pos/index.php` (layout skrin penuh `vendor/_layout/pos-header.php` / `pos-footer.php`, tanpa sidebar).
+Peranti kaunter log masuk ke panel vendor seperti biasa; **juruwang** kemudian dikenal pasti dengan **PIN** (`vendor_users.pin_hash`).
+Semua laluan POS menerima `cooperative_id` (`ValidateCooperativeJob`) dan — selain `session`, `pin-login`, `lock`, `catalog` —
+mesti ada juruwang PIN dalam sesi untuk koperasi itu (`$_SESSION['pos_user_id'][cooperative_id]`), jika tidak
+`{ ok:false, error: 'Sila log masuk dengan PIN juruwang.' }`.
+
+**Jualan POS = pesanan `channel = 'pos'`** dalam jadual `orders` (`customer_id` NULL, `customer_name` pilihan, terus `collected` bila dibayar,
+`order_items.source = 'pos'`, tiada anak). No. resit `POS-YYMMDD-001` (berturut setiap koperasi setiap hari), `short_code` `P001`.
+Ia muncul dalam rekod bayaran, laporan, pergerakan stok (`pos_sale`) dan pemulangan & refund tanpa laluan baharu, tetapi
+**tidak** dalam `vendor/orders/list` (Pesanan online). `vendor/orders/get` boleh membukanya (OrderSummary kini ada `channel`).
+
+| Laluan | Kaedah | Input | `data` / peraturan |
+|---|---|---|---|
+| `vendor/pos/session` | GET | — | `{ cooperative: { id, school_name, address, phone, logo_url }, cashier: { id, full_name, role } \| null, shift: PosShift \| null, online_available, gateway_name }` |
+| `vendor/pos/pin-login` | POST | `user_id, pin` | kakitangan vendor sesi, aktif, `pin_set`, ada akses koperasi (admin = semua); 5 PIN salah → dikunci (pentadbir tetapkan semula di Kakitangan) → `{ cashier, shift }` |
+| `vendor/pos/lock` | POST | — | buang juruwang dari sesi kaunter; syif kekal dibuka |
+| `vendor/pos/shift-open` | POST | `opening_cash` (sen ≥ 0) | satu syif terbuka setiap juruwang setiap koperasi → PosShift |
+| `vendor/pos/shift-summary` | GET | `shift_id` | PosShift |
+| `vendor/pos/shift-close` | POST | `shift_id, closing_cash, note` | syif sendiri sahaja; ditolak jika ada bayaran QR `pending_payment`; `variance = closing − expected`; juruwang dilog keluar |
+| `vendor/pos/catalog` | GET | — | `{ categories: [{ id, name }], products: [PosProduct] }` — produk aktif sahaja |
+| `vendor/pos/checkout` | POST | `shift_id, items: [{ product_id, variant_id, qty }], coupon_code, manual_discount (sen), customer_name, payment_method: cash\|online, amount_received (sen)` | **pelayan mengira semula** harga, stok (`on_hand − reserved`), `max_per_order`, promosi & cukai (nilai harga dari pelayar diabaikan) → `{ receipt: PosReceipt, payment: null \| { reference, gateway_name, qr_payload, expires_in } }` |
+| `vendor/pos/payment-status` | GET | `order_id` | `{ status: pending\|paid\|cancelled, receipt }` — Peringkat 2 dibaca dari `payments` yang dikemas kini webhook gateway |
+| `vendor/pos/cancel-payment` | POST | `order_id` | QR `pending_payment` sahaja → `cancelled`, tahanan stok dilepas (`release`) |
+| `vendor/pos/sales` | GET | `shift_id` | senarai `{ order_id, order_no, created_at, total, payment_method, status, payment_status, customer_name, item_count }` |
+| `vendor/pos/receipt` | GET | `order_id` | PosReceipt (jualan POS koperasi ini sahaja) |
+
+```js
+PosProduct = { id, category_id, name, display_name /* terjemahan bahasa semasa jika ada */, sku, barcode, price, unit, image_url, max_per_order,
+               has_variants, stock_available, variants: [{ id, label, sku, barcode, price_delta, stock_available }] }
+PosShift   = { id, cooperative_id, user_id, user_name, status: 'open|closed', opened_at, closed_at, opening_cash, sale_count, item_count,
+               cash_count, cash_sales, online_count, online_sales, discount_total, tax_total, pending_count, expected_cash, closing_cash, variance, note }
+PosReceipt = { order_id, order_no, short_code, status, payment_status, created_at, paid_at, cashier_name, customer_name, shift_id,
+               items: [{ product_name, variant_label, sku, qty, unit_price, line_total, returned_qty }],
+               subtotal, promotion_name, promotion_code, promotion_discount, manual_discount, discount, tax_rate, tax, total, refunded_amount,
+               payment_method, gateway_name, gateway_ref, amount_received, change, school_name, address, phone, logo_url }
+```
+
+**Pengiraan troli** (`assets/js/vendor/pos-cart.js`, disalin & diubah suai dari KedaiPOS `calcUnitPrice` / `getTotals` / `suggestCashAmounts`; wang dalam sen):
+harga seunit = `price + price_delta`; satu baris setiap produk + varian; **satu promosi setiap jualan** — kupon yang dimasukkan, jika tidak
+diskaun automatik (tanpa kod) yang paling menjimatkan; diskaun = promosi + manual (≤ subtotal); **cukai = `tax_rate` koperasi atas (subtotal − diskaun)**;
+jumlah = subtotal − diskaun + cukai. `used_count` promosi naik bila dibayar. Mock memanggil fungsi yang sama; Peringkat 2 `PosCalculateCartJob` dalam PHP.
+
+**Bayaran:** tunai **sentiasa** dibenarkan di POS (`accept_cash` hanya untuk pesanan store); QR online perlu gateway aktif koperasi.
+Online: pesanan `pending_payment` + stok ditahan (`reserve`) → dibayar → `pos_sale` (tahanan dilepas). Mock: dibayar pada semakan status ke-2.
+
+**Resit:** tetapan dari `vendor/settings/get` (`receipt_header`, `receipt_footer`, `receipt_show_logo`, `receipt_paper` 58/80, `tax_rate`);
+`assets/css/receipt.css` — cetak hanya `#receipt-print`, `@page { margin: 0 }`, lebar kertas ditetapkan dalam pemacu pencetak.
+Laporan syif (Z) dicetak pada kertas yang sama selepas tutup syif.
+
+**Papan kekunci & pengimbas:** medan imbas difokus semula selepas setiap sentuhan/modal; aksara yang ditaip di luar medan dihantar ke medan imbas;
+Enter = padanan tepat barcode/SKU (varian dahulu) → tambah; `5*kod` = 5 unit; satu hasil carian → tambah; F2 tunai, F4 QR;
+Enter pada resit = jualan baharu. Log aktiviti: `pos_login`, `pos_shift_open`, `pos_shift_close`, `pos_sale` (atas nama juruwang).

@@ -14,7 +14,7 @@ function loadRefunds() {
         renderTable('refunds-body', res.data.items, [
             { render: function (row) { return createStack(row.refund_no, formatDate(row.created_at, true)); } },
             { render: function (row) {
-                return createStack(createLink(row.order_no, pageUrl('vendor/order.php?id=' + row.order_id), 'fw-semibold'), row.short_code + ' · ' + row.customer_name);
+                return createStack(createLink(row.order_no, pageUrl('vendor/order.php?id=' + row.order_id), 'fw-semibold'), row.short_code + ' · ' + (row.customer_name || T('pos.walk_in')));
             } },
             { className: 'text-end fw-semibold', render: function (row) { return formatRM(row.amount); } },
             { render: function (row) { return T('refund.method.' + row.method); } },
@@ -70,7 +70,7 @@ function renderRefundOrder(order) {
     document.getElementById('rf-submit').disabled = order.refundable_amount <= 0;
     document.getElementById('lookup-q').value = order.order_no;
     document.getElementById('rf-order-no').textContent = order.order_no + ' · ' + order.short_code;
-    document.getElementById('rf-order-meta').textContent = order.customer_name + ' · ' + T('order.status.' + order.status) + ' · ' + T('payment.method.' + order.payment_method);
+    document.getElementById('rf-order-meta').textContent = (order.customer_name || T('pos.walk_in')) + ' · ' + T('order.status.' + order.status) + ' · ' + T('payment.method.' + order.payment_method);
     document.getElementById('rf-total').textContent = formatRM(order.total);
     document.getElementById('rf-refunded').textContent = formatRM(order.refunded_amount);
     document.getElementById('rf-refundable').textContent = formatRM(order.refundable_amount);

@@ -280,7 +280,7 @@ function mockRequiresCode(order) {
 function mockOrderSummary(order) {
     var children = mockChildrenOf(order);
     return {
-        id: order.id, order_no: order.order_no, short_code: order.short_code, status: order.status, payment_method: order.payment_method,
+        id: order.id, order_no: order.order_no, short_code: order.short_code, channel: order.channel, status: order.status, payment_method: order.payment_method,
         payment_status: order.payment_status, total: order.total, customer_name: order.customer_name, customer_phone: order.customer_phone,
         children: children.map(function (child) {
             return { child_name: child.child_name, grade_level_code: child.grade_level_code, class_name: child.class_name };
@@ -525,14 +525,18 @@ Mock.register('vendor/orders/list', function (params) {
     if (!coop) {
         return mockCoopError();
     }
-    var rows = mockCoopRows(MockOrders.orders, coop.id).filter(function (order) {
+    // Jualan POS kaunter (channel 'pos') tidak disenaraikan di sini — lihat POS, rekod bayaran & laporan
+    var online = mockCoopRows(MockOrders.orders, coop.id).filter(function (order) {
+        return order.channel !== 'pos';
+    });
+    var rows = online.filter(function (order) {
         return mockOrderMatches(order, params);
     }).sort(function (a, b) {
         return a.created_at < b.created_at ? 1 : -1;
     }).map(mockOrderSummary);
     var data = Mock.paginate(rows, { page: params.page, per_page: params.per_page }, []);
     data.status_counts = {};
-    mockCoopRows(MockOrders.orders, coop.id).forEach(function (order) {
+    online.forEach(function (order) {
         data.status_counts[order.status] = (data.status_counts[order.status] || 0) + 1;
     });
     return Mock.ok(data);
