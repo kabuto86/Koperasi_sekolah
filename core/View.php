@@ -59,13 +59,19 @@ class View
 
     // URL halaman store ibu bapa. Peringkat 1: store/index.php?school=slug&page=...
     // (B6 boleh tukar kepada /{slug}/{page} melalui .htaccess tanpa ubah template)
-    public static function storeUrl($slug, $page = 'home')
+    // Tanpa slug (belum pilih sekolah) → hanya halaman akaun / pilih sekolah
+    public static function storeUrl($slug, $page = 'home', $params = [])
     {
-        $query = ['school' => $slug];
+        $query = [];
+        if ($slug !== '') {
+            $query['school'] = $slug;
+        }
         if ($page !== 'home') {
             $query['page'] = $page;
         }
+        $query = array_merge($query, $params);
 
-        return self::url('store/index.php') . '?' . http_build_query($query);
+        $url = self::url('store/index.php');
+        return $query ? $url . '?' . http_build_query($query) : $url;
     }
 }

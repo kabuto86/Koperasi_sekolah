@@ -283,3 +283,19 @@
 .app-progress::-moz-progress-bar { background-color: var(--app-brand); }
 .app-progress.is-full::-webkit-progress-value { background-color: var(--bs-warning); }
 .app-progress.is-full::-moz-progress-bar { background-color: var(--bs-warning); }
+
+/* Butang garis jenama (store ibu bapa — dipakai oleh assets/js/store/ untuk semua template) */
+.btn-outline-brand {
+    --bs-btn-color: var(--app-brand);
+    --bs-btn-border-color: var(--app-brand);
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: var(--app-brand);
+    --bs-btn-hover-border-color: var(--app-brand);
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: var(--app-brand);
+    --bs-btn-active-border-color: var(--app-brand);
+    --bs-btn-disabled-color: var(--app-brand);
+    --bs-btn-disabled-border-color: var(--app-brand);
+}
+
+.border-brand { border-color: var(--app-brand) !important; }

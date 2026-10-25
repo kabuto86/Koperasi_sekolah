@@ -9,12 +9,16 @@
     .store-body { padding-bottom: 0; }
 }
 
-.store-topbar .navbar-brand { max-width: 60vw; }
+.store-topbar .navbar-brand { max-width: 55vw; }
+.store-account-btn { max-width: 12rem; }
+.store-account-btn span { display: inline-block; max-width: 8rem; vertical-align: bottom; }
 
 .store-hero {
     color: #fff;
     background: linear-gradient(135deg, var(--app-brand), var(--app-brand-dark));
 }
+
+.store-hero-meta { opacity: 0.85; }
 
 .store-bottom-nav { padding: 0.25rem 0; }
 
@@ -29,3 +33,81 @@
 @media (max-width: 991.98px) {
     .app-toasts { bottom: 4.5rem !important; }
 }
+
+/* ---------- Kad & gambar produk ---------- */
+.store-quick-card:hover, .store-product-card:hover, .store-order-card:hover { box-shadow: var(--bs-box-shadow) !important; }
+
+.store-thumb {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 1 / 1;
+    background-color: var(--bs-secondary-bg);
+    color: var(--bs-secondary-color);
+    font-size: 2rem;
+    overflow: hidden;
+}
+
+.store-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.store-thumb-sm { width: 3.5rem; height: 3.5rem; flex-shrink: 0; font-size: 1.25rem; border-radius: 0.5rem; }
+.store-thumb-lg { border-radius: 0.5rem; font-size: 4rem; }
+
+.store-product-name {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 2.5em;
+}
+
+.store-qty { width: 8.5rem; flex-wrap: nowrap; }
+.store-qty input { -moz-appearance: textfield; }
+.store-qty input::-webkit-outer-spin-button, .store-qty input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+.store-variant-option { min-width: 4.5rem; }
+.store-child-option { white-space: normal; }
+.store-choice { white-space: normal; }
+
+/* ---------- Kit ---------- */
+.store-kit-check { width: 1.5rem; height: 1.5rem; margin-top: 0.1rem; }
+.store-kit-unchecked label { opacity: 0.6; }
+.store-kit-variant { width: auto; min-width: 9rem; }
+
+/* Bar jumlah melekat di bawah (atas navbar bawah pada telefon) */
+.store-sticky-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 4rem;
+    z-index: 1020;
+    padding: 0.6rem 0;
+    background-color: var(--bs-body-bg);
+    border-top: 1px solid var(--bs-border-color);
+    box-shadow: 0 -0.25rem 0.75rem rgba(0, 0, 0, 0.06);
+}
+
+.store-has-sticky-bar { padding-bottom: 9rem; }
+.store-has-sticky-bar .app-toasts { bottom: 8.5rem !important; }
+
+@media (min-width: 992px) {
+    .store-sticky-bar { bottom: 0; }
+    .store-has-sticky-bar { padding-bottom: 5rem; }
+    .store-has-sticky-bar .app-toasts { bottom: 4.5rem !important; }
+}
+
+@media (min-width: 992px) {
+    .store-summary { position: sticky; top: 5rem; }
+}
+
+/* ---------- Pesanan ---------- */
+.store-big-code {
+    font-family: var(--bs-font-monospace);
+    font-size: 3rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    line-height: 1.1;
+}
+
+.store-qr { width: 11rem; height: 11rem; image-rendering: pixelated; }
+.store-code-input { max-width: 8rem; font-family: var(--bs-font-monospace); font-size: 1.5rem; letter-spacing: 0.3em; text-align: center; }
+.store-news-body { white-space: pre-line; }

@@ -1,0 +1,44 @@
+/* Slip beg & resit pesanan ibu bapa (order-success, order-detail).
+   Slip: satu setiap anak — nama, kelas, no. pendek, QR — dipotong & dimasukkan dalam beg (PELAN 7, cara D) */
+
+.store-slip-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+    gap: 0.75rem;
+}
+
+.store-slip {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    padding: 0.75rem;
+    border: 2px dashed #999;
+    border-radius: 0.5rem;
+    background-color: #fff;
+    color: #000;
+    break-inside: avoid;
+}
+
+.store-slip-qr { width: 6rem; height: 6rem; flex-shrink: 0; image-rendering: pixelated; }
+.store-slip-school { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.store-slip-child { font-size: 1.1rem; font-weight: 700; line-height: 1.2; }
+.store-slip-code { font-family: var(--bs-font-monospace); font-size: 1.8rem; font-weight: 700; letter-spacing: 0.1em; }
+
+.store-receipt { max-width: 80mm; color: #000; background-color: #fff; }
+
+@media print {
+    @page { size: A4; margin: 12mm; }
+
+    body.store-body { padding: 0 !important; background-color: #fff !important; }
+    .store-main { padding: 0 !important; max-width: none; }
+    .store-screen, .app-toasts, #store-error, .modal { display: none !important; }
+
+    .store-slip-grid { grid-template-columns: repeat(2, 1fr); gap: 6mm; }
+    .store-slip { min-height: 40mm; padding: 4mm; border-radius: 0; }
+    .store-slip-qr { width: 28mm; height: 28mm; }
+
+    /* Cetak resit sahaja */
+    body.store-print-receipt #slip-area { display: none !important; }
+    body.store-print-receipt #receipt-area { display: block !important; }
+    body.store-print-receipt { font-size: 10pt; }
+}

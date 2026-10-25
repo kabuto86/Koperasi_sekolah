@@ -35,6 +35,9 @@ Setiap prompt di bawah bermula dengan "Ikut peraturan umum". Maksudnya:
    qty − collected − cancelled (`mockItemRemaining`). CSV laporan: `downloadCsv()` dalam helpers.js.
    POS (sejak U4): `vendor-pos.js` (mock) · `assets/js/vendor/pos-cart.js` (`posUnitPrice`, `posTotals`, `posBestAutomatic`,
    `posSuggestCash`) — jualan POS ialah pesanan `channel = 'pos'`; layout skrin penuh `vendor/_layout/pos-header.php`.
+   Store ibu bapa (sejak U5): logik dalam `assets/js/store/{halaman}.js` + `common.js` (`storeGet/storePost` dengan slug & auth_required,
+   `storeUrl`, `onStoreReady`, `renderSlips`, `storeStartPayment`) + `layout.js`; template (`templates/template1/`) paparan sahaja.
+   Mock `store.js` berkongsi data vendor (pesanan store muncul di panel vendor) — PELAN 18.12.
    Sebelum commit jalankan `php tools/check-ui.php` (tiada inline CSS, kunci 4 bahasa sama).
 7. **Peringkat 2 (B):** jalankan ujian kebocoran dua vendor + dua ibu bapa (PELAN 15) sebelum tutup session.
 8. **Penutup wajib:**
@@ -214,7 +217,8 @@ Bina UI vendor untuk: news (senarai, borang pos, hantar e-mel), clearance (juala
 harga khas, tempoh), calendar (kalendar bulanan, cuti sekolah/koperasi, sekat tempahan),
 school_opening (musim pre-order, tarikh tutup, slot ambil ikut darjah & kapasiti),
 whatsapp_sms (tetapan, UI sahaja). Paparan ibu bapa yang berkaitan dalam template1
-(lencana clearance, banner tutup, pilih slot ambil semasa checkout).
+(lencana clearance, banner tutup, pilih slot ambil semasa checkout). Store sudah membaca
+MockStore.news / clearanceSales / clearanceItems (U5) — panel vendor menulis ke data yang sama.
 Setiap modul berkunci jika tidak dilanggan: papar kad "Langgan modul ini".
 ```
 

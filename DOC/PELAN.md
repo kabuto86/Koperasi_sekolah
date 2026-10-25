@@ -363,9 +363,9 @@ Nama, harga dan maklumat anak **disalin** (snapshot) ke pesanan dan invois.
 ### G. Pesanan, ambil & bayaran (13)
 
 - **`carts`** — id, customer_id, cooperative_id, vendor_id, updated_at · UNIQUE(customer_id, cooperative_id)
-- **`cart_items`** — id, cart_id, product_id, variant_id, child_id, qty, source ENUM(ala_carte, kit), school_kit_id NULL
+- **`cart_items`** — id, cart_id, product_id, variant_id, child_id, qty, source ENUM(ala_carte, kit), school_kit_id NULL, school_kit_item_id NULL (U5: kit yang sama untuk anak yang sama diganti, bukan ditambah)
 - **`orders`** — id, vendor_id, cooperative_id, customer_id NULL (NULL = POS walk-in), order_no, short_code, channel ENUM(online, pos), payment_method ENUM(cash, online), status (lihat 6), subtotal, discount, promotion_discount, manual_discount, tax_rate, tax, total, promotion_id, pos_shift_id NULL, cashier_id NULL (vendor_user POS), amount_received NULL, change_given NULL, pickup_by_type ENUM(student, parent, proxy), pickup_by_name, pickup_code_hash NULL, pickup_qr_token UNIQUE, pickup_attempts, customer_name, customer_phone, customer_email (snapshot), expires_at, paid_at, collected_at, cancelled_at, created_at · UNIQUE(cooperative_id, order_no), UNIQUE(cooperative_id, short_code), INDEX(vendor_id, cooperative_id, status)
-- **`order_items`** — id, vendor_id, order_id, product_id, variant_id, product_name, variant_label, unit_price, qty, line_total, source ENUM(ala_carte, kit, pos), school_kit_id NULL, child_id NULL, child_name, grade_label, class_name, collected_qty, cancelled_qty (refund sebelum diambil), returned_qty (dipulang selepas diambil)
+- **`order_items`** — id, vendor_id, order_id, product_id, variant_id, product_name, variant_label, unit_price, qty, line_total, source ENUM(ala_carte, kit, pos), school_kit_id NULL, clearance_item_id NULL (U5), child_id NULL, child_name, grade_label, class_name, collected_qty, cancelled_qty (refund sebelum diambil), returned_qty (dipulang selepas diambil)
 - **`order_status_logs`** — id, vendor_id, order_id, from_status, to_status, actor_type, actor_id, note, created_at
 - **`order_pickups`** — id, vendor_id, order_id, method ENUM(A, B, C, D, E), picked_by_type ENUM(student, parent, proxy), picked_by_name, vendor_user_id, created_at
 - **`order_pickup_items`** — id, vendor_id, order_pickup_id, order_item_id, qty
@@ -491,6 +491,9 @@ Response::ok($result);
 - Logik, harga, stok, kit — semuanya dalam job/API. Template baharu = salin folder, tukar rupa. **Aliran kerja sama**
 - `manifest.json`: `code`, `name`, `version`, `pages` wajib: `home, school-select, catalog, product, kit, cart, checkout, order-success, orders, order-detail, children, login, register, forgot-password, profile, news, clearance`
 - Vendor memilih template yang dilanggan untuk setiap koperasi (`cooperatives.template_id`). Template tidak dilanggan → jatuh balik ke `template1`
+- **Sejak U5:** logik setiap halaman store dalam `assets/js/store/{halaman}.js` (+ `common.js`, `layout.js`) — dikongsi semua template.
+  Template baharu mesti mengekalkan `id` / atribut `data-*` yang dibaca JS (cth. `#store-context`, `data-cart-count`, `data-module`,
+  `data-auth-guest|user`, `#slip-area`) dan boleh menukar rupa melalui `css/` sendiri. Slip & resit: `templates/{kod}/css/print-slip.css`
 
 ## 11. Log masuk & kata laluan
 
@@ -684,7 +687,8 @@ Mock demo: kata laluan `salah` → ralat log masuk; kod 2FA `000000` → ditolak
 - Sub-navigasi vendor: halaman set `$subNavGroup` + `$subNavActive` (kumpulan dalam `vendor/_layout/sub-nav.php`)
 - Menu add-on vendor: dirender berkunci (pautan ke `vendor/addon-store.php?module=code` — sejak U3c, terus membuka anggaran harga);
   dibuka oleh `vendor-layout.js` jika `vendor/modules/active` mengandungi kodnya
-- Store Peringkat 1: `store/index.php?school={slug}&page={halaman}` — `View::storeUrl()`.
+- Store Peringkat 1: `store/index.php?school={slug}&page={halaman}` — `View::storeUrl($slug, $page, $params)` / JS `storeUrl()`.
+  Tanpa slug hanya `home, school-select, login, register, forgot-password, profile, children` (akaun global); halaman lain → kembali ke utama.
   `&template={kod}` = pratonton template dari panel owner (hanya jika folder wujud; B6 hadkan kepada owner).
   URL cantik `/{slug}/` ditambah dalam B6 (.htaccess) tanpa mengubah template
 - Helpers: `formatRM(sen)`, `formatDate(iso, withTime)`, `showToast(msg, type)`,
@@ -1088,3 +1092,64 @@ Laporan syif (Z) dicetak pada kertas yang sama selepas tutup syif.
 **Papan kekunci & pengimbas:** medan imbas difokus semula selepas setiap sentuhan/modal; aksara yang ditaip di luar medan dihantar ke medan imbas;
 Enter = padanan tepat barcode/SKU (varian dahulu) → tambah; `5*kod` = 5 unit; satu hasil carian → tambah; F2 tunai, F4 QR;
 Enter pada resit = jualan baharu. Log aktiviti: `pos_login`, `pos_shift_open`, `pos_shift_close`, `pos_sale` (atas nama juruwang).
+
+### 18.12 Objek store ibu bapa (U5) — `assets/js/mock/store.js`
+
+Store memakai "pangkalan data" mock yang sama dengan panel vendor (layout template1 memuat `vendor.js`, `vendor-orders.js`,
+`vendor-finance.js`, `store.js` + `js/vendor/pos-cart.js`), jadi pesanan dari store terus muncul di panel vendor dalam tab yang sama.
+`Mock.storageVersion` → `v3` (ibu bapa & anak kini disimpan; anak ada `school_year`, `is_active`, `vendor_id`).
+
+**Keselamatan:** setiap laluan menerima `slug` — pelayan menyelesaikan koperasi + `vendor_id` (B6: dari URL `/{slug}/`). Tiada `vendor_id`,
+`cooperative_id` atau `customer_id` dari input; `customer_id` dari sesi (`MockStore.session`). Anak, troli & pesanan ditapis ibu bapa sesi
+**dan** koperasi slug — milik orang lain / koperasi lain → `error.not_found`. Laluan yang perlu log masuk memulangkan
+`{ ok:false, error, auth_required: true }` → JS (`storeGet/storePost`) membawa ke `login&next={halaman}&next_id=`.
+Harga, diskaun, cukai & stok dikira semula di pelayan; `expected_total` dari pelayar hanya untuk mengesan perubahan harga.
+
+| Laluan | Kaedah | Input | `data` / peraturan |
+|---|---|---|---|
+| `store/schools/list` | GET | `q, state, page` | senarai `{ slug, school_name, school_type, state, district }` (koperasi aktif) |
+| `store/school` | GET | `slug` | + `address, phone, logo_url, default_language, opening_hours, grades, modules: ['news','clearance'] (aktif sahaja), payment_methods` |
+| `store/classes` | GET | `slug, grade` | `[{ grade_level_code, class_name }]` (cadangan datalist) |
+| `store/session` | GET | `slug?` | `{ customer: Customer\|null, cart_count, schools: [sekolah anak-anak] }` |
+| `store/auth/register` | POST | `full_name, phone, email, password, password_confirm, relationship, language, pdpa` | telefon MY dinormalkan `012-3456789`; e-mel & telefon unik global (ralat umum); kata laluan ≥ 8; PDPA wajib → log masuk terus, `email_verified: false` |
+| `store/auth/login` | POST | `login` (e-mel atau telefon), `password` | mesej sama untuk akaun tiada / salah; 5 gagal → kunci 15 minit |
+| `store/auth/logout` · `forgot { email }` · `reset { token, password, password_confirm }` · `verify-email { token }` · `resend-verification` | POST | | token sekali guna, 1 jam. `forgot` sentiasa `{ sent: true }` |
+| `store/profile/get` · `save { full_name, phone, relationship, language }` · `password { current_password, password, password_confirm }` · `delete { password }` | | | padam (PDPA): ditolak jika ada pesanan aktif; nama/e-mel/telefon dibuang, anak dinyahaktif, snapshot hubungan dalam pesanan dikosongkan |
+| `store/children/list` · `save { id?, full_name, school_slug, grade_level_code, class_name, school_year }` · `remove { id }` · `promote { id }` | | | semua anak ibu bapa (semua sekolah); tahun = tahun ini / depan; kelas dipadankan dengan `school_classes` jika ada; `promote_to` dicadangkan Okt–Dis |
+| `store/catalog` | GET | `slug, q, category_id, grade, page` | senarai StoreProduct + `categories` (aktif) |
+| `store/product` | GET | `slug, id` | StoreProduct + `description, sku, max_per_order, variants: [{ id, label, price, regular_price, available, max_per_order }]` |
+| `store/kit` | GET | `slug, child_id?` | `{ children, child, kit: { id, name, note, grade_level_code, school_year, in_cart, items: [KitItem] } \| null }` — kit diterbitkan ikut darjah & tahun anak |
+| `store/cart/get` · `update { id, qty }` · `remove { id }` · `clear` | | | CartQuote |
+| `store/cart/add` | POST | `product_id, variant_id, qty, child_id` | anak milik ibu bapa & di sekolah ini; varian wajib jika ada; stok (`on_hand − reserved`) & had beli dikira merentas troli |
+| `store/cart/add-kit` | POST | `child_id, kit_id, items: [{ kit_item_id, qty, variant_id }]` | item yang ditanda sahaja; saiz wajib untuk "ibu bapa pilih saiz"; menggantikan baris kit yang sama untuk anak itu |
+| `store/checkout/quote` | GET | `coupon_code` | CartQuote + `customer_name, email_verified` |
+| `store/checkout/place` | POST | `pickup_by_type, pickup_by_name (wakil), payment_method, coupon_code, pickup_code (jika requires_code), expected_total` | e-mel disahkan; troli tanpa masalah; kaedah dibenarkan koperasi → tunai `unpaid_cash` (+ `expires_at` = `cash_order_expiry_days`), online `pending_payment`; stok **ditahan** (`reserve`); promosi `used_count++`; troli dikosongkan → `{ order_id, order_no, short_code, payment: null \| { reference, gateway_name, amount, mode, redirect_url } }` |
+| `store/payment/simulate` | POST | `order_id, result: paid\|cancel` | **Peringkat 1 sahaja** (B8: redirect gateway + webhook) |
+| `store/orders/list` | GET | `slug, child_id, year, page` | pesanan online ibu bapa di koperasi ini + `children, years, ready_count` |
+| `store/orders/get` | GET | `slug, id` | StoreOrderDetail |
+| `store/orders/pay { id }` · `cancel { id }` | POST | | bayar semula `pending_payment`; batal hanya `pending_payment`/`unpaid_cash` (tahanan dilepas) |
+| `store/news/list` · `store/clearance/list` | GET | `slug` | hanya jika modul aktif, jika tidak `store.module_unavailable` |
+
+```js
+Customer        = { full_name, phone, email, relationship, language, email_verified }
+StoreProduct    = { id, name /* terjemahan jika ada */, category_id, category_name, price, regular_price, price_from, on_sale, unit, image_url,
+                    has_variants, available, grade_levels }
+KitItem         = { id, product_id, name, image_url, unit, variant_id, variant_label, choose_variant, variants: [{ id, label, price, available }],
+                    unit_price, qty, is_mandatory, note, available /* null jika pilih saiz */, max_per_order, in_cart: { qty, variant_id } | null }
+CartQuote       = { groups: [{ child_id, child_name, grade_level_code, class_name, subtotal, items: [{ id, product_id, variant_id, name, variant_label,
+                    image_url, unit_price, regular_price, qty, line_total, source: 'kit|ala_carte', school_kit_id, available, max,
+                    problem: null|'unavailable'|'stock'|'max' }] }], item_count, has_problem, subtotal, discount, promotion_name, promotion_code,
+                    coupon_code, coupon_error, tax_rate, tax, total, payment_methods, gateway_name, cash_expiry_days, requires_code, code_required_above }
+StoreOrderDetail = { id, order_no, short_code, status, payment_method, payment_status, total, created_at, expires_at, children, item_count,
+                    subtotal, discount, promotion_name, tax, tax_rate, refunded_amount, paid_at, collected_at, pickup_by_type, pickup_by_name,
+                    requires_code, qr_token, gateway_ref, can_pay, can_cancel, customer_name, school: { school_name, address, phone },
+                    groups: [{ child_name, grade_level_code, class_name, items: [{ product_name, variant_label, unit_price, qty, line_total,
+                    collected_qty, cancelled_qty, returned_qty, source }] }], logs: [{ to_status, created_at }] /* tiada nama kakitangan */,
+                    pickups: [{ picked_by_type, picked_by_name, created_at, items }] }
+```
+
+**Kit:** semua item siap ditanda (kecuali stok habis); item wajib boleh dinyahtanda dengan amaran "Item wajib sekolah"; jumlah dikira serta-merta di
+pelayar (paparan sahaja). **Kod 4 digit:** jika koperasi mewajibkan (cara E atau jumlah > `pickup_code_required_above`), **ibu bapa menetapkan kod**
+semasa checkout (B7: hash Argon2id, tidak boleh dipapar semula) dan memberitahu anak / wakil. **Jualan murah:** harga `clearance_items.sale_price`
+digunakan automatik oleh pelayan (modul aktif, dalam tempoh) dengan had `qty_limit`. **Promosi:** sama seperti POS — satu setiap pesanan, kupon atau
+diskaun automatik terbaik, cukai selepas diskaun. **Slip beg** (cara D): satu setiap anak (sekolah, nama, kelas, no. pendek besar, QR, "BAYAR TUNAI").

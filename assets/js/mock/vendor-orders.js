@@ -793,7 +793,7 @@ Mock.register('vendor/customers/list', function (params) {
     var q = String(params.q || '').trim().toLowerCase();
     var rows = MockOrders.customers.map(function (customer) {
         var kids = MockOrders.children.filter(function (child) {
-            return child.customer_id === customer.id && child.cooperative_id === coop.id
+            return child.customer_id === customer.id && child.cooperative_id === coop.id && child.is_active !== false
                 && (!params.grade || child.grade_level_code === params.grade) && (!params.class_name || child.class_name === params.class_name);
         });
         if (kids.length === 0) {
@@ -850,4 +850,18 @@ Mock.register('vendor/customers/save-note', function (body) {
     });
 })();
 
-Mock.persist('vendor-orders', MockOrders, ['kits', 'orders', 'pickups', 'customerNotes']);
+// Medan akaun ibu bapa & anak yang digunakan oleh store (U5)
+MockOrders.customers.forEach(function (customer) {
+    customer.language = customer.language || 'ms';
+    customer.email_verified = true;
+    customer.mock_password = 'rahsia123'; // Peringkat 1 sahaja — B2: password_hash Argon2id
+    customer.is_active = true;
+    customer.deleted_at = null;
+});
+MockOrders.children.forEach(function (child) {
+    child.vendor_id = child.cooperative_id === 3 ? 2 : 1;
+    child.school_year = 2026;
+    child.is_active = true;
+});
+
+Mock.persist('vendor-orders', MockOrders, ['kits', 'orders', 'pickups', 'customerNotes', 'customers', 'children']);
