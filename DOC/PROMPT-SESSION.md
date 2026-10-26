@@ -49,9 +49,9 @@ Setiap prompt di bawah bermula dengan "Ikut peraturan umum". Maksudnya:
    Sejak B1: skema sebenar = `database/schema.sql` (75 jadual, PELAN 9 J); lajur baharu → fail `database/migrations/NNN-nama.sql`
    **dan** kemas kini `schema.sql` + PELAN 9. Konvensyen job & core dalam PELAN 10.2 (constructor menerima id dari sesi + input, `run()`,
    `Database::fetchOne/fetchAll/execute/insert`, `Response::ok/fail/notFound`). Data demo & akaun: kepala `database/seed.sql`.
-   Semakan asas sebelum commit: `php tools/verify-b1.php` + `php tools/verify-b2.php` (mesti 0 gagal) + `php tools/check-ui.php`; tambah skrip semakan
+   Semakan asas sebelum commit: `php tools/verify-b1.php` + `verify-b2.php` + `verify-b3.php` (mesti 0 gagal) + `php tools/check-ui.php`; tambah skrip semakan
    session sendiri `tools/verify-bN.php` dengan ujian kebocoran VENDOR01↔VENDOR02 dan ibu bapa A↔B (contoh HTTP sebenar: kelas `Browser`
-   dalam `verify-b2.php` — pelayan `php -S` sendiri, cookie, CSRF).
+   dalam `tools/test-helpers.php` sejak B3 — pelayan `php -S` sendiri, cookie, CSRF; `require __DIR__ . '/test-helpers.php'`).
    Sejak B2: endpoint ikut konvensyen PELAN 10.2 (`Request::requireMethod` → `XAuth::requireRole/requireLogin` → `Csrf::verifyRequest` →
    job yang melempar `ValidationException`). Bila modul siap: **tambah awalan laluan ke `Api.livePrefixes`** (`assets/js/api.js`), buang
    `Mock.register` laluan itu, dan tanda `— (Bn)` dalam PELAN 18.14. Halaman panel sudah dilindungi sesi (`requirePage`); akaun demo:
@@ -304,7 +304,7 @@ boleh daftar dua kali; vendor suspended hanya boleh lihat halaman bil; 2FA owner
 > Hasil B2: juga `vendor/cooperatives/list` (baca) & `store/session` sebenar; laluan baharu `owner|vendor/auth/logout|forgot|reset`,
 > `vendor/auth/verify-2fa`; halaman `owner|vendor/forgot-password.php` & `reset-password.php`; migrasi `001-auth-tokens.sql`.
 
-## B3 — Owner
+## B3 — Owner ✅ (26 Okt 2026 — lihat PROSES.md)
 
 ```
 Ikut peraturan umum. Session: B3 — Owner. Prasyarat: B2 ✅.
@@ -314,6 +314,9 @@ gateway, darjah, templat e-mel, pengumuman, tetapan, kakitangan owner, log audit
 jobs/Billing/CalculateCoopPriceJob (peringkat). Tukar api.js bahagian owner kepada fetch.
 Sahkan: owner_staff ditolak untuk harga & tetapan (403).
 ```
+> Hasil B3: 32 endpoint owner sebenar (langganan/invois kekal mock → B12, terjemahan → B14); laluan baharu `owner/plans/options`
+> (tapisan vendor untuk owner_staff); `tools/verify-b3.php` + `tools/test-helpers.php` (kelas `Browser` dikongsi); seed templat e-mel,
+> nota vendor & pengumuman contoh. Nama modul/darjah owner disimpan dalam `translations` — `t()` di halaman lain masih dari `lang/*.php` (B14).
 
 ## B4 — Vendor: koperasi, katalog, inventori
 

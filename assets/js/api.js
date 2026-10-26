@@ -12,6 +12,8 @@ var Api = {
     // Tambah awalan laluan di sini bila session B menyiapkan modul itu
     livePrefixes: [
         'owner/auth/', 'owner/profile/', 'owner/staff/', 'owner/two-factor/',
+        'owner/dashboard/', 'owner/vendors/', 'owner/cooperatives/', 'owner/plans/', 'owner/modules/', 'owner/templates/',
+        'owner/gateways/', 'owner/grades/', 'owner/email-templates/', 'owner/announcements/', 'owner/audit-logs/', 'owner/settings/',
         'vendor/auth/', 'vendor/session/', 'vendor/cooperatives/list', 'vendor/staff/',
         'store/auth/', 'store/profile/', 'store/session'
     ],

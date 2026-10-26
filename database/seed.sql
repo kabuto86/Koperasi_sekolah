@@ -63,6 +63,22 @@ INSERT INTO platform_settings (setting_key, setting_value) VALUES
 ('owner_gateway_config', '{}'),
 ('owner_gateway_secrets_enc', '');
 
+-- Templat e-mel (owner sunting di panel — B3). Bahasa yang belum diisi jatuh balik ke Bahasa Melayu
+INSERT INTO email_templates (template_key, language_code, subject, body_html, created_at) VALUES
+('order_new_vendor', 'ms', 'Pesanan baharu {order_no} — {school_name}', '<p>Pesanan baharu <strong>{order_no}</strong> daripada {customer_name}.</p>\n<p>Jumlah: {total}</p>\n<p><a href="{order_url}">Lihat pesanan</a></p>', '2026-10-01 10:00:00'),
+('order_new_vendor', 'en', 'New order {order_no} — {school_name}', '<p>New order <strong>{order_no}</strong> from {customer_name}.</p>\n<p>Total: {total}</p>\n<p><a href="{order_url}">View order</a></p>', '2026-10-01 10:00:00'),
+('order_receipt', 'ms', 'Resit pesanan {order_no}', '<p>Terima kasih {customer_name}.</p>\n{items_table}\n<p>Jumlah: <strong>{total}</strong></p>\n<p>Kod ambil: {pickup_code}</p>', '2026-10-01 10:00:00'),
+('order_receipt', 'en', 'Receipt for order {order_no}', '<p>Thank you {customer_name}.</p>\n{items_table}\n<p>Total: <strong>{total}</strong></p>\n<p>Pickup code: {pickup_code}</p>', '2026-10-01 10:00:00'),
+('order_receipt', 'zh', '订单 {order_no} 收据', '<p>谢谢 {customer_name}。</p>\n{items_table}\n<p>总额：<strong>{total}</strong></p>', '2026-10-02 10:00:00'),
+('order_ready', 'ms', 'Pesanan {order_no} sedia diambil', '<p>Barang untuk {child_name} ({child_class}) sedia diambil di koperasi {school_name}.</p>\n<p>Waktu operasi: {opening_hours}</p>', '2026-10-01 10:00:00'),
+('order_ready', 'en', 'Order {order_no} is ready for collection', '<p>Items for {child_name} ({child_class}) are ready at the {school_name} cooperative.</p>', '2026-10-01 10:00:00'),
+('order_ready', 'zh', '订单 {order_no} 可领取', '<p>{child_name}（{child_class}）的物品已可在 {school_name} 合作社领取。</p>', '2026-10-02 10:00:00'),
+('order_ready', 'ta', 'ஆர்டர் {order_no} பெறத் தயார்', '<p>{child_name} ({child_class}) பொருட்கள் {school_name} கூட்டுறவில் தயார்.</p>', '2026-10-03 10:00:00'),
+('order_collected', 'ms', 'Pesanan {order_no} telah diambil', '<p>Barang telah diambil oleh {collected_by} pada {collected_at}.</p>', '2026-10-01 10:00:00'),
+('invoice_issued', 'ms', 'Invois {invoice_no} — KoperasiKu', '<p>Kepada {vendor_name},</p>\n<p>Invois {invoice_no} berjumlah {total} perlu dibayar sebelum {due_date}.</p>\n<p><a href="{pay_url}">Bayar sekarang</a></p>', '2026-10-01 10:00:00'),
+('password_reset', 'ms', 'Tetapkan semula kata laluan', '<p>Hai {name},</p>\n<p><a href="{reset_url}">Tetapkan semula kata laluan</a> (sah {expires_minutes} minit).</p>', '2026-10-01 10:00:00'),
+('password_reset', 'en', 'Reset your password', '<p>Hi {name},</p>\n<p><a href="{reset_url}">Reset your password</a> (valid for {expires_minutes} minutes).</p>', '2026-10-01 10:00:00');
+
 -- Nama modul ada dalam lang/*.php (module.{code}); keterangan disimpan di sini (owner boleh sunting)
 INSERT INTO translations (language_code, translation_key, value) VALUES
 ('ms', 'module.news.description',            'Pos berita kepada ibu bapa koperasi itu.'),
@@ -119,6 +135,19 @@ INSERT INTO vendors (id, code, company_name, registration_no, contact_name, phon
 INSERT INTO subscriptions (id, vendor_id, plan_id, billing_cycle, status, started_at, current_period_start, current_period_end) VALUES
 (1, 1, 2, 'yearly',  'active', '2026-01-05', '2026-01-05', '2027-01-04'),
 (2, 2, 1, 'monthly', 'active', '2026-02-11', '2026-10-11', '2026-11-10');
+
+-- Nota dalaman owner & pengumuman vendor (B3)
+INSERT INTO vendor_notes (id, vendor_id, body, created_by, created_at) VALUES
+(1, 1, 'Vendor perintis — dua kali hubungi sokongan tentang import produk.', 1, '2026-03-02 11:00:00'),
+(2, 2, 'Minta pakej tahunan selepas koperasi ketiga dibuka.', 2, '2026-09-18 15:30:00');
+
+INSERT INTO vendor_announcements (id, title, body, target, published_at, created_by, created_at) VALUES
+(1, 'Penyelenggaraan sistem 1 November', 'Sistem akan ditutup dari 1:00 hingga 3:00 pagi untuk penyelenggaraan.', 'all', '2026-10-22 09:00:00', 1, '2026-10-22 08:50:00'),
+(2, 'Modul Pembukaan sekolah kini tersedia', 'Langgan modul ini untuk musim pre-order kit 2027.', 'all', '2026-10-10 10:00:00', 1, '2026-10-10 09:00:00'),
+(3, 'Peringatan invois tertunggak', 'Sila jelaskan invois tertunggak untuk mengelakkan penggantungan.', 'selected', NULL, 2, '2026-10-23 15:00:00');
+
+INSERT INTO vendor_announcement_targets (announcement_id, vendor_id) VALUES
+(3, 2);
 
 -- ---------------------------------------------------------------------
 -- C. Vendor & koperasi

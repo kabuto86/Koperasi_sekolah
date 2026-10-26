@@ -77,10 +77,28 @@ class Lang
         return $text;
     }
 
+    private static $files = [];
+
+    // Fail bahasa lain (dicache) — untuk e-mel ikut bahasa penerima & nilai asal terjemahan (B3)
+    private static function fileFor($code)
+    {
+        if (!isset(self::$files[$code])) {
+            self::$files[$code] = self::isSupported($code) ? self::loadFile($code) : [];
+        }
+        return self::$files[$code];
+    }
+
+    // Nilai kunci dalam fail bahasa itu sahaja (tiada jatuh balik) atau null
+    public static function fileValue($code, $key)
+    {
+        $strings = self::fileFor($code);
+        return $strings[$key] ?? null;
+    }
+
     // Teks dalam bahasa lain (cth. e-mel ikut bahasa penerima, bukan bahasa permintaan)
     public static function getFor($code, $key, $params = [])
     {
-        $strings = self::isSupported($code) ? self::loadFile($code) : [];
+        $strings = self::fileFor($code);
         $text = $strings[$key] ?? self::$fallback[$key] ?? $key;
         foreach ($params as $name => $value) {
             $text = str_replace('{' . $name . '}', (string) $value, $text);

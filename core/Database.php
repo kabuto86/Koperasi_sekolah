@@ -89,10 +89,11 @@ class Database
         self::connection()->commit();
     }
 
+    // Selamat dipanggil walaupun belum bersambung (pengendali ralat global)
     public static function rollBack()
     {
-        if (self::connection()->inTransaction()) {
-            self::connection()->rollBack();
+        if (self::$pdo !== null && self::$pdo->inTransaction()) {
+            self::$pdo->rollBack();
         }
     }
 

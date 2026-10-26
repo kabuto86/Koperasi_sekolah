@@ -87,6 +87,8 @@ output — belum log masuk → `login.php`; menu tidak dibenarkan (`PanelRole::c
 `$activeMenu`; `module.*` = admin & pengurus) → halaman pertama yang dibenarkan (`PanelRole::firstPage`). API: `requireRole([...])` → 403.
 
 Owner: `owner_staff` nampak papan pemuka, vendor, koperasi, langganan & invois, log audit sahaja; selebihnya `owner` sahaja.
+**Sejak B3** API menguatkuasakan perkara sama (senarai laluan dalam 18.14); `owner_staff` boleh menambah nota vendor tetapi tidak boleh
+menggantung / mengaktifkan vendor (butang tidak dipapar, API 403).
 
 | Menu | `vendor_admin` | `coop_manager` | `cashier` |
 |---|---|---|---|
@@ -467,7 +469,7 @@ Koperasi_sekolah/
 │   ├── Auth/ Owner/ Vendor/ Cooperative/ Plan/ Billing/ Module/ Template/
 │   ├── Product/ Inventory/ Supplier/ Promotion/ SchoolKit/
 │   ├── Customer/ Child/ Cart/ Order/ Pickup/ Payment/ Pos/ Report/
-│   └── News/ Clearance/ Calendar/ SchoolOpening/ Notification/ Language/ Setting/
+│   └── News/ Clearance/ Calendar/ SchoolOpening/ Notification/ Language/ Setting/ Announcement/ (B3)
 ├── payments/       GatewayInterface.php · GatewayFactory.php
 │   └── drivers/    ToyyibPayGateway · BillplzGateway · SenangPayGateway · Ipay88Gateway · StripeGateway
 ├── api/v1/
@@ -491,6 +493,7 @@ Koperasi_sekolah/
 ├── cron/           send-emails · expire-cash-orders · generate-invoices · suspend-overdue · promote-grades
 ├── tools/          check-ui.php (tiada inline CSS + kunci 4 bahasa sama) · generate-secret.php · verify-b1.php · verify-b2.php
 │                   dev-totp.php (kod 2FA ujian) · ui-audit.js (pelayar, log masuk sebenar sejak B2) — CLI sahaja
+│                   verify-b3.php · test-helpers.php (Browser HTTP dikongsi — B3)
 ├── assets/
 │   ├── lib/        bootstrap/ (5.3.3) · bootstrap-icons/ (1.11.3) · qrcode/ (qrcode-generator 1.4.4, MIT — sejak U2)
 │   ├── css/        app.css · print-label.css · print-slip.css · receipt.css
@@ -548,6 +551,12 @@ Sesi: `KOPOWNER` (idle 2 jam) · `KOPVENDOR` (2 jam) · `KOPSTORE` (30 hari; "in
 `Secure` bila HTTPS; `<body data-csrf>` dari `partials/head.php` bila sesi aktif. E-mel: `QueueEmailJob` → `email_queue`
 (templat `email_templates` ikut bahasa penerima → jatuh balik kunci `email.{kunci}.subject|body`); pautan penuh `View::absoluteUrl()`
 (`config app_url` WAJIB di produksi). Log: `WriteAuditLogJob` (owner → `audit_logs`) · `WriteActivityLogJob` (vendor → `activity_logs`).
+
+**Konvensyen B3:** setiap tindakan owner yang mengubah data menulis `WriteAuditLogJob` (kod/teks dalam `detail`, `entity_id` hanya untuk id
+nombor). Tetapan platform melalui `PlatformSettings::get/set` (dicache satu permintaan). Teks 4 bahasa yang owner sunting melalui
+`TranslationValues::many/get/save` (DB → `lang/*.php` → `''`). Pengendali ralat global memanggil `Database::rollBack()` supaya job yang
+gagal di tengah transaksi tidak meninggalkan separuh perubahan. Ujian HTTP: `tools/test-helpers.php` (`check()`, `Browser`, `ownerLogin`,
+`vendorLogin`, `storeLogin`, `clearTestLocks`) dikongsi oleh `verify-b2.php` & `verify-b3.php`.
 
 ### 10.3 Kontrak API
 
@@ -745,7 +754,9 @@ Dalam mock: `Mock.paginate(rows, params, ['medan_carian', ...])`.
   selebihnya masih mock. Setiap session B **menambah awalan** modulnya dan membuang `Mock.register` laluan itu. Jambatan sementara:
   `Mock.onLive(laluan, fn)` (selepas jawapan sebenar) dan `Mock.beforeFirst(fn)` (sekali sebelum jawapan mock pertama) — cth.
   `mock/store.js` menyelaraskan `MockStore.session` dengan ibu bapa sebenar (dipadankan ikut e-mel) dan mengisi `cart_count` / `schools`
-  `store/session` dari troli & anak mock sehingga B6. Mock vendor kekal `sessionVendorId = 1` sehingga B4
+  `store/session` dari troli & anak mock sehingga B6. Mock vendor kekal `sessionVendorId = 1` sehingga B4.
+  Sejak B3 `mock/owner.js` hanya mengandungi langganan & invois (B12) dan terjemahan (B14); data vendor/pelan di dalamnya hanya untuk
+  ringkasan laluan itu (id mock tidak sepadan dengan DB)
 - `vendor_id` dalam mock datang dari `MockVendor.sessionVendorId` (meniru sesi) — tidak pernah dari parameter
 - **Persistence (sejak U3a):** `Mock.persist(nama, objek, [kunci])` menyimpan data mock dalam `sessionStorage`
   selepas setiap POST yang berjaya, supaya rekod baharu kekal bila halaman bertukar (seperti DB sebenar).
@@ -923,6 +934,23 @@ QR dijana dalam pelayar (`assets/lib/qrcode/`) — rahsia tidak dihantar ke perk
 | `owner/profile/save` · `change-password` | | kata laluan ≥ 10 aksara |
 
 Mock demo: kata laluan semasa `salah` → ralat; kod 2FA `000000` → ditolak.
+
+**Sejak B3 (sebenar):** semua laluan owner di atas kecuali `subscriptions/*`, `invoices/*` (B12) dan `translations/*` (B14).
+- `owner/plans/options` (baharu) → `[{ id, code, name, is_active }]` — tapisan pelan di senarai vendor (owner_staff tidak boleh `plans/list`)
+- `owner/vendors/set-status` hanya `owner`; peralihan: `active` ← trial/past_due/suspended, `suspended` ← trial/active/past_due (lain → ralat).
+  Langganan terkini mengikut status; sebab → `vendor_notes`. `add-note` dibenarkan untuk `owner_staff` (sokongan)
+- `VendorDetail.subscription` boleh `null` (vendor tanpa langganan); `notes` terkini dahulu, `created_by` = nama pengguna owner
+- Nama modul, keterangan modul & nama darjah: nilai owner dalam jadual `translations` (`module.{code}`, `module.{code}.description`,
+  `grade.{code}`) mengatasi `lang/*.php`; bahasa kosong = `''` (buang baris → kembali ke fail bahasa). Kod modul tidak boleh ditukar
+- `owner/dashboard/summary`: MRR = harga pelan + `subscription_items` yang masih berjalan (snapshot `unit_price`) bagi langganan
+  `active|past_due`, tahunan ÷ 12; `mrr_history` 6 bulan dikira dengan cara sama (bulan lalu: langganan bukan trial yang sudah bermula &
+  belum dibatalkan); `expiring` = tamat dalam 30 hari; pesanan bulan ini = bukan cancelled/expired, nilai = `paid_at` ada
+- Gateway owner disimpan dalam `platform_settings` (`owner_gateway_code|mode|config` + `owner_gateway_secrets_enc` = JSON rahsia disulitkan);
+  tukar driver = rahsia lama tidak dibawa. `smtp_password_enc` disulitkan; `sst_rate` nombor (cth. `8`)
+- `owner/settings/test-email` → `email_queue` dengan kunci `test_email` (teks `email.test_email.*` dalam lang)
+- Templat e-mel: senarai kunci & pemegang tempat dalam `jobs/Notification/EmailTemplateCatalog.php`; seed mengandungi templat contoh
+- `CalculateCoopPriceJob($planId, $bilanganKoperasi, 'monthly'|'yearly')` → `{ plan_price, lines: [{ coop_no, price }], extra_total, total }`
+  (koperasi ke-1 = 0; tiada peringkat meliputi n → harga pelan). Digunakan oleh invois/langganan (B12)
 
 ### 18.8 Objek vendor bahagian 1 (U3a) — `assets/js/mock/vendor.js`
 
@@ -1319,12 +1347,14 @@ vendor) → `booked--`. **Lencana "Jualan murah"** (sedia sejak U5) kini dari `M
 ### 18.14 Indeks laluan API lengkap (U7) — spesifikasi backend
 
 Senarai **semua** laluan yang didaftar dalam `assets/js/mock/*.js` (214 laluan, dijana dari kod mock pada U7; B2 menambah 9 laluan auth
-— jumlah **223**). Lajur Mock `— (B2)` = sudah sebenar (`api/v1/`), mock dibuang. Bentuk `data` setiap laluan
+— jumlah **223**; B3 menambah `owner/plans/options` — **224**). Lajur Mock `— (B2)` / `— (B3)` = sudah sebenar (`api/v1/`), mock dibuang. Bentuk `data` setiap laluan
 ada dalam 18.4–18.13; jadual ini ialah senarai semak Peringkat 2 — setiap baris mesti menjadi `api/v1/{laluan}.php` (nipis, tiada SQL)
 yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan CSRF, B14).
 
 **Skop disahkan pelayan:**
 - `owner` — sesi owner (2FA lengkap); `owner_staff` disekat untuk harga/pelan/tetapan (PELAN 4)
+  **Sejak B3:** `owner_staff` dibenarkan hanya `owner/dashboard/summary`, `owner/vendors/list|get|options|add-note`, `owner/cooperatives/list`,
+  `owner/audit-logs/list`, `owner/plans/options` (+ langganan/invois B12); laluan owner lain → 403 (`OwnerAuth::requireRole(['owner'])`)
 - `vendor sesi` — `vendor_id` dari sesi sahaja; rekod dicari `WHERE vendor_id = :sesi`
 - `vendor sesi + koperasi` — juga `cooperative_id` disahkan milik vendor (`ValidateCooperativeJob`); id rekod dicari dalam koperasi itu
 - `koperasi + modul` — juga `ModuleAccess::has(cooperative_id, kod)`; tidak dilanggan → `module_locked: true`
@@ -1336,58 +1366,59 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 
 | Laluan | Kaedah | Skop disahkan pelayan | Session | Mock |
 |---|---|---|---|---|
-| `owner/announcements/delete` | POST | owner | B3 | `owner.js` |
-| `owner/announcements/list` | GET | owner | B3 | `owner.js` |
-| `owner/announcements/save` | POST | owner | B3 | `owner.js` |
-| `owner/audit-logs/list` | GET | owner | B3 | `owner.js` |
+| `owner/announcements/delete` | POST | owner | B3 | — (B3) |
+| `owner/announcements/list` | GET | owner | B3 | — (B3) |
+| `owner/announcements/save` | POST | owner | B3 | — (B3) |
+| `owner/audit-logs/list` | GET | owner | B3 | — (B3) |
 | `owner/auth/login` | POST | awam | B2 | — (B2) |
 | `owner/auth/verify-2fa` | POST | awam | B2 | — (B2) |
 | `owner/auth/logout` · `owner/auth/forgot` · `owner/auth/reset` | POST | awam | B2 | — (baharu B2) |
-| `owner/cooperatives/list` | GET | owner | B3 | `owner.js` |
-| `owner/dashboard/summary` | GET | owner | B3 | `owner.js` |
-| `owner/email-templates/get` | GET | owner | B3 | `owner.js` |
-| `owner/email-templates/list` | GET | owner | B3 | `owner.js` |
-| `owner/email-templates/save` | POST | owner | B3 | `owner.js` |
-| `owner/gateways/list` | GET | owner | B3 | `owner.js` |
-| `owner/gateways/save-owner` | POST | owner | B3 | `owner.js` |
-| `owner/gateways/toggle` | POST | owner | B3 | `owner.js` |
-| `owner/grades/list` | GET | owner | B3 | `owner.js` |
-| `owner/grades/save` | POST | owner | B3 | `owner.js` |
+| `owner/cooperatives/list` | GET | owner | B3 | — (B3) |
+| `owner/dashboard/summary` | GET | owner | B3 | — (B3) |
+| `owner/email-templates/get` | GET | owner | B3 | — (B3) |
+| `owner/email-templates/list` | GET | owner | B3 | — (B3) |
+| `owner/email-templates/save` | POST | owner | B3 | — (B3) |
+| `owner/gateways/list` | GET | owner | B3 | — (B3) |
+| `owner/gateways/save-owner` | POST | owner | B3 | — (B3) |
+| `owner/gateways/toggle` | POST | owner | B3 | — (B3) |
+| `owner/grades/list` | GET | owner | B3 | — (B3) |
+| `owner/grades/save` | POST | owner | B3 | — (B3) |
 | `owner/invoices/get` | GET | owner | B12 | `owner.js` |
 | `owner/invoices/issue` | POST | owner | B12 | `owner.js` |
 | `owner/invoices/list` | GET | owner | B12 | `owner.js` |
 | `owner/invoices/mark-paid` | POST | owner | B12 | `owner.js` |
 | `owner/invoices/void` | POST | owner | B12 | `owner.js` |
-| `owner/modules/list` | GET | owner | B3 | `owner.js` |
-| `owner/modules/save` | POST | owner | B3 | `owner.js` |
-| `owner/plans/delete` | POST | owner | B3 | `owner.js` |
-| `owner/plans/list` | GET | owner | B3 | `owner.js` |
-| `owner/plans/save` | POST | owner | B3 | `owner.js` |
-| `owner/plans/save-tiers` | POST | owner | B3 | `owner.js` |
-| `owner/plans/tiers` | GET | owner | B3 | `owner.js` |
+| `owner/modules/list` | GET | owner | B3 | — (B3) |
+| `owner/modules/save` | POST | owner | B3 | — (B3) |
+| `owner/plans/delete` | POST | owner | B3 | — (B3) |
+| `owner/plans/list` | GET | owner | B3 | — (B3) |
+| `owner/plans/options` | GET | owner + owner_staff (tanpa harga — tapisan senarai vendor) | B3 | — (baharu B3) |
+| `owner/plans/save` | POST | owner | B3 | — (B3) |
+| `owner/plans/save-tiers` | POST | owner | B3 | — (B3) |
+| `owner/plans/tiers` | GET | owner | B3 | — (B3) |
 | `owner/profile/change-password` | POST | owner | B2 | — (B2) |
 | `owner/profile/get` | GET | owner | B2 | — (B2) |
 | `owner/profile/save` | POST | owner | B2 | — (B2) |
-| `owner/settings/get` | GET | owner | B3 | `owner.js` |
-| `owner/settings/save` | POST | owner | B3 | `owner.js` |
-| `owner/settings/test-email` | POST | owner | B3 | `owner.js` |
+| `owner/settings/get` | GET | owner | B3 | — (B3) |
+| `owner/settings/save` | POST | owner | B3 | — (B3) |
+| `owner/settings/test-email` | POST | owner | B3 | — (B3) |
 | `owner/staff/list` | GET | owner | B2 | — (B2) |
 | `owner/staff/reset-2fa` | POST | owner | B2 | — (B2) |
 | `owner/staff/save` | POST | owner | B2 | — (B2) |
 | `owner/staff/set-active` | POST | owner | B2 | — (B2) |
 | `owner/subscriptions/list` | GET | owner | B12 | `owner.js` |
-| `owner/templates/list` | GET | owner | B3 | `owner.js` |
-| `owner/templates/save` | POST | owner | B3 | `owner.js` |
+| `owner/templates/list` | GET | owner | B3 | — (B3) |
+| `owner/templates/save` | POST | owner | B3 | — (B3) |
 | `owner/translations/list` | GET | owner | B14 | `owner.js` |
 | `owner/translations/save` | POST | owner | B14 | `owner.js` |
 | `owner/two-factor/enable` | POST | owner | B2 | — (B2) |
 | `owner/two-factor/regenerate-codes` | POST | owner | B2 | — (B2) |
 | `owner/two-factor/setup` | GET | owner | B2 | — (B2) |
-| `owner/vendors/add-note` | POST | owner | B3 | `owner.js` |
-| `owner/vendors/get` | GET | owner | B3 | `owner.js` |
-| `owner/vendors/list` | GET | owner | B3 | `owner.js` |
-| `owner/vendors/options` | GET | owner | B3 | `owner.js` |
-| `owner/vendors/set-status` | POST | owner | B3 | `owner.js` |
+| `owner/vendors/add-note` | POST | owner | B3 | — (B3) |
+| `owner/vendors/get` | GET | owner | B3 | — (B3) |
+| `owner/vendors/list` | GET | owner | B3 | — (B3) |
+| `owner/vendors/options` | GET | owner | B3 | — (B3) |
+| `owner/vendors/set-status` | POST | owner | B3 | — (B3) |
 
 **store/** 
 

@@ -6,7 +6,8 @@ require __DIR__ . '/../core/bootstrap.php';
 $pageTitle = t('vendor.detail_title');
 $activeMenu = 'menu.vendors';
 $backUrl = View::url('owner/vendors.php');
-$pageActions = [
+// Gantung / aktifkan: owner sahaja (owner_staff hanya lihat & tambah nota — PELAN 4; API juga menolak)
+$pageActions = OwnerAuth::role() !== 'owner' ? [] : [
     ['id' => 'btn-activate', 'label' => t('vendor.activate'), 'icon' => 'bi-check-circle', 'class' => 'btn-success d-none'],
     ['id' => 'btn-suspend', 'label' => t('vendor.suspend'), 'icon' => 'bi-pause-circle', 'class' => 'btn-outline-danger d-none'],
 ];

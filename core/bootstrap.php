@@ -38,6 +38,9 @@ set_exception_handler('handleUncaughtException');
 
 function handleUncaughtException($exception)
 {
+    // Job yang gagal di tengah transaksi tidak meninggalkan separuh perubahan
+    Database::rollBack();
+
     // Ralat dijangka dari job (input salah dsb.) → { ok:false, error, errors }
     if ($exception instanceof ValidationException && IS_API_REQUEST) {
         Response::fail($exception->getMessage(), $exception->errors(), $exception->status(), $exception->extra());

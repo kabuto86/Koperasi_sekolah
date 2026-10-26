@@ -4,9 +4,9 @@
 > Kemas kini fail ini di HUJUNG setiap session, sebelum commit & push.
 > Reka bentuk: [PELAN.md](PELAN.md) · Prompt kerja: [PROMPT-SESSION.md](PROMPT-SESSION.md)
 
-**Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · **Peringkat 2 berjalan** — skema & core (B1), auth sebenar (B2)
-**Session terakhir siap:** B2 — Auth owner, vendor, ibu bapa + 2FA + throttle
-**Session seterusnya:** **B3 — Owner** (pelan, harga koperasi, modul, template, vendor)
+**Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · **Peringkat 2 berjalan** — skema & core (B1), auth sebenar (B2), panel owner (B3)
+**Session terakhir siap:** B3 — Owner: pelan, harga koperasi, modul, template, vendor
+**Session seterusnya:** **B4 — Vendor: koperasi, katalog, inventori**
 
 Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 
@@ -38,7 +38,7 @@ Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 |---|---|---|---|---|---|
 | B1 | Skema, seed, core | ✅ | 26 Okt 2026 | `8479340` | 75 jadual, seed 2 vendor/3 koperasi/2 ibu bapa, 6 kelas core baharu, `ValidateCooperativeJob`, `tools/verify-b1.php` 42/42 lulus |
 | B2 | Auth owner, vendor, ibu bapa + 2FA + throttle | ✅ | 26 Okt 2026 | `847ea89` | 38 endpoint `api/v1/`, 39 job, 13 kelas core baharu, sesi sebenar semua panel & store, `tools/verify-b2.php` 94/94 lulus |
-| B3 | Owner: pelan, harga koperasi, modul, template, vendor | ⬜ | | | |
+| B3 | Owner: pelan, harga koperasi, modul, template, vendor | ✅ | 26 Okt 2026 | (lihat git log) | 32 endpoint owner, 33 job + 3 pembantu, `CalculateCoopPriceJob`, owner_staff 403 di pelayan, `tools/verify-b3.php` 101/101 lulus |
 | B4 | Vendor: koperasi, produk, kategori, varian, inventori, pembekal | ⬜ | | | |
 | B5 | Kit keperluan sekolah | ⬜ | | | |
 | B6 | Store ibu bapa: daftar, anak, katalog, kit, troli | ⬜ | | | |
@@ -502,7 +502,7 @@ Dokumen:
 | ~~Sekatan halaman & API ikut peranan; halaman tidak dibenarkan → halaman pertama dibenarkan~~ | ✅ B2 |
 | ~~Log masuk sebenar, sesi, 2FA, throttle; buang `demo_token` "lupa kata laluan" & cookie `mock_role`~~ | ✅ B2 |
 | ~~E-mel jemputan / reset kata laluan kakitangan sebenar~~ (masuk `email_queue`; penghantaran SMTP oleh cron B7) | ✅ B2 |
-| Owner `owner_staff`: sekatan harga/pelan/tetapan di pelayan — halaman ✅ B2 (`requirePage`); API owner lain | B3 |
+| ~~Owner `owner_staff`: sekatan harga/pelan/tetapan di pelayan~~ — halaman B2, API owner B3 | ✅ B3 |
 | Muat naik sebenar (logo, gambar produk, gambar berita) — `Uploader` + `finfo`; Peringkat 1 guna data URL / ikon gantian | B4/B13 |
 | Gambar pratonton template sebenar (`preview_image`) | bila template2/3 dibina |
 | E-mel sebenar (pengesahan, reset, pesanan baharu, slip, invois) melalui `email_queue` + cron | B7 |
@@ -633,6 +633,62 @@ Tertangguh / peralihan:
 - Endpoint `vendor/pos/pin-login` (job siap) — B10. 2FA vendor: log masuk menyokong, tetapi tiada halaman sediakan 2FA vendor (tiada UI U) — kemudian
 - `vendor/_layout/profile-menu.php` memaut ke `vendor/profile.php` yang belum wujud (sejak U3) — perlu halaman profil vendor (kemudian)
 - Penghantaran e-mel sebenar (SMTP + cron) — B7
+
+### B3 — Owner: pelan, harga koperasi, modul, template, vendor (26 Okt 2026)
+
+Dibuat:
+- **Job (33 + 3 pembantu):** `jobs/Owner/` ListVendors, ListVendorOptions, GetVendor, SetVendorStatus, AddVendorNote, ListAllCooperatives, ListAuditLogs ·
+  `jobs/Plan/` ListPlans, ListPlanOptions, SavePlan, DeletePlan, GetPlanTiers, SavePlanTiers · `jobs/Billing/CalculateCoopPriceJob` ·
+  `jobs/Module/` ListModules, SaveModule · `jobs/Template/` ListTemplates, SaveTemplate · `jobs/Payment/` ListPaymentGateways,
+  TogglePaymentGateway, SaveOwnerGateway · `jobs/Language/` ListGrades, SaveGrade + pembantu `TranslationValues` · `jobs/Notification/`
+  ListEmailTemplates, GetEmailTemplate, SaveEmailTemplate + `EmailTemplateCatalog` · `jobs/Announcement/` List, Save, Delete ·
+  `jobs/Setting/` GetPlatformSettings, SavePlatformSettings, SendTestEmail + pembantu `PlatformSettings` · `jobs/Report/GetOwnerDashboardJob`
+- **API (32 fail, tiada SQL):** `owner/dashboard/summary`, `owner/vendors/{list,options,get,set-status,add-note}`, `owner/cooperatives/list`,
+  `owner/plans/{list,options,save,delete,tiers,save-tiers}`, `owner/modules/{list,save}`, `owner/templates/{list,save}`,
+  `owner/gateways/{list,toggle,save-owner}`, `owner/grades/{list,save}`, `owner/email-templates/{list,get,save}`,
+  `owner/announcements/{list,save,delete}`, `owner/audit-logs/list`, `owner/settings/{get,save,test-email}`
+- **Peranan:** `owner_staff` hanya papan pemuka, vendor (baca + nota), koperasi, log audit, `plans/options`; selebihnya 403.
+  `owner/vendor.php` tidak memapar butang gantung/aktifkan untuk `owner_staff`; `vendors.js` guna `owner/plans/options`
+- **`api.js`:** 12 awalan owner ditambah ke `Api.livePrefixes`; `mock/owner.js` dikecilkan kepada langganan/invois (B12) & terjemahan (B14);
+  `Mock.storageVersion` → v7; `asset_version` → 4
+- **Core:** `Lang::fileValue()` (nilai fail bahasa tanpa jatuh balik, dicache); pengendali ralat global → `Database::rollBack()`
+  (selamat walaupun belum bersambung)
+- **Seed:** 13 templat e-mel contoh (dari mock U2), 2 nota vendor, 3 pengumuman (satu draf sasaran VENDOR02)
+- 2 kunci bahasa baharu × 4 (`email.test_email.subject|body`) — jumlah 1796
+- `tools/test-helpers.php` (diasingkan dari `verify-b2.php`: `check`, `Browser`, log masuk, `clearTestLocks`) · `tools/verify-b3.php` (101 semakan)
+
+Disahkan (MariaDB 10.11, PHP 8.3, pemasangan baharu schema + seed — `verify-b3` **101 lulus, 0 gagal**; `verify-b2` 94/94; `verify-b1` 42/42;
+`check-ui` OK; `ui-audit` lang=ms owner 44 halaman × 2 lebar: tiada ralat konsol (isu "kunci mentah" di log audit & terjemahan = kod yang
+memang dipapar); Playwright: papan pemuka MRR RM 244.66, senarai/butiran vendor, harga koperasi, modul, tetapan, gateway dengan data DB):
+- **owner_staff → 403** untuk 22 laluan harga/pelan/modul/template/gateway/darjah/templat e-mel/pengumuman/tetapan/gantung vendor; halaman
+  tetapan dialih; papan pemuka, vendor, koperasi, log audit, `plans/options` (tanpa harga) dibenarkan
+- **Kebocoran:** sesi VENDOR01, VENDOR02, ibu bapa A & B → semua API owner 401 (sesi berasingan); tiada nota dicipta. Gantung VENDOR02 →
+  VENDOR01 tidak terjejas; butiran VENDOR02 hanya koperasinya; sesi VENDOR02 sedia ada terus `billing_only`
+- POST tanpa CSRF → 419; GET ke endpoint POST → 405; carian `%` tidak memadankan semua (LIKE di-escape)
+- MRR = (99000 + 65000)/12 + 4900 + 4900 + 1000 = 24466 sen; langganan hampir tamat = VENDOR02
+- Pelan: kod huruf besar & unik, peringkat lalai 2+ harga sama, 5 set peringkat tidak sah ditolak, padam pelan digunakan ditolak, peringkat
+  dibuang bersama pelan; `CalculateCoopPriceJob` 5 koperasi = 9500, Pro tahunan 4 koperasi = 316000
+- Modul: kod `^[a-z][a-z0-9_]{1,30}$`, unik, tidak boleh ditukar; nama Cina/Tamil utf8mb4 dalam `translations`
+- Template: template1 sentiasa percuma & aktif; percuma → harga 0
+- Gateway: rahsia wajib kali pertama, disulitkan, tidak pernah dipulangkan, kosong = kekal, tukar driver = tidak dibawa
+- Templat e-mel: pemegang tempat tidak dikenali ditolak; tetapan: SMTP disulitkan, kosong = kekal, SST 0–100; e-mel ujian → `email_queue`
+- Log audit: 15 jenis tindakan B3 direkod dengan pelaku, kod vendor, butiran, IP; tapisan jenis/tarikh/carian
+
+Keputusan kecil (dicatat dalam PELAN 4, 10.1, 10.2, 18.3, 18.7, 18.14):
+- Laluan baharu `owner/plans/options` — `owner_staff` perlu tapisan pelan di senarai vendor tanpa melihat harga (`plans/list` owner sahaja)
+- `owner_staff` boleh tambah nota vendor (kerja sokongan) tetapi tidak boleh gantung/aktifkan
+- Peralihan status vendor dihadkan (aktifkan: trial/past_due/suspended; gantung: trial/active/past_due); `cancelled` tidak boleh diubah di sini
+- Nama modul & darjah yang owner sunting disimpan dalam `translations` (kunci sama seperti `lang/*.php`); kosong = kembali ke fail bahasa
+- MRR & sejarahnya dikira dari harga snapshot langganan (bukan invois) — B12 boleh tukar kepada invois dibayar bila invois sebenar wujud
+- `audit_logs.entity_id` hanya id nombor; kod (gateway, darjah, templat) dalam `detail`
+
+Tertangguh:
+- `t('module.x')` / `t('grade.x')` di halaman lain masih membaca `lang/*.php` sahaja — tindih nilai dari `translations` dalam B14
+  (bersama `owner/translations/*`)
+- `owner/subscriptions/list`, `owner/invoices/*` masih mock (B12): halaman langganan & invois memapar vendor mock (VENDOR01–07),
+  manakala butiran vendor memapar invois DB (kosong sehingga B12)
+- Pengumuman belum dipapar kepada vendor (tiada laluan vendor dalam U) — kemudian
+- Gateway disekat owner: semakan semasa vendor memilih/membayar — B8. `preview_image` template sebenar — bila template2/3 dibina
 
 ---
 

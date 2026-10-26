@@ -1875,4 +1875,6 @@ return [
     'email.reset_password.body'          => 'Salam {name},' . "\n\n" . 'Kami menerima permintaan untuk menetapkan semula kata laluan anda. Klik pautan di bawah dalam masa 1 jam. Abaikan e-mel ini jika anda tidak memintanya.',
     'email.staff_invite.subject'         => 'Jemputan ke {app_name}',
     'email.staff_invite.body'            => 'Salam {name},' . "\n\n" . 'Anda telah ditambah sebagai kakitangan. Klik pautan di bawah untuk menetapkan kata laluan anda. Pautan sah selama 7 hari.',
+    'email.test_email.subject'          => 'Ujian e-mel {app_name}',
+    'email.test_email.body'             => 'Salam,' . "\n\n" . 'Ini e-mel ujian daripada {name}. Jika anda menerimanya, tetapan SMTP berfungsi.',
 ];
