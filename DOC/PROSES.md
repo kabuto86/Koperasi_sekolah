@@ -41,7 +41,7 @@ Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 | B3 | Owner: pelan, harga koperasi, modul, template, vendor | ✅ | 26 Okt 2026 | `764f4c7` | 32 endpoint owner, 33 job + 3 pembantu, `CalculateCoopPriceJob`, owner_staff 403 di pelayan, `tools/verify-b3.php` 101/101 lulus |
 | B4 | Vendor: koperasi, produk, kategori, varian, inventori, pembekal | ✅ | 26 Okt 2026 | `64290c1` | 36 endpoint vendor, 37 job + 7 pembantu, `core/Uploader`, `StockLedger` (stok dalam transaksi), PO & stock take, `tools/verify-b4.php` 118/118 lulus |
 | B5 | Kit keperluan sekolah | ✅ | 26 Okt 2026 | `8ab4bf5` | 7 endpoint `vendor/kits/*`, 7 job + pembantu `SchoolKits` (`findPublished` untuk store), harga kit dari harga semasa, `tools/verify-b5.php` 59/59 lulus |
-| B6 | Store ibu bapa: daftar, anak, katalog, kit, troli | ✅ | 26 Okt 2026 | (lihat log git) | 19 endpoint store, 19 job + 4 pembantu (`StoreSchool`, `StorePricing`, `Children`, `Carts`), template ikut koperasi, URL `/{slug}/`, `tools/verify-b6.php` 85/85 lulus |
+| B6 | Store ibu bapa: daftar, anak, katalog, kit, troli | ✅ | 26 Okt 2026 | `47a4acb` | 19 endpoint store, 19 job + 4 pembantu (`StoreSchool`, `StorePricing`, `Children`, `Carts`), template ikut koperasi, URL `/{slug}/`, `tools/verify-b6.php` 85/85 lulus |
 | B7 | Checkout tunai, pesanan, queue e-mel | ⬜ | | | |
 | B8 | Payment gateway + webhook | ⬜ | | | |
 | B9 | Pengurusan pesanan & serah barang | ⬜ | | | |
