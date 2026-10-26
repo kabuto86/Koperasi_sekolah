@@ -114,5 +114,17 @@ function loadStoreLayout() {
     });
 }
 
+// Pautan dari e-mel pengesahan: ?verify_token=... (token sekali guna, 24 jam).
+// Disahkan dahulu, kemudian sesi dimuat supaya banner "e-mel belum disahkan" sudah betul
+function handleVerifyLink() {
+    var token = queryParam('verify_token');
+    if (!token) {
+        return Promise.resolve();
+    }
+    return Api.post('store/auth/verify-email', { token: token }).then(function (res) {
+        showToast(res.ok ? T('store.verify.done') : res.error, res.ok ? 'success' : 'danger');
+    });
+}
+
 bindLogout();
-loadStoreLayout();
+handleVerifyLink().then(loadStoreLayout);

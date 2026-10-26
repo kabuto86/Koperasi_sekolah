@@ -360,23 +360,7 @@ function mockGradesFor(schoolType) {
     return primary.concat(secondary);
 }
 
-// ---------- Log masuk & sesi ----------
-
-Mock.register('vendor/auth/login', function (body) {
-    if (body.password === 'salah') {
-        return Mock.fail(T('auth.invalid_credentials'));
-    }
-    return Mock.ok({ user: { id: 10, name: 'Encik Ahmad', role: 'vendor_admin' }, requires_2fa: false });
-});
-
-// Pilih koperasi aktif (Peringkat 2: disahkan oleh ValidateCooperativeJob dan disimpan dalam sesi)
-Mock.register('vendor/session/cooperative', function (body) {
-    var coop = mockOwnCooperative(body.cooperative_id);
-    if (!coop) {
-        return mockCoopError();
-    }
-    return Mock.ok({ cooperative: { id: coop.id, slug: coop.slug, school_name: coop.school_name, school_type: coop.school_type } });
-});
+// Log masuk, pilih koperasi & senarai koperasi: laluan sebenar sejak B2 (api/v1/vendor/auth|session|cooperatives/list)
 
 Mock.register('vendor/modules/active', function (params) {
     var coop = mockRequireCoop(params);
@@ -425,11 +409,6 @@ function mockCooperativeSummary(coop) {
         modules: MockVendor.activeModules[coop.id] || []
     };
 }
-
-Mock.register('vendor/cooperatives/list', function (params) {
-    var rows = mockOwnRows(MockVendor.cooperatives).map(mockCooperativeSummary);
-    return Mock.ok(Mock.paginate(rows, params, ['school_name', 'school_code', 'slug']));
-});
 
 Mock.register('vendor/cooperatives/get', function (params) {
     var coop = mockOwnCooperative(params.id);

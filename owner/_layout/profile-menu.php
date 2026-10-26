@@ -7,6 +7,6 @@
         <li><a class="dropdown-item" href="<?= e(View::url('owner/profile.php')) ?>"><i class="bi bi-person me-2" aria-hidden="true"></i><?= e(t('common.profile')) ?></a></li>
         <li><a class="dropdown-item" href="<?= e(View::url('owner/two-factor.php')) ?>"><i class="bi bi-shield-lock me-2" aria-hidden="true"></i><?= e(t('twofa.title')) ?></a></li>
         <li><hr class="dropdown-divider"></li>
-        <li><a class="dropdown-item" href="<?= e(View::url('owner/login.php')) ?>"><i class="bi bi-box-arrow-right me-2" aria-hidden="true"></i><?= e(t('btn.logout')) ?></a></li>
+        <li><button class="dropdown-item" type="button" data-panel-logout="owner"><i class="bi bi-box-arrow-right me-2" aria-hidden="true"></i><?= e(t('btn.logout')) ?></button></li>
     </ul>
 </div>

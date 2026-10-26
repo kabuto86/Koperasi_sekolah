@@ -39,21 +39,11 @@ function bindResend() {
                 showToast(res.error, 'danger');
                 return;
             }
-            showToast(T('store.verify.sent_text', { email: res.data.email || '' }));
-            // Peringkat 1 sahaja: terus sahkan melalui pautan demo
-            if (res.data.demo_token) {
-                confirmDialog(T('store.verify.demo_confirm'), { okText: T('store.verify.demo_link') }).then(function (yes) {
-                    if (!yes) {
-                        return;
-                    }
-                    Api.post('store/auth/verify-email', { token: res.data.demo_token }).then(function (verified) {
-                        if (verified.ok) {
-                            showToast(T('store.verify.done'));
-                            document.getElementById('profile-verify').classList.add('d-none');
-                        }
-                    });
-                });
+            if (res.data.verified) {
+                document.getElementById('profile-verify').classList.add('d-none');
+                return;
             }
+            showToast(T('store.verify.sent_text', { email: res.data.email || '' }));
         });
     });
 }

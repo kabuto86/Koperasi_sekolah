@@ -1,10 +1,12 @@
 <?php
 // Layout POS kaunter — skrin penuh tanpa sidebar (PELAN 5.2 modul 9). Halaman set $pageTitle dahulu.
 // Tab "Jualan" (halaman ini) dan "Serah barang" (skrin U3b) di bar atas.
+VendorAuth::requirePage($activeMenu ?? 'menu.pos');
 View::partial('partials/head.php', [
     'pageTitle' => $pageTitle,
     'bodyClass' => 'app-pos',
     'extraCss'  => [View::asset('css/pos.css'), View::asset('css/receipt.css')],
+    'loginUrl'  => View::url('vendor/login.php'),
 ]);
 ?>
 <header class="navbar navbar-expand bg-dark app-pos-topbar px-2 gap-2 d-print-none" data-bs-theme="dark">

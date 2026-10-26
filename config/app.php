@@ -9,10 +9,15 @@ return [
     // null = dikesan automatik (cth. '/Koperasi_sekolah' di XAMPP htdocs)
     'base_url'          => null,
 
-    // Naikkan nombor ini bila CSS/JS berubah supaya pelayar tidak guna cache lama
-    'asset_version'     => '2',
+    // URL penuh untuk pautan dalam e-mel (cth. 'https://koperasiku.my'). null = dari hos permintaan (pembangunan sahaja).
+    // Produksi: WAJIB diisi — elak pautan reset kata laluan dipalsukan melalui header Host
+    'app_url'           => null,
 
-    // Peringkat 1: data dari assets/js/mock/*.js. Peringkat 2: tukar ke false
+    // Naikkan nombor ini bila CSS/JS berubah supaya pelayar tidak guna cache lama
+    'asset_version'     => '3',
+
+    // Peringkat 1: data dari assets/js/mock/*.js. Peringkat 2: laluan yang sudah siap guna fetch() (Api.livePrefixes
+    // dalam api.js); selebihnya masih mock sehingga session masing-masing. Tukar ke false bila semua B siap
     'use_mock'          => true,
 
     // Peringkat 2 (B1): true = ralat penuh dipapar (pembangunan sahaja). Produksi: false

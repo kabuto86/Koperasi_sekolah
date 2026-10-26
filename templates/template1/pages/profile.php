@@ -25,7 +25,7 @@
                     <div class="col-12 col-sm-6">
                         <label class="form-label" for="profile-phone"><?= e(t('field.phone')) ?></label>
                         <input class="form-control" type="tel" id="profile-phone" name="phone" inputmode="tel" autocomplete="tel"
-                               pattern="^(\+?60|0)1[0-9][\s-]?[0-9]{7,8}$" required>
+                               pattern="(\+?60|0)1[0-9][\s\-]?[0-9]{7,8}" required>
                         <div class="invalid-feedback"><?= e(t('store.auth.phone_invalid')) ?></div>
                     </div>
                     <div class="col-12 col-sm-6">

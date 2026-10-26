@@ -12,9 +12,7 @@
 var MockStore = {
     session: { customer_id: null },
     carts: [],
-    cartSeq: 0,
-    tokens: [],
-    failedLogins: {}
+    cartSeq: 0
 };
 
 // Modul add-on yang mempengaruhi store. Data modul dalam mock/vendor-addons.js (MockAddons) — ditulis oleh panel vendor (U6)
@@ -100,10 +98,6 @@ function storeNextGrade(child, coop) {
     return { grade_level_code: grades[index + 1], school_year: child.school_year + 1 };
 }
 
-function storeCustomerPublic(customer) {
-    return { full_name: customer.full_name, phone: customer.phone, email: customer.email, relationship: customer.relationship,
-        language: customer.language, email_verified: Boolean(customer.email_verified) };
-}
 
 // ---------- Pembantu: produk, harga & stok ----------
 
@@ -417,12 +411,13 @@ Mock.register('store/classes', function (params) {
     return Mock.ok(rows.map(function (row) { return { grade_level_code: row.grade_level_code, class_name: row.class_name }; }));
 });
 
-// Maklumat sesi untuk header: ibu bapa (jika log masuk), bilangan troli sekolah ini, sekolah anak-anak
-Mock.register('store/session', function (params) {
+// store/session ialah laluan sebenar sejak B2 (ibu bapa dari sesi pelayan). Sementara troli & anak masih mock
+// (sehingga B6), bilangan troli & sekolah anak-anak dalam jawapan diganti dengan nilai mock — lihat storeAdoptSession
+function storeMockSessionExtras(params) {
     var customer = storeCustomer();
     var coop = storeCoop(params);
     if (!customer) {
-        return Mock.ok({ customer: null, cart_count: 0, schools: [] });
+        return { cart_count: 0, schools: [] };
     }
     var schools = [];
     storeChildren(customer, null).forEach(function (child) {
@@ -431,8 +426,8 @@ Mock.register('store/session', function (params) {
             schools.push(storeSchoolPublic(school));
         }
     });
-    return Mock.ok({ customer: storeCustomerPublic(customer), cart_count: storeCartCount(customer, coop), schools: schools });
-});
+    return { cart_count: storeCartCount(customer, coop), schools: schools };
+}
 
 // Serasi dengan U1
 Mock.register('store/cart/summary', function (params) {
@@ -441,256 +436,68 @@ Mock.register('store/cart/summary', function (params) {
     return Mock.ok({ item_count: storeCartCount(customer, coop) });
 });
 
-// ---------- Akaun: daftar, log masuk, kata laluan ----------
+// ---------- Akaun & profil: laluan sebenar sejak B2 (api/v1/store/auth|profile) ----------
 
-function storeNormalizePhone(phone) {
-    var digits = String(phone || '').replace(/[\s-]/g, '').replace(/^\+?60/, '0');
-    if (!/^01[0-9]{8,9}$/.test(digits)) {
-        return null;
+// Peralihan B2–B6: anak, troli & pesanan masih mock. Selepas log masuk / daftar SEBENAR, sesi mock mengikut
+// ibu bapa yang sama (dipadankan ikut e-mel; dicipta dalam mock jika belum ada). Dibuang bersama mock dalam B6.
+function storeAdoptCustomer(res) {
+    if (!res.ok || !res.data.customer) {
+        return;
     }
-    return digits.slice(0, 3) + '-' + digits.slice(3);
-}
-
-function storeSamePhone(a, b) {
-    return String(a).replace(/\D/g, '') === String(b).replace(/\D/g, '');
-}
-
-function storeFindByLogin(login) {
-    var value = String(login || '').trim().toLowerCase();
-    return MockOrders.customers.filter(function (customer) {
-        return !customer.deleted_at && (customer.email.toLowerCase() === value || (/^[0-9+\s-]+$/.test(value) && storeSamePhone(customer.phone, value)));
-    })[0] || null;
-}
-
-function storePasswordErrors(body) {
-    var errors = {};
-    if (String(body.password || '').length < 8) {
-        errors.password = T('store.auth.password_min');
-    }
-    if (body.password !== body.password_confirm) {
-        errors.password_confirm = T('store.auth.password_mismatch');
-    }
-    return errors;
-}
-
-function storeIssueToken(customer, type) {
-    var token = type.slice(0, 1) + Math.random().toString(36).slice(2, 12);
-    MockStore.tokens.push({ customer_id: customer.id, type: type, token: token, expires_at: Date.now() + 3600 * 1000, used: false });
-    return token;
-}
-
-function storeUseToken(token, type) {
-    var row = MockStore.tokens.filter(function (item) {
-        return item.token === token && item.type === type && !item.used && item.expires_at > Date.now();
+    var real = res.data.customer;
+    var email = String(real.email || '').toLowerCase();
+    var customer = MockOrders.customers.filter(function (row) {
+        return !row.deleted_at && String(row.email).toLowerCase() === email;
     })[0];
-    if (row) {
-        row.used = true;
+    if (!customer) {
+        customer = { id: Mock.nextId(MockOrders.customers), is_active: true, deleted_at: null, created_at: Mock.now() };
+        MockOrders.customers.push(customer);
     }
-    return row ? Mock.findById(MockOrders.customers, row.customer_id) : null;
+    Object.assign(customer, { full_name: real.full_name, phone: real.phone, email: email, relationship: real.relationship,
+        language: real.language, email_verified: real.email_verified });
+    MockStore.session.customer_id = customer.id;
 }
 
-Mock.register('store/auth/register', function (body) {
-    var errors = Mock.requireFields(body, ['full_name', 'phone', 'email', 'password', 'relationship', 'language']);
-    var email = String(body.email || '').trim().toLowerCase();
-    var phone = storeNormalizePhone(body.phone);
-    if (body.phone && !phone) {
-        errors.phone = T('store.auth.phone_invalid');
+function storeForgetCustomer(res) {
+    if (res.ok) {
+        MockStore.session.customer_id = null;
     }
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        errors.email = T('auth.email_invalid');
-    }
-    // Unik seluruh platform — mesej umum, tidak dedah butiran akaun lain
-    if (email && MockOrders.customers.some(function (row) { return !row.deleted_at && row.email.toLowerCase() === email; })) {
-        errors.email = T('error.duplicate');
-    }
-    if (phone && MockOrders.customers.some(function (row) { return !row.deleted_at && storeSamePhone(row.phone, phone); })) {
-        errors.phone = T('error.duplicate');
-    }
-    Object.assign(errors, storePasswordErrors(body));
-    if (['mother', 'father', 'guardian'].indexOf(body.relationship) === -1) {
-        errors.relationship = T('error.required');
-    }
-    if (['ms', 'en', 'zh', 'ta'].indexOf(body.language) === -1) {
-        errors.language = T('error.invalid');
-    }
-    if (body.pdpa !== true) {
-        errors.pdpa = T('store.auth.pdpa_required');
-    }
-    if (Mock.hasErrors(errors)) {
-        return Mock.fail(T('error.check_form'), errors);
-    }
-    var customer = { id: Mock.nextId(MockOrders.customers), full_name: String(body.full_name).trim(), phone: phone, email: email,
-        relationship: body.relationship, language: body.language, email_verified: false, mock_password: body.password,
-        pdpa_consent_at: Mock.now(), is_active: true, deleted_at: null, created_at: Mock.now() };
-    MockOrders.customers.push(customer);
-    MockStore.session.customer_id = customer.id;
-    // Peringkat 2: e-mel pengesahan melalui email_queue; token hanya dalam e-mel
-    var token = storeIssueToken(customer, 'verify_email');
-    return Mock.ok({ customer: storeCustomerPublic(customer), demo_token: token });
-});
+}
 
-Mock.register('store/auth/login', function (body) {
-    var errors = Mock.requireFields(body, ['login', 'password']);
-    if (Mock.hasErrors(errors)) {
-        return Mock.fail(T('error.check_form'), errors);
+// Jawapan store/session sebenar: sesi mock ikut ibu bapa sebenar; troli & sekolah anak dari mock (sehingga B6)
+function storeAdoptSession(res) {
+    if (!res.ok) {
+        return;
     }
-    var key = String(body.login).trim().toLowerCase();
-    var tries = MockStore.failedLogins[key] || { count: 0, until: 0 };
-    if (tries.until > Date.now()) {
-        return Mock.fail(T('store.auth.locked'));
+    if (res.data.customer) {
+        storeAdoptCustomer(res);
+    } else {
+        MockStore.session.customer_id = null;
     }
-    var customer = storeFindByLogin(body.login);
-    // Mesej sama untuk akaun tiada & kata laluan salah (PELAN 11)
-    if (!customer || customer.mock_password !== body.password) {
-        tries.count += 1;
-        if (tries.count >= 5) {
-            tries = { count: 0, until: Date.now() + 15 * 60 * 1000 };
-        }
-        MockStore.failedLogins[key] = tries;
+    var slug = new URLSearchParams(window.location.search).get('school') || '';
+    Object.assign(res.data, storeMockSessionExtras({ slug: slug }));
+}
+
+Mock.onLive('store/session', storeAdoptSession);
+Mock.onLive('store/auth/login', storeAdoptCustomer);
+Mock.onLive('store/auth/register', storeAdoptCustomer);
+Mock.onLive('store/auth/logout', storeForgetCustomer);
+Mock.onLive('store/profile/delete', storeForgetCustomer);
+// Setiap halaman: sesi sebenar ialah sumber kebenaran (tab baharu / sesi tamat / log keluar di tab lain)
+Mock.beforeFirst(function () {
+    return Api.fetchJson('GET', 'store/session', {}).then(function (res) {
+        storeAdoptSession(res);
         Mock.saveStores();
-        return Mock.fail(T('store.auth.invalid'));
-    }
-    delete MockStore.failedLogins[key];
-    MockStore.session.customer_id = customer.id;
-    return Mock.ok({ customer: storeCustomerPublic(customer) });
-});
-
-Mock.register('store/auth/logout', function () {
-    MockStore.session.customer_id = null;
-    return Mock.ok({});
-});
-
-// Sentiasa jawapan sama (tidak dedah sama ada e-mel berdaftar)
-Mock.register('store/auth/forgot', function (body) {
-    var email = String(body.email || '').trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        return Mock.fail(T('error.check_form'), { email: T('auth.email_invalid') });
-    }
-    var customer = storeFindByLogin(email);
-    var data = { sent: true };
-    if (customer) {
-        // Peringkat 1 sahaja: token dipulangkan supaya aliran boleh diuji tanpa e-mel
-        data.demo_token = storeIssueToken(customer, 'reset_password');
-    }
-    return Mock.ok(data);
-});
-
-Mock.register('store/auth/reset', function (body) {
-    var errors = storePasswordErrors(body);
-    if (Mock.hasErrors(errors)) {
-        return Mock.fail(T('error.check_form'), errors);
-    }
-    var customer = storeUseToken(body.token, 'reset_password');
-    if (!customer) {
-        return Mock.fail(T('store.auth.token_invalid'));
-    }
-    customer.mock_password = body.password;
-    return Mock.ok({ reset: true });
-});
-
-Mock.register('store/auth/verify-email', function (body) {
-    var customer = storeUseToken(body.token, 'verify_email');
-    if (!customer) {
-        return Mock.fail(T('store.auth.token_invalid'));
-    }
-    customer.email_verified = true;
-    return Mock.ok({ verified: true });
-});
-
-Mock.register('store/auth/resend-verification', function () {
-    var customer = storeCustomer();
-    if (!customer) {
-        return storeAuthFail();
-    }
-    if (customer.email_verified) {
-        return Mock.ok({ verified: true });
-    }
-    return Mock.ok({ email: customer.email, demo_token: storeIssueToken(customer, 'verify_email') });
-});
-
-// ---------- Profil ----------
-
-Mock.register('store/profile/get', function () {
-    var customer = storeCustomer();
-    return customer ? Mock.ok(storeCustomerPublic(customer)) : storeAuthFail();
-});
-
-Mock.register('store/profile/save', function (body) {
-    var customer = storeCustomer();
-    if (!customer) {
-        return storeAuthFail();
-    }
-    var errors = Mock.requireFields(body, ['full_name', 'phone']);
-    var phone = storeNormalizePhone(body.phone);
-    if (body.phone && !phone) {
-        errors.phone = T('store.auth.phone_invalid');
-    }
-    if (phone && MockOrders.customers.some(function (row) { return row.id !== customer.id && !row.deleted_at && storeSamePhone(row.phone, phone); })) {
-        errors.phone = T('error.duplicate');
-    }
-    if (['mother', 'father', 'guardian'].indexOf(body.relationship) === -1) {
-        errors.relationship = T('error.invalid');
-    }
-    if (['ms', 'en', 'zh', 'ta'].indexOf(body.language) === -1) {
-        errors.language = T('error.invalid');
-    }
-    if (Mock.hasErrors(errors)) {
-        return Mock.fail(T('error.check_form'), errors);
-    }
-    customer.full_name = String(body.full_name).trim();
-    customer.phone = phone;
-    customer.relationship = body.relationship;
-    customer.language = body.language;
-    return Mock.ok(storeCustomerPublic(customer));
-});
-
-Mock.register('store/profile/password', function (body) {
-    var customer = storeCustomer();
-    if (!customer) {
-        return storeAuthFail();
-    }
-    var errors = storePasswordErrors(body);
-    if (customer.mock_password !== body.current_password) {
-        errors.current_password = T('store.profile.current_wrong');
-    }
-    if (Mock.hasErrors(errors)) {
-        return Mock.fail(T('error.check_form'), errors);
-    }
-    customer.mock_password = body.password;
-    return Mock.ok({ changed: true });
-});
-
-// Padam akaun (PDPA): data peribadi dibuang, rekod pesanan kekal (snapshot nama dalam pesanan dikaburkan)
-Mock.register('store/profile/delete', function (body) {
-    var customer = storeCustomer();
-    if (!customer) {
-        return storeAuthFail();
-    }
-    if (customer.mock_password !== body.password) {
-        return Mock.fail(T('store.profile.current_wrong'), { password: T('store.profile.current_wrong') });
-    }
-    var active = MockOrders.orders.some(function (order) {
-        return order.customer_id === customer.id && ['paid', 'unpaid_cash', 'preparing', 'ready', 'partially_collected', 'pending_payment'].indexOf(order.status) !== -1;
     });
-    if (active) {
-        return Mock.fail(T('store.profile.delete_active_orders'));
+});
+Mock.onLive('store/profile/save', function (res) {
+    storeAdoptCustomer({ ok: res.ok, data: { customer: res.data } });
+});
+Mock.onLive('store/auth/verify-email', function (res) {
+    var customer = storeCustomer();
+    if (res.ok && customer) {
+        customer.email_verified = true;
     }
-    MockOrders.orders.forEach(function (order) {
-        if (order.customer_id === customer.id) {
-            order.customer_phone = '';
-            order.customer_email = '';
-        }
-    });
-    storeChildren(customer, null).forEach(function (child) { child.is_active = false; });
-    MockStore.carts = MockStore.carts.filter(function (cart) { return cart.customer_id !== customer.id; });
-    customer.full_name = T('store.profile.deleted_name');
-    customer.email = 'deleted-' + customer.id + '@invalid';
-    customer.phone = '';
-    customer.mock_password = null;
-    customer.is_active = false;
-    customer.deleted_at = Mock.now();
-    MockStore.session.customer_id = null;
-    return Mock.ok({ deleted: true });
 });
 
 // ---------- Anak ----------
@@ -1408,4 +1215,4 @@ Mock.register('store/clearance/list', function (params) {
 });
 
 // Kekalkan sesi, troli & token antara halaman (sessionStorage) — Peringkat 2: sesi PHP & jadual carts
-Mock.persist('store', MockStore, ['session', 'carts', 'cartSeq', 'tokens', 'failedLogins']);
+Mock.persist('store', MockStore, ['session', 'carts', 'cartSeq']);

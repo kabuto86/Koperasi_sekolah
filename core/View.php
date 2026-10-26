@@ -44,6 +44,18 @@ class View
         return self::baseUrl() . '/' . ltrim($path, '/');
     }
 
+    // URL penuh (https://hos/...) untuk pautan dalam e-mel. config app_url atau dari permintaan semasa
+    public static function absoluteUrl($path = '')
+    {
+        $appUrl = Config::get('app_url');
+        if ($appUrl) {
+            return rtrim($appUrl, '/') . '/' . ltrim($path, '/');
+        }
+        $scheme = SecurityHeaders::isHttps() ? 'https' : 'http';
+        $host = preg_replace('/[^A-Za-z0-9.:\[\]-]/', '', $_SERVER['HTTP_HOST'] ?? 'localhost');
+        return $scheme . '://' . $host . self::url($path);
+    }
+
     // URL aset dengan versi untuk pecah cache
     public static function asset($path)
     {

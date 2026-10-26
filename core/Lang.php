@@ -77,6 +77,17 @@ class Lang
         return $text;
     }
 
+    // Teks dalam bahasa lain (cth. e-mel ikut bahasa penerima, bukan bahasa permintaan)
+    public static function getFor($code, $key, $params = [])
+    {
+        $strings = self::isSupported($code) ? self::loadFile($code) : [];
+        $text = $strings[$key] ?? self::$fallback[$key] ?? $key;
+        foreach ($params as $name => $value) {
+            $text = str_replace('{' . $name . '}', (string) $value, $text);
+        }
+        return $text;
+    }
+
     // Semua teks (dengan jatuh balik Melayu) untuk T() dalam JS
     public static function json()
     {

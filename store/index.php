@@ -1,7 +1,10 @@
 <?php
 // Titik masuk store ibu bapa: slug → koperasi → template → halaman.
-// Peringkat 1: tiada DB; data sekolah, katalog & akaun dimuat oleh JS melalui Api (assets/js/store/).
+// Data sekolah, katalog & akaun dimuat oleh JS melalui Api (assets/js/store/). Akaun ibu bapa sebenar sejak B2.
 require __DIR__ . '/../core/bootstrap.php';
+
+// Sesi ibu bapa (KOPSTORE) — token CSRF dalam <body data-csrf>
+CustomerAuth::start();
 
 $schoolSlug = $_GET['school'] ?? '';
 if (!preg_match('/^[a-z0-9-]{1,80}$/', $schoolSlug)) {

@@ -4,9 +4,9 @@
 > Kemas kini fail ini di HUJUNG setiap session, sebelum commit & push.
 > Reka bentuk: [PELAN.md](PELAN.md) · Prompt kerja: [PROMPT-SESSION.md](PROMPT-SESSION.md)
 
-**Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · **Peringkat 2 bermula** — skema, seed & core siap (B1)
-**Session terakhir siap:** B1 — Skema, seed & core
-**Session seterusnya:** **B2 — Auth** (owner, vendor, ibu bapa + 2FA + throttle)
+**Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · **Peringkat 2 berjalan** — skema & core (B1), auth sebenar (B2)
+**Session terakhir siap:** B2 — Auth owner, vendor, ibu bapa + 2FA + throttle
+**Session seterusnya:** **B3 — Owner** (pelan, harga koperasi, modul, template, vendor)
 
 Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 
@@ -37,7 +37,7 @@ Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 | Session | Tajuk | Status | Tarikh siap | Commit | Nota |
 |---|---|---|---|---|---|
 | B1 | Skema, seed, core | ✅ | 26 Okt 2026 | `8479340` | 75 jadual, seed 2 vendor/3 koperasi/2 ibu bapa, 6 kelas core baharu, `ValidateCooperativeJob`, `tools/verify-b1.php` 42/42 lulus |
-| B2 | Auth owner, vendor, ibu bapa + 2FA + throttle | ⬜ | | | |
+| B2 | Auth owner, vendor, ibu bapa + 2FA + throttle | ✅ | 26 Okt 2026 | `847ea89` | 38 endpoint `api/v1/`, 39 job, 13 kelas core baharu, sesi sebenar semua panel & store, `tools/verify-b2.php` 94/94 lulus |
 | B3 | Owner: pelan, harga koperasi, modul, template, vendor | ⬜ | | | |
 | B4 | Vendor: koperasi, produk, kategori, varian, inventori, pembekal | ⬜ | | | |
 | B5 | Kit keperluan sekolah | ⬜ | | | |
@@ -499,10 +499,10 @@ Dokumen:
 
 | Perkara | Session |
 |---|---|
-| Sekatan halaman & API ikut peranan (menu sudah ditapis di U7); halaman tidak dibenarkan → halaman pertama dibenarkan | B2 |
-| Log masuk sebenar, sesi, 2FA, throttle; buang `demo_token` "lupa kata laluan" & cookie `mock_role` | B2 |
-| E-mel jemputan / reset kata laluan kakitangan sebenar | B2 |
-| Owner `owner_staff`: sekatan harga/pelan/tetapan di pelayan | B2/B3 |
+| ~~Sekatan halaman & API ikut peranan; halaman tidak dibenarkan → halaman pertama dibenarkan~~ | ✅ B2 |
+| ~~Log masuk sebenar, sesi, 2FA, throttle; buang `demo_token` "lupa kata laluan" & cookie `mock_role`~~ | ✅ B2 |
+| ~~E-mel jemputan / reset kata laluan kakitangan sebenar~~ (masuk `email_queue`; penghantaran SMTP oleh cron B7) | ✅ B2 |
+| Owner `owner_staff`: sekatan harga/pelan/tetapan di pelayan — halaman ✅ B2 (`requirePage`); API owner lain | B3 |
 | Muat naik sebenar (logo, gambar produk, gambar berita) — `Uploader` + `finfo`; Peringkat 1 guna data URL / ikon gantian | B4/B13 |
 | Gambar pratonton template sebenar (`preview_image`) | bila template2/3 dibina |
 | E-mel sebenar (pengesahan, reset, pesanan baharu, slip, invois) melalui `email_queue` + cron | B7 |
@@ -565,6 +565,74 @@ Keputusan kecil (dicatat dalam PELAN 8.7, 9 J, 10.1, 10.2):
 Tertangguh:
 - `api/v1/` belum wujud — bermula B2 (auth). `config/malaysia.php` kekal fail (tidak dipindah ke DB)
 - Kata laluan demo & `config/database.php` tempatan mesti ditukar di pelayan sebenar
+
+### B2 — Auth owner, vendor, ibu bapa + 2FA + throttle (26 Okt 2026)
+
+Dibuat:
+- **Core (13):** `OwnerAuth` · `VendorAuth` · `CustomerAuth` (sesi `KOPOWNER` / `KOPVENDOR` / `KOPSTORE`, pengguna disemak semula dari DB
+  setiap permintaan) · `Session` (cookie HttpOnly/SameSite=Lax/Secure, idle, `regenerate`) · `Totp` (RFC 6238) · `RateLimit` (+ `ThrottleJob`) ·
+  `Password` (Argon2id + hash palsu untuk masa sama) · `ValidationException` (ralat job → `{ ok:false, error, errors }`) · `PhoneNumber` ·
+  `IsoDate` · `Pagination`. `PanelRole` kini dari sesi (`canOpen`, `firstPage`, `isBillingMenu`); `Request::requireMethod`;
+  `View::absoluteUrl` (+ `config app_url`); `Lang::getFor` (e-mel ikut bahasa penerima)
+- **Job (39):** `jobs/Auth/` OwnerLogin, VendorLogin, CustomerLogin, CustomerRegister, VerifyEmail, SendVerificationEmail, ForgotPassword,
+  ResetPassword, Throttle, CheckSubscription, SetupTotp, VerifyTotp, RegenerateRecoveryCodes, PosPinLogin, Load{Owner,Vendor,Customer}Session,
+  LoadVendorPending + pembantu `LoginLockout`, `AuthToken`, `RecoveryCodes` · `jobs/Owner/` profil, kata laluan, kakitangan (senarai/simpan/aktif/
+  reset 2FA), `WriteAuditLogJob` · `jobs/Vendor/` kakitangan (senarai + had pelan, simpan + koperasi + PIN, aktif, hantar reset),
+  `WriteActivityLogJob` · `jobs/Customer/` profil, kata laluan, padam akaun (PDPA), `GetStoreSessionJob` · `jobs/Cooperative/ListCooperativesJob`
+  (bacaan; pengurus/juruwang hanya koperasi yang diberi) · `jobs/Notification/QueueEmailJob`
+- **API (38 fail, tiada SQL):** `owner/auth/{login,verify-2fa,logout,forgot,reset}`, `owner/profile/*`, `owner/staff/*`, `owner/two-factor/*` ·
+  `vendor/auth/{login,verify-2fa,logout,forgot,reset}`, `vendor/session/cooperative`, `vendor/cooperatives/list`, `vendor/staff/*` ·
+  `store/auth/*`, `store/profile/*`, `store/session`
+- **Halaman:** `owner|vendor/forgot-password.php` & `reset-password.php` (`partials/password-page.php` + `assets/js/password-page.js`, juga untuk
+  jemputan kakitangan). `partials/login-form.php` + `login.js`: langkah 2FA untuk owner & vendor, **sediakan 2FA semasa log masuk pertama**
+  (QR + kunci manual) → kod pemulihan dipapar sekali; pautan "Lupa kata laluan"; nota demo dibuang. Store: kotak "Ingat saya" (30 hari),
+  pautan `?verify_token=` dari e-mel disahkan oleh `layout.js`, butang/pautan `demo_token` dibuang
+- **Layout:** `owner|vendor/_layout/header.php` & `pos-header.php` → `requirePage($activeMenu)`; log keluar = butang POST `data-panel-logout`;
+  `partials/head.php` → `<body data-csrf data-login-url>`; `store/index.php` mula sesi ibu bapa
+- **`api.js`:** `Api.livePrefixes` → `fetch()` sebenar (GET query, POST JSON + `X-CSRF-Token`, 401 panel → halaman log masuk); laluan lain
+  masih mock. `mock.js`: `Mock.onLive` & `Mock.beforeFirst` (jambatan peralihan). Mock laluan yang sudah sebenar dibuang
+  (`owner.js`, `vendor.js`, `vendor-finance.js`, `store.js`); `Mock.storageVersion` → v6; `asset_version` → 3
+- `database/migrations/001-auth-tokens.sql` (+ `schema.sql`): `platform_user_tokens`, `totp_last_step` (owner & vendor) — **76 jadual**
+- `tools/verify-b2.php` (94 semakan HTTP sebenar), `tools/dev-totp.php` (kod 2FA ujian), `tools/ui-audit.js` (log masuk sebenar; senarai halaman
+  dari sistem fail — `panelpages.txt` yang hilang tidak diperlukan lagi; `BASE_URL`), `verify-b1.php` → 76 jadual
+- 17 kunci bahasa baharu × 4 (ralat 401/429, kunci, vendor digantung, 2FA, e-mel `verify_email` / `reset_password` / `staff_invite`);
+  4 kunci demo dibuang; `staff_v.pin_help` 3 → 5 cubaan; `store.auth.demo_login` → akaun seed. Jumlah 1794
+- Pembetulan kecil: atribut `pattern` telefon di `register` / `profile` store tidak sah dalam Chrome (bendera `v`) → `[\s\-]`
+
+Disahkan (MariaDB 10.11, PHP 8.3, pemasangan baharu schema + seed — `php tools/verify-b2.php` → **94 lulus, 0 gagal**; `verify-b1` 42/42;
+`check-ui` OK; `ui-audit` lang=ms 170 halaman, tiada ralat konsol baharu):
+- Hash `$argon2id$v=19$m=19456,t=2,p=1$`, `needs_rehash` false; PIN Argon2id; token & kod pemulihan hanya hash SHA-256; `totp_secret` disulitkan
+- Mesej sama untuk akaun tiada / kata laluan salah (owner, vendor, ibu bapa); 5 gagal → dikunci walaupun kata laluan betul (ibu bapa & vendor),
+  setiap cubaan + IP direkod; id sesi bertukar selepas log masuk; POST tanpa CSRF → 419; GET ke endpoint POST → 405
+- 2FA owner wajib: selepas langkah 1 API masih 401; kod salah ditolak; kod TOTP sama tidak boleh diguna semula; kod pemulihan sekali guna
+- `owner_staff` → `owner/staff/list` 403, halaman pelan dialih; juruwang → halaman pesanan dialih ke serah barang, API kakitangan 403
+- E-mel ibu bapa / telefon (format lain) sama tidak boleh daftar dua kali; PDPA wajib; e-mel pengesahan dalam bahasa ibu bapa; token sekali guna
+- Vendor `suspended`: juruwang ditolak, pentadbir hanya langganan/invois (halaman lain → `subscription.php`, API → 403 `billing_only`),
+  sesi pengurus sedia ada ditamatkan
+- **Kebocoran VENDOR01 ↔ VENDOR02:** pilih koperasi vendor lain → 404 (termasuk `'2 OR 1=1'`); senarai koperasi & kakitangan hanya milik sendiri
+  (`vendor_id` dalam input diabaikan); sunting / aktif / reset kakitangan vendor lain → 404; beri akses koperasi vendor lain ditolak;
+  pengurus hanya koperasi yang diberi; PIN juruwang VENDOR01 di kaunter VENDOR02 → tiada akses
+- **Kebocoran ibu bapa A ↔ B:** profil masing-masing; `customer_id` dalam input diabaikan; B tidak boleh guna telefon A
+- Padam akaun: e-mel & telefon NULL, `deleted_at`, tidak boleh log masuk; pesanan aktif menghalang
+- Playwright: log masuk owner (QR → kod → kod pemulihan → panel), staf, 2FA, log keluar; vendor papan pemuka/kakitangan/POS; lupa kata laluan
+  vendor (375px); store log masuk, profil, daftar → pautan pengesahan dari `email_queue` — 0 ralat konsol
+
+Keputusan kecil (dicatat dalam PELAN 4, 9 J, 10.1, 10.2, 11, 18.3, 18.4, 18.14):
+- PIN POS: **5** cubaan (selaras kontrak U4 18.11), bukan 3 — PELAN 11 & teks bantuan dikemas kini
+- Owner tanpa 2FA disediakan semasa log masuk (seed tiada rahsia TOTP); "set semula 2FA" kakitangan = sediakan semula pada log masuk seterusnya
+- Jemputan kakitangan owner memerlukan jadual baharu `platform_user_tokens` (migrasi 001)
+- `vendor/cooperatives/list` (baca) & `store/session` disambung dalam B2 kerana pemilih koperasi & header store bergantung pada sesi sebenar;
+  simpan/sunting koperasi kekal B4
+- Kunci log masuk dikira ikut pengecam dalam `login_attempts` (bukan lajur pengguna sahaja) supaya akaun tiada pun dikunci sama
+- E-mel hanya masuk `email_queue` (cron hantar — B7); pautan e-mel guna `config app_url` (wajib di produksi)
+
+Tertangguh / peralihan:
+- Data modul lain masih mock (`MockVendor.sessionVendorId = 1`): log masuk VENDOR02 memaparkan koperasi DB (Chung Hwa, SMK Seri Indah) tetapi
+  data katalog/pesanan mock hanya wujud untuk id koperasi mock — SMK Seri Indah (id 3) kosong/ralat sehingga B4. Gunakan VENDOR01 untuk demo
+- Store: anak, troli, pesanan masih mock; sesi mock mengikut ibu bapa sebenar (dipadankan e-mel) — ibu bapa seed (Siti) bermula tanpa anak mock
+- Endpoint `vendor/pos/pin-login` (job siap) — B10. 2FA vendor: log masuk menyokong, tetapi tiada halaman sediakan 2FA vendor (tiada UI U) — kemudian
+- `vendor/_layout/profile-menu.php` memaut ke `vendor/profile.php` yang belum wujud (sejak U3) — perlu halaman profil vendor (kemudian)
+- Penghantaran e-mel sebenar (SMTP + cron) — B7
 
 ---
 
