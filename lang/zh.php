@@ -664,6 +664,8 @@ return [
     'product.final_price'                 => '最终价格',
     'product.add_variant'                 => '添加规格',
     'product.variants_required'           => '请至少添加一个规格。',
+    'product.limit_reached'               => '您的配套最多可有 {max} 个产品。请升级配套以添加更多产品。',
+    'product.variant_locked'              => '已有库存或记录（订单、采购单、库存变动）的规格不能删除，只能停用。',
     // Inventori
     'inventory.on_hand'                   => '现有库存',
     'inventory.reserved'                  => '已预留',
@@ -1267,6 +1269,13 @@ return [
     'activity.action.template_subscribe'   => '订阅模板',
     'activity.action.subscription_change'  => '排定配套更换',
     'activity.action.invoice_pay'          => '支付发票',
+    'activity.action.cooperative_save'     => '保存合作社',
+    'activity.action.product_save'         => '保存产品',
+    'activity.action.stock_in'             => '入库',
+    'activity.action.po_save'              => '保存采购单',
+    'activity.action.po_cancel'            => '取消采购单',
+    'activity.action.stocktake_complete'   => '完成盘点',
+    'activity.action.supplier_save'        => '保存供应商',
     'payment.methods_help'                 => '至少须启用一种方式。',
     // POS (U4)
     'pos.tab_sale'                         => '销售',

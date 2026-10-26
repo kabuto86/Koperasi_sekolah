@@ -4,9 +4,9 @@
 > Kemas kini fail ini di HUJUNG setiap session, sebelum commit & push.
 > Reka bentuk: [PELAN.md](PELAN.md) · Prompt kerja: [PROMPT-SESSION.md](PROMPT-SESSION.md)
 
-**Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · **Peringkat 2 berjalan** — skema & core (B1), auth sebenar (B2), panel owner (B3)
-**Session terakhir siap:** B3 — Owner: pelan, harga koperasi, modul, template, vendor
-**Session seterusnya:** **B4 — Vendor: koperasi, katalog, inventori**
+**Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · **Peringkat 2 berjalan** — skema & core (B1), auth sebenar (B2), panel owner (B3), katalog & inventori vendor (B4)
+**Session terakhir siap:** B4 — Vendor: koperasi, katalog, inventori
+**Session seterusnya:** **B5 — Kit keperluan sekolah**
 
 Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 
@@ -39,7 +39,7 @@ Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 | B1 | Skema, seed, core | ✅ | 26 Okt 2026 | `8479340` | 75 jadual, seed 2 vendor/3 koperasi/2 ibu bapa, 6 kelas core baharu, `ValidateCooperativeJob`, `tools/verify-b1.php` 42/42 lulus |
 | B2 | Auth owner, vendor, ibu bapa + 2FA + throttle | ✅ | 26 Okt 2026 | `847ea89` | 38 endpoint `api/v1/`, 39 job, 13 kelas core baharu, sesi sebenar semua panel & store, `tools/verify-b2.php` 94/94 lulus |
 | B3 | Owner: pelan, harga koperasi, modul, template, vendor | ✅ | 26 Okt 2026 | `764f4c7` | 32 endpoint owner, 33 job + 3 pembantu, `CalculateCoopPriceJob`, owner_staff 403 di pelayan, `tools/verify-b3.php` 101/101 lulus |
-| B4 | Vendor: koperasi, produk, kategori, varian, inventori, pembekal | ⬜ | | | |
+| B4 | Vendor: koperasi, produk, kategori, varian, inventori, pembekal | ✅ | 26 Okt 2026 | (lihat git log) | 36 endpoint vendor, 37 job + 7 pembantu, `core/Uploader`, `StockLedger` (stok dalam transaksi), PO & stock take, `tools/verify-b4.php` 118/118 lulus |
 | B5 | Kit keperluan sekolah | ⬜ | | | |
 | B6 | Store ibu bapa: daftar, anak, katalog, kit, troli | ⬜ | | | |
 | B7 | Checkout tunai, pesanan, queue e-mel | ⬜ | | | |
@@ -689,6 +689,65 @@ Tertangguh:
   manakala butiran vendor memapar invois DB (kosong sehingga B12)
 - Pengumuman belum dipapar kepada vendor (tiada laluan vendor dalam U) — kemudian
 - Gateway disekat owner: semakan semasa vendor memilih/membayar — B8. `preview_image` template sebenar — bila template2/3 dibina
+
+### B4 — Vendor: koperasi, katalog, inventori (26 Okt 2026)
+
+Dibuat:
+- **Core:** `Uploader` (data URL → fail; jenis dari kandungan `finfo` + `getimagesizefromstring`, JPG/PNG/WebP ≤ 2MB, nama SHA-256, padam fail lama) ·
+  `VendorAuth::requireCooperative($id)` (`ValidateCooperativeJob` + akses kakitangan → 404)
+- **Job (37 + 7 pembantu):** `jobs/Cooperative/` GetCooperative (+ waktu operasi), SaveCooperative (had pelan, harga koperasi ke-n → `subscription_items`,
+  tetapan awal, logo), CheckSlug (unik global + slug sistem dikhaskan), GetCooperativePricing, ListCooperativeGrades, ListSchoolClasses,
+  AddSchoolClasses, RenameSchoolClass, DeleteSchoolClass + `CooperativeSettings` · `jobs/Product/` ListCategories, SaveCategory, DeleteCategory,
+  ListProducts, GetProduct, SaveProduct (varian, darjah, terjemahan, SKU/barcode unik merentas produk & varian), SetProductActive,
+  ListProductOptions, UploadProductImage + `ProductCatalog` · `jobs/Inventory/` ListInventory, StockIn, AdjustStock, ListStockMovements,
+  ListStockTakes, StartStockTake, GetStockTake, SaveStockTakeCounts, CompleteStockTake + `StockLedger`, `InventoryRows`, `StockTakes` ·
+  `jobs/Supplier/` ListSuppliers, SaveSupplier, ListPurchaseOrders, GetPurchaseOrder, SavePurchaseOrder, ReceivePurchaseOrder,
+  CancelPurchaseOrder + `PurchaseOrders` · `jobs/Billing/PlanLimit` · `jobs/Template/ListTemplateOptionsJob` · `jobs/Module/ListActiveModulesJob` ·
+  `jobs/Report/GetVendorDashboardJob`
+- **API (36 fail, tiada SQL):** `vendor/cooperatives/{get,save,check-slug,pricing-preview}`, `vendor/templates/options`, `vendor/modules/active`,
+  `vendor/grades/list`, `vendor/classes/{list,add,update,delete}`, `vendor/categories/{list,save,delete}`,
+  `vendor/products/{list,get,save,set-active,options}`, `vendor/inventory/{list,stock-in,adjust,movements}`, `vendor/suppliers/{list,save}`,
+  `vendor/purchase-orders/{list,get,save,receive,cancel}`, `vendor/stock-takes/{list,start,get,save-counts,complete}`, `vendor/dashboard/summary`
+- **`api.js`:** 12 awalan vendor ditambah ke `Api.livePrefixes` (`vendor/cooperatives/list` → `vendor/cooperatives/`); `mock/vendor.js` dikecilkan
+  kepada data contoh + pembantu yang dipakai mock modul lain (semua `Mock.register` dibuang); `Mock.storageVersion` → v8; `asset_version` → 5
+- **Seed:** PO-2026-0001 (VENDOR01, dipesan) + stock take selesai tanpa perbezaan — halaman PO & stock take demo berisi
+- 9 kunci bahasa baharu × 4 (`product.limit_reached`, `product.variant_locked`, 7 × `activity.action.*`) — jumlah 1805
+- `tools/verify-b4.php` (118 semakan HTTP sebenar; jadual B4 & fail muat naik dipulihkan di hujung)
+
+Disahkan (MariaDB 10.11, PHP 8.3, pemasangan baharu schema + seed — `verify-b4` **118 lulus, 0 gagal**; `verify-b3` 101/101; `verify-b2` 94/94;
+`verify-b1` 42/42; `check-ui` OK; `ui-audit` lang=ms vendor 90 halaman × 2 lebar: tiada ralat konsol baru; Playwright: produk baharu dengan gambar
+& 2 varian → senarai, PO-2026-0001, stock take, borang koperasi, VENDOR02 nampak katalog Chung Hwa dari DB — 0 ralat konsol):
+- **Kebocoran VENDOR01 ↔ VENDOR02:** produk V01 diminta V02 (koperasi V01 atau koperasi sendiri) → 404; `cooperative_id` vendor lain /
+  `'2 OR 1=1'` → 404; stok masuk, set-active, padam kelas, sunting koperasi, pembekal, PO & stock take vendor lain → 404 dan data tidak berubah;
+  senarai pembekal hanya milik sendiri; `vendor_id` dalam input diabaikan (koperasi & produk baharu tetap vendor sesi); slug V01 "sudah digunakan"
+  tanpa dedah pemilik; pengurus Chung Hwa → koperasi 3 404
+- **Kebocoran ibu bapa A ↔ B:** sesi ibu bapa → semua API vendor 401, tiada pergerakan stok
+- Peranan: juruwang → 7 laluan katalog/inventori/papan pemuka 403 (`modules/active` dibenarkan untuk menu); pengurus → `pricing-preview` &
+  tambah koperasi 403; POST tanpa CSRF → 419; GET ke POST → 405
+- Koperasi: had pelan VENDOR02 (Asas 2/2) menolak koperasi ke-3; koperasi ke-2 VENDOR01 → `subscription_items` 79000 (Pro tahunan peringkat 2–3);
+  tetapan awal; kod KPM, template belum dilanggan, tiada kaedah bayaran, waktu operasi terbalik ditolak; logo palsu (PHP dalam data URL) ditolak,
+  logo sebenar → `uploads/1/{id}/logo/{sha256}.png`, buang logo → fail dipadam
+- Produk: barcode/SKU pendua dalam koperasi (termasuk varian) ditolak, barcode sama di koperasi lain dibenarkan; tukar barcode antara dua varian;
+  buang varian tanpa sejarah (baris stok dibuang) vs varian bersejarah ditolak; darjah ikut jenis sekolah; terjemahan Cina utf8mb4; had
+  `max_products`; carian `%` di-escape
+- Stok: semua perubahan melalui `StockLedger` (FOR UPDATE + `balance_after` + pengguna sesi); di luar transaksi → ditolak; pelarasan bawah
+  kuantiti ditahan ditolak; PO: pembekal/produk koperasi lain ditolak, jumlah dikira pelayan, terima melebihi baki ditolak, separa → penuh
+  (stok + `po_receive`), batal separa ditolak; stock take: satu terbuka, kiraan → `stocktake`, item belum dikira tidak diubah
+
+Keputusan kecil (dicatat dalam PELAN 10.1, 10.2, 18.3, 18.8, 18.14):
+- PO, stock take, `templates/options` & `modules/active` disiapkan dalam B4 (prompt B4 / pemilih koperasi), bukan B11–B13
+- `vendor/settings/*` ditangguh ke B9 — skrin serah & resit POS (mock) masih membaca tetapan mock; menukarnya sekarang memecahkan keselarasan
+- `PlanLimit` diletak dalam `jobs/Billing/` (membaca DB) — core tidak menulis SQL
+- Gambar/logo dihantar sebagai data URL dalam badan JSON simpan (UI tidak ditulis semula); pelayan mengesahkan kandungan & menyimpan fail
+- Varian bersejarah tidak dipadam (nyahaktif sahaja) supaya sejarah stok/pesanan kekal bermakna
+- Koperasi baharu: hanya pentadbir; pengurus boleh sunting koperasi yang diberi. Slug sistem dikhaskan untuk URL `/{slug}/` (B6)
+- Stock take selesai: perbezaan = kiraan − baki semasa mula (jualan semasa kiraan sudah direkod sendiri); baki tidak jatuh bawah 0
+- Selesai dari tertangguh B2/B3: katalog VENDOR02 (Chung Hwa, SMK Seri Indah) kini dari DB; pengumuman platform yang terbit dipapar di papan pemuka vendor
+
+Tertangguh / peralihan:
+- Mock kit (B5), store (B6), pesanan & serah (B9), POS (B10), add-on (B13) masih memakai produk/koperasi mock (`MockVendor`, id tidak sepadan DB)
+- `vendor/settings/*` → B9. Produk dalam pesanan/POS sebenar menolak/menahan stok melalui `StockLedger` (B7, B9, B10)
+- Pratonton harga koperasi baharu dikira, tetapi invois/prorata sebenar → B12
 
 ---
 

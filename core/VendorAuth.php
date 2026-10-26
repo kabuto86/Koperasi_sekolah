@@ -76,6 +76,18 @@ class VendorAuth
         return in_array((int) $cooperativeId, $user['cooperative_ids'], true);
     }
 
+    // API skop "vendor sesi + koperasi" (PELAN 8.4): cooperative_id dari input mesti milik vendor sesi
+    // DAN boleh dibuka oleh kakitangan ini. Tiada / milik vendor lain / tiada akses → 404 (jawapan sama).
+    public static function requireCooperative($cooperativeId)
+    {
+        $job = new ValidateCooperativeJob(self::vendorId(), $cooperativeId);
+        $cooperative = $job->run();
+        if ($cooperative === null || !self::canAccessCooperative($cooperative['id'])) {
+            Response::notFound();
+        }
+        return $cooperative;
+    }
+
     public static function requireLogin()
     {
         if (self::user() === null) {

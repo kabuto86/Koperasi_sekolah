@@ -325,6 +325,22 @@ INSERT INTO suppliers (id, vendor_id, name, contact_name, phone, email, address,
 (1, 1, 'Syarikat Alat Tulis Gombak', 'Encik Rahim', '03-61881122', 'jualan@alatulisgombak.my', 'Batu Caves, Selangor', 1),
 (2, 2, '新山文具批发 JB Stationery',  'Mr. Tan',     '07-3551234',  'order@jbstationery.my',    'Johor Bahru, Johor',   1);
 
+-- Contoh PO & stock take (B4): PO dipesan belum diterima; stock take selesai tanpa perbezaan (baki kekal sama)
+INSERT INTO purchase_orders (id, vendor_id, cooperative_id, supplier_id, po_no, status, ordered_at, received_at, total, note, created_by, created_at) VALUES
+(1, 1, 1, 1, 'PO-2026-0001', 'ordered', '2026-10-20 09:30:00', NULL, 25000, 'Stok tambahan sesi 2027', 1, '2026-10-20 09:00:00');
+
+INSERT INTO purchase_order_items (vendor_id, purchase_order_id, product_id, variant_id, qty_ordered, qty_received, unit_cost) VALUES
+(1, 1, 2, 0, 50, 0, 420),
+(1, 1, 3, 0, 40, 0, 100);
+
+INSERT INTO stock_takes (id, vendor_id, cooperative_id, status, started_by, started_at, completed_at) VALUES
+(1, 1, 1, 'completed', 1, '2026-07-01 08:00:00', '2026-07-01 12:30:00');
+
+INSERT INTO stock_take_items (vendor_id, stock_take_id, product_id, variant_id, qty_system, qty_counted, variance) VALUES
+(1, 1, 1, 0, 500, 500, 0),
+(1, 1, 2, 0, 120, 120, 0),
+(1, 1, 3, 0, 300, 300, 0);
+
 -- ---------------------------------------------------------------------
 -- E. Kit keperluan sekolah (tahun persekolahan 2027)
 -- ---------------------------------------------------------------------
