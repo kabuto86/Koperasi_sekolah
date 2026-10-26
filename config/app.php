@@ -14,7 +14,7 @@ return [
     'app_url'           => null,
 
     // Naikkan nombor ini bila CSS/JS berubah supaya pelayar tidak guna cache lama
-    'asset_version'     => '3',
+    'asset_version'     => '4',
 
     // Peringkat 1: data dari assets/js/mock/*.js. Peringkat 2: laluan yang sudah siap guna fetch() (Api.livePrefixes
     // dalam api.js); selebihnya masih mock sehingga session masing-masing. Tukar ke false bila semua B siap

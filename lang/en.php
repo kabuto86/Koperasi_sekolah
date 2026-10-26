@@ -1860,4 +1860,6 @@ return [
     'email.reset_password.body'          => 'Hello {name},' . "\n\n" . 'We received a request to reset your password. Click the link below within 1 hour. Ignore this email if you did not request it.',
     'email.staff_invite.subject'         => 'Invitation to {app_name}',
     'email.staff_invite.body'            => 'Hello {name},' . "\n\n" . 'You have been added as a staff member. Click the link below to set your password. The link is valid for 7 days.',
+    'email.test_email.subject'          => '{app_name} test email',
+    'email.test_email.body'             => 'Hello,' . "\n\n" . 'This is a test email from {name}. If you received it, the SMTP settings work.',
 ];

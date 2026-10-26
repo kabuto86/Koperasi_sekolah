@@ -1860,4 +1860,6 @@ return [
     'email.reset_password.body'          => '{name} 您好，' . "\n\n" . '我们收到了重设您密码的请求。请在 1 小时内点击下方链接。如果不是您本人申请，请忽略此邮件。',
     'email.staff_invite.subject'         => '{app_name} 邀请',
     'email.staff_invite.body'            => '{name} 您好，' . "\n\n" . '您已被添加为职员。请点击下方链接设置密码。链接有效期为 7 天。',
+    'email.test_email.subject'          => '{app_name} 测试邮件',
+    'email.test_email.body'             => '您好，' . "\n\n" . '这是来自 {name} 的测试邮件。如果您收到此邮件，说明 SMTP 设置正常。',
 ];

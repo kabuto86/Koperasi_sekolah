@@ -33,16 +33,19 @@ function renderVendor(vendor) {
     setText('vendor-created', formatDate(vendor.created_at));
 
     var sub = vendor.subscription;
-    setText('sub-plan', sub.plan_name);
-    setText('sub-cycle', T('billing.cycle.' + sub.billing_cycle));
-    document.getElementById('sub-status').replaceChildren(statusBadge(sub.status, 'vendor.status'));
-    setText('sub-period', formatDate(sub.current_period_start) + ' – ' + formatDate(sub.current_period_end));
+    if (sub) {
+        setText('sub-plan', sub.plan_name);
+        setText('sub-cycle', T('billing.cycle.' + sub.billing_cycle));
+        document.getElementById('sub-status').replaceChildren(statusBadge(sub.status, 'vendor.status'));
+        setText('sub-period', formatDate(sub.current_period_start) + ' – ' + formatDate(sub.current_period_end));
+    }
 
-    // Gantung: bukan suspended/cancelled. Aktifkan: trial (lulus), past_due, suspended
+    // Gantung: bukan suspended/cancelled. Aktifkan: trial (lulus), past_due, suspended.
+    // Butang hanya wujud untuk peranan owner
     var canSuspend = ['suspended', 'cancelled'].indexOf(vendor.status) === -1;
     var canActivate = ['trial', 'past_due', 'suspended'].indexOf(vendor.status) !== -1;
-    document.getElementById('btn-suspend').classList.toggle('d-none', !canSuspend);
-    document.getElementById('btn-activate').classList.toggle('d-none', !canActivate);
+    toggleAction('btn-suspend', canSuspend);
+    toggleAction('btn-activate', canActivate);
 
     renderTable('coops-body', vendor.cooperatives, [
         { render: function (row) { return createStack(row.school_name, row.school_type + ' · ' + row.school_code); } },
@@ -60,6 +63,13 @@ function renderVendor(vendor) {
     ]);
 
     renderNotes(vendor.notes);
+}
+
+function toggleAction(id, show) {
+    var button = document.getElementById(id);
+    if (button) {
+        button.classList.toggle('d-none', !show);
+    }
 }
 
 function moduleBadges(codes) {
@@ -104,12 +114,13 @@ function activateVendor() {
         });
 }
 
-document.getElementById('btn-activate').addEventListener('click', activateVendor);
-
-document.getElementById('btn-suspend').addEventListener('click', function () {
-    resetForm(document.getElementById('suspend-form'));
-    showModal('suspend-modal');
-});
+if (document.getElementById('btn-activate')) {
+    document.getElementById('btn-activate').addEventListener('click', activateVendor);
+    document.getElementById('btn-suspend').addEventListener('click', function () {
+        resetForm(document.getElementById('suspend-form'));
+        showModal('suspend-modal');
+    });
+}
 
 bindForm('suspend-form', 'owner/vendors/set-status', function () {
     hideModal('suspend-modal');

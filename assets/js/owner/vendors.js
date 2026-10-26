@@ -40,7 +40,7 @@ function vendorUrl(id) {
 }
 
 function loadPlanFilter() {
-    Api.get('owner/plans/list').then(function (res) {
+    Api.get('owner/plans/options').then(function (res) {
         if (res.ok) {
             fillSelect('filter-plan', res.data, 'id', function (plan) { return plan.name; }, true);
         }
