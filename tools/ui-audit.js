@@ -8,7 +8,7 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 
-const BASE = 'http://127.0.0.1:8080';
+const BASE = process.env.BASE_URL || 'http://127.0.0.1:8080';
 const { execFileSync } = require('child_process');
 const REPO = path.resolve(__dirname, '..');
 const SHOT_DIR = path.join(REPO, 'DOC/screenshots/U7');
@@ -18,14 +18,20 @@ const takeShots = process.argv.includes('shots');
 const onlyLang = (process.argv.find(a => a.startsWith('lang=')) || '').slice(5);
 const onlyFilter = (process.argv.find(a => a.startsWith('only=')) || '').slice(5);
 
-const panelPages = fs.readFileSync(path.join(__dirname, 'panelpages.txt'), 'utf8').trim().split('\n');
+// Halaman panel dari sistem fail (owner/, vendor/, vendor/addons/, vendor/pos/) — kecuali halaman log masuk & kata laluan
+const AUTH_PAGES = ['login.php', 'forgot-password.php', 'reset-password.php'];
+const panelPages = [];
+['owner', 'vendor', 'vendor/addons', 'vendor/pos'].forEach(dir => {
+    fs.readdirSync(path.join(REPO, dir)).filter(f => f.endsWith('.php') && !AUTH_PAGES.includes(f)).sort()
+        .forEach(f => panelPages.push(dir + '/' + f));
+});
 const ids = {
     'owner/vendor.php': 'id=1', 'owner/invoice.php': 'id=1', 'vendor/order.php': 'id=1', 'vendor/product-form.php': 'id=1',
     'vendor/purchase-order.php': 'id=1', 'vendor/school-kit.php': 'id=1', 'vendor/stock-take.php': 'id=1',
     'vendor/addons/clearance-sale.php': 'id=1', 'vendor/cooperative-form.php': 'id=1'
 };
 const pages = [];
-['owner/login.php', 'vendor/login.php'].forEach(p => pages.push({ name: p.replace('.php', '').replace(/\//g, '_'), url: '/' + p }));
+['owner/login.php', 'vendor/login.php', 'owner/forgot-password.php', 'vendor/forgot-password.php'].forEach(p => pages.push({ name: p.replace('.php', '').replace(/\//g, '_'), url: '/' + p }));
 panelPages.forEach(p => {
     const q = ids[p] ? '?' + ids[p] : '';
     pages.push({ name: p.replace('.php', '').replace(/\//g, '_'), url: '/' + p + q });
@@ -35,9 +41,24 @@ const storeSchool = ['home', 'catalog', 'product', 'kit', 'clearance', 'news', '
 storePublic.forEach(p => pages.push({ name: 'store_' + p, url: '/store/index.php?page=' + p }));
 storeSchool.forEach(p => pages.push({ name: 'store_school_' + p, url: '/store/index.php?school=sk-taman-melati&page=' + p, store: true }));
 
+// Sejak B2 halaman panel perlu sesi sebenar. Owner: 2FA — kod dari tools/dev-totp.php (akaun seed, kata laluan Demo@12345)
+function devTotp(arg) {
+    return execFileSync('php', ['tools/dev-totp.php', arg], { cwd: REPO }).toString().trim();
+}
+
+async function panelLogin(page) {
+    await page.goto(BASE + '/owner/login.php');
+    const step1 = await page.evaluate(() => Api.post('owner/auth/login', { email: 'owner@koperasiku.my', password: 'Demo@12345' }));
+    const code = step1.data && step1.data.setup ? devTotp('--secret=' + step1.data.setup.secret) : devTotp('owner@koperasiku.my');
+    await page.evaluate(c => Api.post('owner/auth/verify-2fa', { code: c }), code);
+    await page.goto(BASE + '/vendor/login.php');
+    await page.evaluate(() => Api.post('vendor/auth/login', { email: 'ahmad@niagasekolah.my', password: 'Demo@12345' }));
+}
+
 async function storeLogin(page) {
+    await panelLogin(page);
     await page.goto(BASE + '/store/index.php?school=sk-taman-melati&page=login');
-    await page.evaluate(() => Api.post('store/auth/login', { login: 'rosnah@contoh.my', password: 'rahsia123' }));
+    await page.evaluate(() => Api.post('store/auth/login', { login: 'siti@contoh.my', password: 'Demo@12345' }));
     // Pesanan pertama ibu bapa demo — untuk halaman butiran / berjaya
     const orderId = await page.evaluate(async () => {
         const list = await storeGet('store/orders/list', {});

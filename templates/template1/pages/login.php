@@ -16,7 +16,11 @@
                         <input class="form-control" type="password" id="login-password" name="password" autocomplete="current-password" required>
                         <div class="invalid-feedback"><?= e(t('auth.password_required')) ?></div>
                     </div>
-                    <div class="text-end mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="login-remember" name="remember" checked>
+                            <label class="form-check-label small" for="login-remember"><?= e(t('auth.remember')) ?></label>
+                        </div>
                         <a class="small" href="<?= e(View::storeUrl($schoolSlug, 'forgot-password')) ?>"><?= e(t('auth.forgot')) ?></a>
                     </div>
                     <button class="btn btn-brand w-100 btn-lg" type="submit"><?= e(t('btn.login')) ?></button>

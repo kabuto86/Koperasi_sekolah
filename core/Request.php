@@ -15,6 +15,14 @@ class Request
         return self::method() === 'POST';
     }
 
+    // Endpoint hanya untuk kaedah ini (GET / POST) → 405
+    public static function requireMethod($method)
+    {
+        if (self::method() !== $method) {
+            Response::methodNotAllowed();
+        }
+    }
+
     public static function ip()
     {
         return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';

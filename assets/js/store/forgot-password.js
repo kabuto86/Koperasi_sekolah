@@ -15,13 +15,8 @@ function showResetStep(token) {
 }
 
 function bindForgot() {
-    bindForm('forgot-form', 'store/auth/forgot', function (data) {
+    bindForm('forgot-form', 'store/auth/forgot', function () {
         document.getElementById('forgot-sent').classList.remove('d-none');
-        // Peringkat 1 sahaja: pautan dari "e-mel" dipapar terus untuk ujian
-        if (data.demo_token) {
-            document.getElementById('forgot-demo-link').href = storeUrl('forgot-password', { token: data.demo_token });
-            document.getElementById('forgot-demo').classList.remove('d-none');
-        }
     });
 }
 

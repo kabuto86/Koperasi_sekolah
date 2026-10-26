@@ -1,5 +1,5 @@
 SET NAMES utf8mb4;
--- KoperasiKu SaaS — skema pangkalan data koperasi_saas (PELAN 9)
+-- KoperasiKu SaaS — skema pangkalan data koperasi_saas (PELAN 9) · 76 jadual sejak B2
 -- Import: mysql --default-character-set=utf8mb4 -u koperasi_user -p koperasi_saas < database/schema.sql
 -- Wang dalam sen (INT). Setiap jadual perniagaan ada vendor_id; indeks bermula vendor_id (PELAN 8.6).
 
@@ -49,6 +49,7 @@ CREATE TABLE platform_users (
     role             ENUM('owner','owner_staff') NOT NULL DEFAULT 'owner_staff',
     language         VARCHAR(5)   NOT NULL DEFAULT 'ms',
     totp_secret      VARCHAR(255) NULL COMMENT 'disulitkan (Crypto)',
+    totp_last_step   INT UNSIGNED NULL COMMENT 'kod TOTP terakhir diterima (elak guna semula) — B2',
     is_active        TINYINT(1)   NOT NULL DEFAULT 1,
     failed_attempts  TINYINT UNSIGNED NOT NULL DEFAULT 0,
     locked_until     DATETIME     NULL,
@@ -57,6 +58,21 @@ CREATE TABLE platform_users (
     updated_at       DATETIME     NULL ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY uq_platform_users_email (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Jemputan & reset kata laluan kakitangan owner (B2, migrations/001). Token disimpan sebagai hash SHA-256
+CREATE TABLE platform_user_tokens (
+    id                INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    platform_user_id  INT UNSIGNED NOT NULL,
+    type              ENUM('invite','reset_password') NOT NULL,
+    token_hash        CHAR(64)     NOT NULL,
+    expires_at        DATETIME     NOT NULL,
+    used_at           DATETIME     NULL,
+    created_at        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_platform_user_tokens_hash (token_hash),
+    KEY idx_platform_user_tokens (platform_user_id, type),
+    CONSTRAINT fk_pu_tokens_user FOREIGN KEY (platform_user_id) REFERENCES platform_users (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Kod pemulihan 2FA (owner wajib, vendor_admin pilihan). Disimpan sebagai hash.
@@ -365,6 +381,7 @@ CREATE TABLE vendor_users (
     pin_hash             VARCHAR(255) NULL COMMENT 'PIN POS (Argon2id)',
     pin_failed_attempts  TINYINT UNSIGNED NOT NULL DEFAULT 0,
     totp_secret          VARCHAR(255) NULL COMMENT 'disulitkan (Crypto)',
+    totp_last_step       INT UNSIGNED NULL COMMENT 'kod TOTP terakhir diterima (elak guna semula) — B2',
     language             VARCHAR(5)   NOT NULL DEFAULT 'ms',
     is_active            TINYINT(1)   NOT NULL DEFAULT 1,
     failed_attempts      TINYINT UNSIGNED NOT NULL DEFAULT 0,

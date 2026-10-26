@@ -1,7 +1,7 @@
 <?php
 // Peranan pengguna panel (owner / vendor) & menu yang dibenarkan (PELAN 4).
-// Peringkat 1: peranan dari cookie demo `mock_role` (hanya bila use_mock) — lalai peranan tertinggi.
-// B2: peranan dari sesi; pelayan juga menyekat halaman & API, bukan menu sahaja.
+// Sejak B2: peranan dari sesi (OwnerAuth / VendorAuth). Halaman disekat oleh requirePage(),
+// API oleh requireRole() — menu yang ditapis hanya kemudahan paparan.
 class PanelRole
 {
     const ROLES = [
@@ -9,17 +9,15 @@ class PanelRole
         'vendor' => ['vendor_admin', 'coop_manager', 'cashier'],
     ];
 
+    // Halaman modul add-on ('module.*') — juruwang tidak mengurus modul
+    const ADDON_ROLES = ['vendor_admin', 'coop_manager'];
+
+    // Vendor digantung: hanya halaman langganan & invois (activeMenu 'menu.subscription')
+    const BILLING_MENUS = ['menu.subscription'];
+
     public static function current($panel)
     {
-        $roles = self::ROLES[$panel];
-        if (Config::get('use_mock')) {
-            $role = $_COOKIE['mock_role'] ?? '';
-            if (in_array($role, $roles, true)) {
-                return $role;
-            }
-        }
-
-        return $roles[0];
+        return $panel === 'owner' ? OwnerAuth::role() : VendorAuth::role();
     }
 
     // Item menu tanpa 'roles' = semua peranan. Seksyen kosong dibuang
@@ -36,5 +34,39 @@ class PanelRole
         }
 
         return $result;
+    }
+
+    // Halaman dengan $activeMenu ini boleh dibuka oleh peranan ini?
+    // Menu tiada dalam senarai (cth. profil, '') = semua peranan panel itu
+    public static function canOpen($panel, $role, $activeMenu)
+    {
+        if (strpos((string) $activeMenu, 'module.') === 0) {
+            return in_array($role, self::ADDON_ROLES, true);
+        }
+        foreach (self::menu($panel) as $section) {
+            foreach ($section['items'] as $item) {
+                if ($item['key'] === $activeMenu) {
+                    return empty($item['roles']) || in_array($role, $item['roles'], true);
+                }
+            }
+        }
+        return in_array($role, self::ROLES[$panel], true);
+    }
+
+    // URL halaman pertama yang dibenarkan untuk peranan ini
+    public static function firstPage($panel, $role)
+    {
+        $sections = self::filterMenu(self::menu($panel), $role);
+        return $sections ? $sections[0]['items'][0]['url'] : $panel . '/login.php';
+    }
+
+    public static function isBillingMenu($activeMenu)
+    {
+        return in_array($activeMenu, self::BILLING_MENUS, true);
+    }
+
+    private static function menu($panel)
+    {
+        return require APP_ROOT . '/' . $panel . '/_layout/menu.php';
     }
 }

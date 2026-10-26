@@ -803,3 +803,16 @@ function slugify(text) {
     return String(text).toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '')
         .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
 }
+
+// Log keluar panel owner/vendor (butang data-panel-logout="owner|vendor"): POST + CSRF → halaman log masuk
+document.addEventListener('click', function (event) {
+    var button = event.target.closest('[data-panel-logout]');
+    if (!button) {
+        return;
+    }
+    var area = button.getAttribute('data-panel-logout');
+    button.disabled = true;
+    Api.post(area + '/auth/logout').then(function () {
+        window.location.href = pageUrl(area + '/login.php');
+    });
+});

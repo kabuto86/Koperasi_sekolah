@@ -81,8 +81,10 @@ mencatat **nama anak, darjah dan kelas**, dan barang diambil di koperasi sekolah
 
 **Menu ikut peranan (U7).** `owner/_layout/menu.php` & `vendor/_layout/menu.php` — item ada `'roles'` (tiada = semua peranan);
 `core/PanelRole.php` menapis menu (`filterMenu`); seksyen modul add-on vendor disembunyikan untuk juruwang. Peringkat 1: peranan dari
-cookie demo `mock_role` (hanya bila `use_mock`), lalai peranan tertinggi (`owner` / `vendor_admin`). B2: `PanelRole::current()` membaca sesi
-**dan** setiap halaman/API menyekat peranan yang tidak dibenarkan (halaman → kembali ke halaman pertama yang dibenarkan).
+cookie demo `mock_role` (dibuang dalam B2). **Sejak B2:** `PanelRole::current()` membaca sesi (`OwnerAuth` / `VendorAuth`);
+`_layout/header.php` & `pos-header.php` memanggil `OwnerAuth::requirePage($activeMenu)` / `VendorAuth::requirePage($activeMenu)` sebelum
+output — belum log masuk → `login.php`; menu tidak dibenarkan (`PanelRole::canOpen`, ikut `'roles'` item menu yang sama `key` dengan
+`$activeMenu`; `module.*` = admin & pengurus) → halaman pertama yang dibenarkan (`PanelRole::firstPage`). API: `requireRole([...])` → 403.
 
 Owner: `owner_staff` nampak papan pemuka, vendor, koperasi, langganan & invois, log audit sahaja; selebihnya `owner` sahaja.
 
@@ -418,7 +420,7 @@ Nama, harga dan maklumat anak **disalin** (snapshot) ke pesanan dan invois.
 
 Jumlah: **69 jadual** (U6: + `messaging_settings`).
 
-### J. Tambahan B1 — jadual yang diperlukan oleh kontrak UI (PELAN 18) · jumlah sebenar **75 jadual**
+### J. Tambahan B1 — jadual yang diperlukan oleh kontrak UI (PELAN 18) · jumlah sebenar **75 jadual** (B2: **76**)
 
 `database/schema.sql` ialah sumber kebenaran lajur. Tambahan berbanding senarai A–I di atas:
 
@@ -440,6 +442,8 @@ Jumlah: **69 jadual** (U6: + `messaging_settings`).
 | `stock_take_items` UNIQUE(stock_take_id, product_id, variant_id) · `preorder_seasons` UNIQUE(cooperative_id, school_year) · `clearance_items` UNIQUE(sale, product, variant) | peraturan "satu sahaja" dari UI |
 | `login_attempts.login_type` + `pos_pin` · `notification_queue.last_error` | throttle PIN POS; log mesej |
 | `platform_settings`: `smtp_password_enc`, `owner_gateway_code / mode / config / secrets_enc` | rahsia owner disulitkan (`Crypto`) |
+| **B2** `platform_user_tokens` — platform_user_id, type ENUM(invite, reset_password), token_hash, expires_at, used_at (`migrations/001`) | jemputan kakitangan owner (`staff.invite_note`) & lupa kata laluan owner |
+| **B2** `platform_users.totp_last_step` · `vendor_users.totp_last_step` | kod TOTP yang sudah diterima tidak boleh diguna semula |
 
 Konvensyen lajur: wang `INT` sen; `variant_id = 0` bermaksud tiada varian (stok, pesanan, troli), kecuali
 `school_kit_items.variant_id NULL` = ibu bapa pilih varian; tarikh `DATETIME` waktu Malaysia (`+08:00`); JSON dalam `TEXT` (`*_json`).
@@ -455,10 +459,10 @@ Koperasi_sekolah/
 ├── DOC/            PELAN.md · PROSES.md · PROMPT-SESSION.md
 ├── config/         app.php · malaysia.php (negeri, jenis sekolah, hari) · database.php (.gitignore) · database.example.php · secret.key (.gitignore)
 ├── core/           bootstrap.php · Config · View · SecurityHeaders (CSP) — sejak U1
-│                   Database · Request · Response · Validator · Csrf · Lang (+ t(), e())
-│                   OwnerAuth · VendorAuth · CustomerAuth · ApiTokenAuth
-│                   Crypto (sodium) · RateLimit · ModuleAccess · PlanLimit · Mailer
-│                   Uploader · View · Totp · SecurityHeaders
+│                   Database · Request · Response · Validator · Csrf · Lang (+ t(), e()) · ValidationException (B2)
+│                   OwnerAuth · VendorAuth · CustomerAuth · Session · Password · Totp · RateLimit (B2) · ApiTokenAuth
+│                   PhoneNumber · IsoDate · Pagination (B2) · PanelRole (U7, sesi sejak B2)
+│                   Crypto (sodium) · ModuleAccess · PlanLimit · Mailer · Uploader · View · SecurityHeaders
 ├── jobs/           SATU KELAS = SATU KERJA
 │   ├── Auth/ Owner/ Vendor/ Cooperative/ Plan/ Billing/ Module/ Template/
 │   ├── Product/ Inventory/ Supplier/ Promotion/ SchoolKit/
@@ -485,7 +489,8 @@ Koperasi_sekolah/
 ├── modules/        news/ · clearance/ · calendar/ · school_opening/
 ├── lang/           ms.php · en.php · zh.php · ta.php
 ├── cron/           send-emails · expire-cash-orders · generate-invoices · suspend-overdue · promote-grades
-├── tools/          check-ui.php (tiada inline CSS + kunci 4 bahasa sama) · generate-secret.php · verify-b1.php — CLI sahaja
+├── tools/          check-ui.php (tiada inline CSS + kunci 4 bahasa sama) · generate-secret.php · verify-b1.php · verify-b2.php
+│                   dev-totp.php (kod 2FA ujian) · ui-audit.js (pelayar, log masuk sebenar sejak B2) — CLI sahaja
 ├── assets/
 │   ├── lib/        bootstrap/ (5.3.3) · bootstrap-icons/ (1.11.3) · qrcode/ (qrcode-generator 1.4.4, MIT — sejak U2)
 │   ├── css/        app.css · print-label.css · print-slip.css · receipt.css
@@ -533,6 +538,17 @@ Ralat tidak dijangka dalam `api/` → pengendali global memulangkan `{ ok:false,
 `config/secret.key` dari `php tools/generate-secret.php`; `randomToken`, `hashToken` SHA-256).
 Semakan: `php tools/verify-b1.php` (utf8mb4, UNIQUE barcode, kebocoran dua vendor, Argon2id, Crypto, Validator).
 
+**Konvensyen endpoint (B2):** `Request::requireMethod('GET'|'POST')` (405) → auth (`OwnerAuth::requireLogin/requireRole`,
+`VendorAuth::requireRole($roles, $allowBillingOnly)`, `CustomerAuth::requireLogin`; laluan awam: `XAuth::start()` untuk sesi + CSRF) →
+`Csrf::verifyRequest()` (419) → `RateLimit::enforce(bucket, max, saat)` (429) bila perlu → job → `Response::ok`.
+Job melempar `ValidationException(mesej, errors, status, extra)` untuk ralat dijangka; pengendali global → `{ ok:false, error, errors }`.
+Belum log masuk → 401 `{ auth_required: true }` (panel: `api.js` ke `data-login-url`; store: `storeHandle` ke halaman log masuk).
+Vendor digantung → 403 `{ billing_only: true }`. Tarikh API melalui `IsoDate::format()`; senarai melalui `Pagination::from/result`.
+Sesi: `KOPOWNER` (idle 2 jam) · `KOPVENDOR` (2 jam) · `KOPSTORE` (30 hari; "ingat saya" = cookie 30 hari) — `HttpOnly`, `SameSite=Lax`,
+`Secure` bila HTTPS; `<body data-csrf>` dari `partials/head.php` bila sesi aktif. E-mel: `QueueEmailJob` → `email_queue`
+(templat `email_templates` ikut bahasa penerima → jatuh balik kunci `email.{kunci}.subject|body`); pautan penuh `View::absoluteUrl()`
+(`config app_url` WAJIB di produksi). Log: `WriteAuditLogJob` (owner → `audit_logs`) · `WriteActivityLogJob` (vendor → `activity_logs`).
+
 ### 10.3 Kontrak API
 
 - Format jawapan: `{ "ok": true, "data": ... }` atau `{ "ok": false, "error": "mesej", "errors": { "field": "mesej" } }`
@@ -568,7 +584,7 @@ Semakan: `php tools/verify-b1.php` (utf8mb4, UNIQUE barcode, kebocoran dua vendo
 |---|---|---|
 | Owner | E-mel + kata laluan | **2FA TOTP wajib** |
 | Vendor (admin/pengurus) | E-mel + kata laluan | 2FA TOTP pilihan, pemilih koperasi selepas log masuk |
-| Juruwang POS | E-mel + kata laluan, atau PIN pada peranti POS berdaftar | PIN 3 cubaan → dikunci |
+| Juruwang POS | E-mel + kata laluan, atau PIN pada peranti POS berdaftar | PIN 5 cubaan salah → dikunci (selaras 18.11; pentadbir tetapkan PIN baharu) |
 | Ibu bapa | E-mel **atau** no. telefon + kata laluan | Pengesahan e-mel |
 
 - **Argon2id** `memory_cost 19456`, `time_cost 2`, `threads 1` (bukan lalai PHP — terlalu perlahan, 801ms diukur). `password_hash` VARCHAR(255). PIN juga di-hash Argon2id
@@ -577,6 +593,21 @@ Semakan: `php tools/verify-b1.php` (utf8mb4, UNIQUE barcode, kebocoran dua vendo
 - Kunci 15 minit selepas 5 cubaan gagal, rekod setiap cubaan + IP
 - `session_regenerate_id(true)` selepas log masuk. Tiga nama sesi berasingan untuk owner/vendor/ibu bapa
 - Status langganan vendor disemak selepas pengesahan, dan pada setiap permintaan
+
+**Pelaksanaan B2:**
+- Owner langkah 1 → `beginPending` (10 minit); langkah 2 `verify-2fa`. Akaun tanpa 2FA (log masuk pertama / selepas "set semula 2FA")
+  menerima `setup { secret, otpauth_url }` → QR dalam pelayar (`assets/lib/qrcode`) → kod pertama menyimpan rahsia (disulitkan `Crypto`)
+  dan memulangkan 8 kod pemulihan (dipapar sekali). Kod pemulihan `XXXX-XXXX` diterima di langkah 2 (sekali guna, hash SHA-256)
+- TOTP RFC 6238 (SHA1, 6 digit, 30 s, ±1 langkah); `totp_last_step` → kod yang sama tidak diterima dua kali. Cubaan 2FA gagal juga dikunci (5 → 15 minit)
+- Kunci: `login_attempts` dikira ikut pengecam (e-mel / telefon dinormalkan / `totp:{jenis}:{id}`) — sama untuk akaun wujud atau tidak;
+  cubaan semasa dikunci juga direkod. `failed_attempts` / `locked_until` dikemas kini untuk paparan pentadbir. Tambahan had per IP (`rate_limits`)
+- Vendor `suspended` / `cancelled`: hanya `vendor_admin` boleh log masuk, dan hanya halaman `menu.subscription` (langganan, invois, kedai modul);
+  pengurus/juruwang ditolak & sesi sedia ada ditamatkan (`login.php?reason=suspended`)
+- Lupa kata laluan: `owner|vendor/forgot-password.php` & store `forgot-password` — jawapan sentiasa sama, maks 3 e-mel/jam per alamat;
+  token 1 jam. Jemputan kakitangan (owner & vendor) = token `invite` 7 hari → `owner|vendor/reset-password.php?token=`
+- Pengesahan e-mel ibu bapa: token 24 jam, pautan `store/index.php?verify_token=` (disahkan oleh `layout.js` sebelum sesi dimuat)
+- Kata laluan minimum: panel 10 aksara, ibu bapa 8. Log keluar = POST + CSRF (`data-panel-logout`)
+- PIN POS: `PosPinLoginJob` (B2) — endpoint `vendor/pos/pin-login` disambung dalam B10
 
 ## 12. Pelbagai bahasa — ms · en · zh · ta
 
@@ -710,6 +741,11 @@ Dalam mock: `Mock.paginate(rows, params, ['medan_carian', ...])`.
   `Mock.paginate()`. `Mock.handle()` memulangkan **salinan dalam** supaya halaman tidak mengubah data mock
 - `mock/owner.js`, `mock/vendor.js`, `mock/store.js` — dimuat oleh layout masing-masing
 - `config/app.php` `use_mock => false` (Peringkat 2) → skrip mock tidak dimuat; hanya `Api.request()` ditukar
+- **Peralihan (sejak B2):** `Api.livePrefixes` dalam `api.js` = laluan yang sudah sebenar (`fetch`, POST JSON + `X-CSRF-Token`);
+  selebihnya masih mock. Setiap session B **menambah awalan** modulnya dan membuang `Mock.register` laluan itu. Jambatan sementara:
+  `Mock.onLive(laluan, fn)` (selepas jawapan sebenar) dan `Mock.beforeFirst(fn)` (sekali sebelum jawapan mock pertama) — cth.
+  `mock/store.js` menyelaraskan `MockStore.session` dengan ibu bapa sebenar (dipadankan ikut e-mel) dan mengisi `cart_count` / `schools`
+  `store/session` dari troli & anak mock sehingga B6. Mock vendor kekal `sessionVendorId = 1` sehingga B4
 - `vendor_id` dalam mock datang dari `MockVendor.sessionVendorId` (meniru sesi) — tidak pernah dari parameter
 - **Persistence (sejak U3a):** `Mock.persist(nama, objek, [kunci])` menyimpan data mock dalam `sessionStorage`
   selepas setiap POST yang berjaya, supaya rekod baharu kekal bila halaman bertukar (seperti DB sebenar).
@@ -726,11 +762,13 @@ Dalam mock: `Mock.paginate(rows, params, ['medan_carian', ...])`.
 
 | Laluan | Kaedah | Input | `data` |
 |---|---|---|---|
-| `owner/auth/login` | POST | `email, password` | `{ requires_2fa: true }` |
-| `owner/auth/verify-2fa` | POST | `code` (6 digit) | `{ user: { id, name, role } }` |
-| `vendor/auth/login` | POST | `email, password` | `{ user: { id, name, role }, requires_2fa: false }` |
-| `vendor/cooperatives/list` | GET | `page, per_page, q` | senarai Cooperative |
-| `vendor/session/cooperative` | POST | `cooperative_id` | `{ cooperative }` — pelayan sahkan milik vendor (`ValidateCooperativeJob`) dan simpan dalam sesi |
+| `owner/auth/login` | POST | `email, password` | `{ requires_2fa: true, setup: { secret, otpauth_url } \| null }` — `setup` hanya jika 2FA belum disediakan (B2) |
+| `owner/auth/verify-2fa` | POST | `code` (6 digit atau kod pemulihan) | `{ user: { id, name, role }, recovery_codes: [8] \| null }` |
+| `vendor/auth/login` | POST | `email, password` | `{ user: { id, name, role }, requires_2fa: false, billing_only }` · ada 2FA → `{ user: null, requires_2fa: true }` |
+| `vendor/auth/verify-2fa` (B2) | POST | `code` | `{ user: { id, name, role } }` |
+| `owner\|vendor/auth/logout` · `forgot { email }` · `reset { token, password, password_confirm }` (B2) | POST | | `forgot` sentiasa `{ sent: true }`; `reset` terima token `reset_password` atau `invite` |
+| `vendor/cooperatives/list` | GET | `page, per_page, q, status` | senarai Cooperative (+ `template_name, class_count, product_count, modules`); pengurus/juruwang: koperasi yang diberi sahaja (B2) |
+| `vendor/session/cooperative` | POST | `cooperative_id` | `{ cooperative }` — pelayan sahkan milik vendor (`ValidateCooperativeJob`) + akses kakitangan, simpan dalam sesi |
 | `vendor/modules/active` | GET | `cooperative_id` | `{ cooperative_id, modules: ['news', ...] }` |
 | `store/school` | GET | `slug` | `{ id, slug, school_name, school_type, state, district, payment_methods: ['cash','online'], default_language }` |
 | `store/cart/summary` | GET | — | `{ item_count }` |
@@ -1280,7 +1318,8 @@ vendor) → `booked--`. **Lencana "Jualan murah"** (sedia sejak U5) kini dari `M
 
 ### 18.14 Indeks laluan API lengkap (U7) — spesifikasi backend
 
-Senarai **semua** laluan yang didaftar dalam `assets/js/mock/*.js` (214 laluan, dijana dari kod mock pada U7). Bentuk `data` setiap laluan
+Senarai **semua** laluan yang didaftar dalam `assets/js/mock/*.js` (214 laluan, dijana dari kod mock pada U7; B2 menambah 9 laluan auth
+— jumlah **223**). Lajur Mock `— (B2)` = sudah sebenar (`api/v1/`), mock dibuang. Bentuk `data` setiap laluan
 ada dalam 18.4–18.13; jadual ini ialah senarai semak Peringkat 2 — setiap baris mesti menjadi `api/v1/{laluan}.php` (nipis, tiada SQL)
 yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan CSRF, B14).
 
@@ -1301,8 +1340,9 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 | `owner/announcements/list` | GET | owner | B3 | `owner.js` |
 | `owner/announcements/save` | POST | owner | B3 | `owner.js` |
 | `owner/audit-logs/list` | GET | owner | B3 | `owner.js` |
-| `owner/auth/login` | POST | awam | B2 | `owner.js` |
-| `owner/auth/verify-2fa` | POST | awam | B2 | `owner.js` |
+| `owner/auth/login` | POST | awam | B2 | — (B2) |
+| `owner/auth/verify-2fa` | POST | awam | B2 | — (B2) |
+| `owner/auth/logout` · `owner/auth/forgot` · `owner/auth/reset` | POST | awam | B2 | — (baharu B2) |
 | `owner/cooperatives/list` | GET | owner | B3 | `owner.js` |
 | `owner/dashboard/summary` | GET | owner | B3 | `owner.js` |
 | `owner/email-templates/get` | GET | owner | B3 | `owner.js` |
@@ -1325,24 +1365,24 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 | `owner/plans/save` | POST | owner | B3 | `owner.js` |
 | `owner/plans/save-tiers` | POST | owner | B3 | `owner.js` |
 | `owner/plans/tiers` | GET | owner | B3 | `owner.js` |
-| `owner/profile/change-password` | POST | owner | B2 | `owner.js` |
-| `owner/profile/get` | GET | owner | B2 | `owner.js` |
-| `owner/profile/save` | POST | owner | B2 | `owner.js` |
+| `owner/profile/change-password` | POST | owner | B2 | — (B2) |
+| `owner/profile/get` | GET | owner | B2 | — (B2) |
+| `owner/profile/save` | POST | owner | B2 | — (B2) |
 | `owner/settings/get` | GET | owner | B3 | `owner.js` |
 | `owner/settings/save` | POST | owner | B3 | `owner.js` |
 | `owner/settings/test-email` | POST | owner | B3 | `owner.js` |
-| `owner/staff/list` | GET | owner | B2 | `owner.js` |
-| `owner/staff/reset-2fa` | POST | owner | B2 | `owner.js` |
-| `owner/staff/save` | POST | owner | B2 | `owner.js` |
-| `owner/staff/set-active` | POST | owner | B2 | `owner.js` |
+| `owner/staff/list` | GET | owner | B2 | — (B2) |
+| `owner/staff/reset-2fa` | POST | owner | B2 | — (B2) |
+| `owner/staff/save` | POST | owner | B2 | — (B2) |
+| `owner/staff/set-active` | POST | owner | B2 | — (B2) |
 | `owner/subscriptions/list` | GET | owner | B12 | `owner.js` |
 | `owner/templates/list` | GET | owner | B3 | `owner.js` |
 | `owner/templates/save` | POST | owner | B3 | `owner.js` |
 | `owner/translations/list` | GET | owner | B14 | `owner.js` |
 | `owner/translations/save` | POST | owner | B14 | `owner.js` |
-| `owner/two-factor/enable` | POST | owner | B2 | `owner.js` |
-| `owner/two-factor/regenerate-codes` | POST | owner | B2 | `owner.js` |
-| `owner/two-factor/setup` | GET | owner | B2 | `owner.js` |
+| `owner/two-factor/enable` | POST | owner | B2 | — (B2) |
+| `owner/two-factor/regenerate-codes` | POST | owner | B2 | — (B2) |
+| `owner/two-factor/setup` | GET | owner | B2 | — (B2) |
 | `owner/vendors/add-note` | POST | owner | B3 | `owner.js` |
 | `owner/vendors/get` | GET | owner | B3 | `owner.js` |
 | `owner/vendors/list` | GET | owner | B3 | `owner.js` |
@@ -1353,13 +1393,13 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 
 | Laluan | Kaedah | Skop disahkan pelayan | Session | Mock |
 |---|---|---|---|---|
-| `store/auth/forgot` | POST | awam | B2/B6 | `store.js` |
-| `store/auth/login` | POST | awam | B2/B6 | `store.js` |
-| `store/auth/logout` | POST | awam | B2/B6 | `store.js` |
-| `store/auth/register` | POST | awam | B2/B6 | `store.js` |
-| `store/auth/resend-verification` | POST | ibu bapa (sesi) | B2/B6 | `store.js` |
-| `store/auth/reset` | POST | awam | B2/B6 | `store.js` |
-| `store/auth/verify-email` | POST | awam | B2/B6 | `store.js` |
+| `store/auth/forgot` | POST | awam | B2 | — (B2) |
+| `store/auth/login` | POST | awam | B2 | — (B2) |
+| `store/auth/logout` | POST | awam | B2 | — (B2) |
+| `store/auth/register` | POST | awam | B2 | — (B2) |
+| `store/auth/resend-verification` | POST | ibu bapa (sesi) | B2 | — (B2) |
+| `store/auth/reset` | POST | awam | B2 | — (B2) |
+| `store/auth/verify-email` | POST | awam | B2 | — (B2) |
 | `store/cart/add` | POST | ibu bapa (sesi) + slug | B6 | `store.js` |
 | `store/cart/add-kit` | POST | ibu bapa (sesi) + slug | B6 | `store.js` |
 | `store/cart/clear` | POST | ibu bapa (sesi) + slug | B6 | `store.js` |
@@ -1384,13 +1424,13 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 | `store/orders/pay` | POST | ibu bapa (sesi) + slug | B7 | `store.js` |
 | `store/payment/simulate` | POST | ibu bapa (sesi) + slug | B8 | `store.js` |
 | `store/product` | GET | awam + slug | B6 | `store.js` |
-| `store/profile/delete` | POST | ibu bapa (sesi) | B2/B6 | `store.js` |
-| `store/profile/get` | GET | ibu bapa (sesi) | B2/B6 | `store.js` |
-| `store/profile/password` | POST | ibu bapa (sesi) | B2/B6 | `store.js` |
-| `store/profile/save` | POST | ibu bapa (sesi) | B2/B6 | `store.js` |
+| `store/profile/delete` | POST | ibu bapa (sesi) | B2 | — (B2) |
+| `store/profile/get` | GET | ibu bapa (sesi) | B2 | — (B2) |
+| `store/profile/password` | POST | ibu bapa (sesi) | B2 | — (B2) |
+| `store/profile/save` | POST | ibu bapa (sesi) | B2 | — (B2) |
 | `store/school` | GET | awam + slug | B6 | `store.js` |
 | `store/schools/list` | GET | awam | B6 | `store.js` |
-| `store/session` | GET | awam + slug | B2/B6 | `store.js` |
+| `store/session` | GET | awam + slug | B2 | — (B2) |
 
 **vendor/** 
 
@@ -1401,7 +1441,8 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 | `vendor/addons/catalog` | GET | vendor sesi + koperasi | B13 | `vendor-finance.js` |
 | `vendor/addons/quote` | GET | vendor sesi + koperasi | B13 | `vendor-finance.js` |
 | `vendor/addons/subscribe` | POST | vendor sesi + koperasi | B13 | `vendor-finance.js` |
-| `vendor/auth/login` | POST | awam | B2 | `vendor.js` |
+| `vendor/auth/login` | POST | awam | B2 | — (B2) |
+| `vendor/auth/verify-2fa` · `vendor/auth/logout` · `vendor/auth/forgot` · `vendor/auth/reset` | POST | awam | B2 | — (baharu B2) |
 | `vendor/calendar/delete` | POST | koperasi + modul `calendar` | B13 | `vendor-addons.js` |
 | `vendor/calendar/list` | GET | koperasi + modul `calendar` | B13 | `vendor-addons.js` |
 | `vendor/calendar/save` | POST | koperasi + modul `calendar` | B13 | `vendor-addons.js` |
@@ -1420,7 +1461,7 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 | `vendor/clearance/save` | POST | koperasi + modul `clearance` | B13 | `vendor-addons.js` |
 | `vendor/cooperatives/check-slug` | GET | vendor sesi | B4 | `vendor.js` |
 | `vendor/cooperatives/get` | GET | vendor sesi | B4 | `vendor.js` |
-| `vendor/cooperatives/list` | GET | vendor sesi | B4 | `vendor.js` |
+| `vendor/cooperatives/list` | GET | vendor sesi | B2 (baca) / B4 | — (B2) |
 | `vendor/cooperatives/pricing-preview` | GET | vendor sesi | B4 | `vendor.js` |
 | `vendor/cooperatives/save` | POST | vendor sesi | B4 | `vendor.js` |
 | `vendor/customers/list` | GET | vendor sesi + koperasi | B9 | `vendor-orders.js` |
@@ -1502,13 +1543,13 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 | `vendor/school-opening/slot-delete` | POST | koperasi + modul `school_opening` | B13 | `vendor-addons.js` |
 | `vendor/school-opening/slot-save` | POST | koperasi + modul `school_opening` | B13 | `vendor-addons.js` |
 | `vendor/school-opening/slots` | GET | koperasi + modul `school_opening` | B13 | `vendor-addons.js` |
-| `vendor/session/cooperative` | POST | vendor sesi + koperasi | B2 | `vendor.js` |
+| `vendor/session/cooperative` | POST | vendor sesi + koperasi | B2 | — (B2) |
 | `vendor/settings/get` | GET | vendor sesi + koperasi | B4 | `vendor-finance.js` |
 | `vendor/settings/save` | POST | vendor sesi + koperasi | B4 | `vendor-finance.js` |
-| `vendor/staff/list` | GET | vendor sesi | B2 | `vendor-finance.js` |
-| `vendor/staff/save` | POST | vendor sesi | B2 | `vendor-finance.js` |
-| `vendor/staff/send-reset` | POST | vendor sesi | B2 | `vendor-finance.js` |
-| `vendor/staff/set-active` | POST | vendor sesi | B2 | `vendor-finance.js` |
+| `vendor/staff/list` | GET | vendor sesi | B2 | — (B2) |
+| `vendor/staff/save` | POST | vendor sesi | B2 | — (B2) |
+| `vendor/staff/send-reset` | POST | vendor sesi | B2 | — (B2) |
+| `vendor/staff/set-active` | POST | vendor sesi | B2 | — (B2) |
 | `vendor/stock-takes/complete` | POST | vendor sesi | B11 | `vendor.js` |
 | `vendor/stock-takes/get` | GET | vendor sesi | B11 | `vendor.js` |
 | `vendor/stock-takes/list` | GET | vendor sesi + koperasi | B11 | `vendor.js` |

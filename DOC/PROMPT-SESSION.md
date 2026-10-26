@@ -49,8 +49,13 @@ Setiap prompt di bawah bermula dengan "Ikut peraturan umum". Maksudnya:
    Sejak B1: skema sebenar = `database/schema.sql` (75 jadual, PELAN 9 J); lajur baharu → fail `database/migrations/NNN-nama.sql`
    **dan** kemas kini `schema.sql` + PELAN 9. Konvensyen job & core dalam PELAN 10.2 (constructor menerima id dari sesi + input, `run()`,
    `Database::fetchOne/fetchAll/execute/insert`, `Response::ok/fail/notFound`). Data demo & akaun: kepala `database/seed.sql`.
-   Semakan asas sebelum commit: `php tools/verify-b1.php` (mesti 0 gagal) + `php tools/check-ui.php`; tambah skrip semakan
-   session sendiri `tools/verify-bN.php` dengan ujian kebocoran VENDOR01↔VENDOR02 dan ibu bapa A↔B.
+   Semakan asas sebelum commit: `php tools/verify-b1.php` + `php tools/verify-b2.php` (mesti 0 gagal) + `php tools/check-ui.php`; tambah skrip semakan
+   session sendiri `tools/verify-bN.php` dengan ujian kebocoran VENDOR01↔VENDOR02 dan ibu bapa A↔B (contoh HTTP sebenar: kelas `Browser`
+   dalam `verify-b2.php` — pelayan `php -S` sendiri, cookie, CSRF).
+   Sejak B2: endpoint ikut konvensyen PELAN 10.2 (`Request::requireMethod` → `XAuth::requireRole/requireLogin` → `Csrf::verifyRequest` →
+   job yang melempar `ValidationException`). Bila modul siap: **tambah awalan laluan ke `Api.livePrefixes`** (`assets/js/api.js`), buang
+   `Mock.register` laluan itu, dan tanda `— (Bn)` dalam PELAN 18.14. Halaman panel sudah dilindungi sesi (`requirePage`); akaun demo:
+   kepala `database/seed.sql` (kata laluan `Demo@12345`; kod 2FA owner untuk ujian: `php tools/dev-totp.php owner@koperasiku.my`).
 8. **Penutup wajib:**
    - Kemas kini `DOC/PROSES.md`: status ✅, tarikh, commit, nota, dan "Butiran session yang siap"
      (fail dicipta, keputusan kecil, perkara tertangguh)
@@ -279,7 +284,7 @@ Sahkan: import dengan --default-character-set=utf8mb4; HEX nama Cina betul melal
 UNIQUE barcode sama dibenarkan merentas koperasi.
 ```
 
-## B2 — Auth
+## B2 — Auth ✅ (26 Okt 2026 — lihat PROSES.md)
 
 ```
 Ikut peraturan umum. Session: B2 — Auth. Prasyarat: B1 ✅.
@@ -296,6 +301,8 @@ api/v1/*/auth/*. Sambung halaman log masuk & daftar dari U1/U5.
 Sahkan: hash $argon2id$; mesej ralat sama; kunci selepas 5 gagal; e-mel ibu bapa sama tidak
 boleh daftar dua kali; vendor suspended hanya boleh lihat halaman bil; 2FA owner wajib.
 ```
+> Hasil B2: juga `vendor/cooperatives/list` (baca) & `store/session` sebenar; laluan baharu `owner|vendor/auth/logout|forgot|reset`,
+> `vendor/auth/verify-2fa`; halaman `owner|vendor/forgot-password.php` & `reset-password.php`; migrasi `001-auth-tokens.sql`.
 
 ## B3 — Owner
 
@@ -313,11 +320,12 @@ Sahkan: owner_staff ditolak untuk harga & tetapan (403).
 ```
 Ikut peraturan umum. Session: B4. Prasyarat: B3 ✅.
 Baca DOC/PELAN.md bahagian 5.2 (1–5), 8, 9 (C, D).
-Job: SaveCooperativeJob (semak PlanLimit + kira harga tambahan), ListCooperativesJob,
-SaveSchoolClassJob, kategori, produk (+ varian, darjah, terjemahan), UploadProductImageJob
+Job: SaveCooperativeJob (semak PlanLimit + kira harga tambahan), ListCooperativesJob (sudah ada sejak B2 — bacaan;
+tambah GetCooperativeJob + opening_hours), SaveSchoolClassJob, kategori, produk (+ varian, darjah, terjemahan), UploadProductImageJob
 (core/Uploader), stok masuk, pelarasan, sejarah, stok rendah, pembekal, PO + terima barang,
 stock take. Semua stok_movements dalam DB transaction.
 Ujian kebocoran: produk VENDOR01 diminta oleh VENDOR02 → 404; cooperative_id vendor lain → ditolak.
+Peralihan: mock vendor masih `MockVendor.sessionVendorId = 1` — selepas B4 halaman katalog guna data DB (VENDOR02 / SMK Seri Indah).
 ```
 
 ## B5 — Kit keperluan sekolah
@@ -340,6 +348,8 @@ StoreKitForChildJob (kit ikut darjah anak & tahun semasa), cart: AddToCartJob,
 AddKitToCartJob (terima senarai item yang masih ditanda), UpdateCartItemJob, GetCartJob
 (harga dikira semula di pelayan, ikut anak).
 Ujian: ibu bapa A tidak boleh tambah item untuk anak ibu bapa B; harga dari browser diabaikan.
+Sejak B2: akaun & `store/session` sudah sebenar (`GetStoreSessionJob` sudah kira troli & sekolah anak dari DB). Buang jambatan
+sementara dalam `mock/store.js` (`storeAdoptCustomer`, `storeAdoptSession`, `Mock.onLive`, `Mock.beforeFirst`) bila anak & troli sebenar.
 ```
 
 ## B7 — Checkout tunai, pesanan & e-mel
@@ -389,7 +399,7 @@ Baca DOC/PELAN.md bahagian 5.2 (9), 17, 18.11 (kontrak POS dari U4). Logik troli
 assets/js/vendor/pos-cart.js (dari pos-system) — PosCalculateCartJob mesti memberi jumlah yang sama.
 Job: PosCatalogJob, FindByBarcodeJob, PosCalculateCartJob, PosCheckoutJob (order channel=pos,
 bayar serta-merta, tolak stok), ReceivePosCashForOrderJob (bayar tunai pesanan online),
-OpenShiftJob, CloseShiftJob, ShiftReportJob, GetReceiptJob, PosPinLoginJob (pin_hash Argon2id, 5 cubaan → kunci),
+OpenShiftJob, CloseShiftJob, ShiftReportJob, GetReceiptJob, PosPinLoginJob (SUDAH ADA sejak B2 — sambung ke vendor/pos/pin-login),
 PosOnlinePaymentJob (QR gateway + webhook → PAID, tahanan stok). Gantikan PIN demo 1234.
 Sahkan: cashier ditolak untuk endpoint katalog/tetapan (403).
 ```

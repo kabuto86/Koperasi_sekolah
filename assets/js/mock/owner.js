@@ -400,23 +400,7 @@ function mockDuplicateError(rows, field, value, ownId) {
     return clash.length ? T('error.duplicate') : null;
 }
 
-// ---------- Log masuk ----------
-
-// Langkah 1: e-mel + kata laluan → perlu 2FA (wajib untuk owner). Demo: kata laluan "salah" → ralat
-Mock.register('owner/auth/login', function (body) {
-    if (body.password === 'salah') {
-        return Mock.fail(T('auth.invalid_credentials'));
-    }
-    return Mock.ok({ requires_2fa: true });
-});
-
-// Langkah 2: kod TOTP 6 digit. Demo: "000000" ditolak
-Mock.register('owner/auth/verify-2fa', function (body) {
-    if (body.code === '000000') {
-        return Mock.fail(T('auth.otp_invalid'), { code: T('auth.otp_invalid') });
-    }
-    return Mock.ok({ user: { id: 1, name: 'Pemilik Platform', role: 'owner' } });
-});
+// Log masuk, profil, 2FA & kakitangan owner: laluan sebenar sejak B2 (api/v1/owner/auth|profile|two-factor|staff)
 
 // ---------- Papan pemuka ----------
 
@@ -1042,121 +1026,6 @@ Mock.register('owner/settings/test-email', function (body) {
         return Mock.fail(T('error.required'), { to: T('error.required') });
     }
     return Mock.ok({ queued: true });
-});
-
-// ---------- Kakitangan owner ----------
-
-Mock.register('owner/staff/list', function () {
-    return Mock.ok(MockOwner.staff);
-});
-
-// Kakitangan baharu menerima e-mel jemputan untuk tetapkan kata laluan & 2FA
-Mock.register('owner/staff/save', function (body) {
-    var errors = Mock.requireFields(body, ['full_name', 'email', 'role']);
-    var duplicate = mockDuplicateError(MockOwner.staff, 'email', body.email || '', body.id);
-    if (duplicate) {
-        errors.email = duplicate;
-    }
-    if (Mock.hasErrors(errors)) {
-        return Mock.fail(T('error.check_form'), errors);
-    }
-
-    var person = body.id ? Mock.findById(MockOwner.staff, body.id) : null;
-    if (person && person.id === MockOwner.sessionUserId && body.role !== 'owner') {
-        return Mock.fail(T('staff.cannot_demote_self'));
-    }
-    if (!person) {
-        person = { id: Mock.nextId(MockOwner.staff), is_active: true, totp_enabled: false, last_login_at: null };
-        MockOwner.staff.push(person);
-    }
-    person.full_name = body.full_name;
-    person.email = body.email;
-    person.role = body.role;
-    MockOwner.audit('staff.save', 'platform_user', person.id, person.email);
-    return Mock.ok(person);
-});
-
-Mock.register('owner/staff/set-active', function (body) {
-    var person = Mock.findById(MockOwner.staff, body.id);
-    if (!person) {
-        return Mock.fail(T('error.not_found'));
-    }
-    if (person.id === MockOwner.sessionUserId) {
-        return Mock.fail(T('staff.cannot_disable_self'));
-    }
-    person.is_active = Boolean(body.is_active);
-    MockOwner.audit(person.is_active ? 'staff.activate' : 'staff.deactivate', 'platform_user', person.id, person.email);
-    return Mock.ok(person);
-});
-
-Mock.register('owner/staff/reset-2fa', function (body) {
-    var person = Mock.findById(MockOwner.staff, body.id);
-    if (!person) {
-        return Mock.fail(T('error.not_found'));
-    }
-    person.totp_enabled = false;
-    MockOwner.audit('staff.reset_2fa', 'platform_user', person.id, person.email);
-    return Mock.ok(person);
-});
-
-// ---------- Profil & 2FA pengguna semasa ----------
-
-Mock.register('owner/profile/get', function () {
-    return Mock.ok(MockOwner.profile);
-});
-
-Mock.register('owner/profile/save', function (body) {
-    var errors = Mock.requireFields(body, ['full_name', 'email']);
-    if (Mock.hasErrors(errors)) {
-        return Mock.fail(T('error.check_form'), errors);
-    }
-    MockOwner.profile.full_name = body.full_name;
-    MockOwner.profile.email = body.email;
-    MockOwner.profile.language = body.language;
-    return Mock.ok(MockOwner.profile);
-});
-
-// Demo: kata laluan semasa "salah" → ralat
-Mock.register('owner/profile/change-password', function (body) {
-    if (body.current_password === 'salah') {
-        return Mock.fail(T('profile.current_password_wrong'), { current_password: T('profile.current_password_wrong') });
-    }
-    if (String(body.new_password || '').length < 10) {
-        return Mock.fail(T('profile.password_too_short'), { new_password: T('profile.password_too_short') });
-    }
-    MockOwner.audit('profile.change_password', 'platform_user', MockOwner.sessionUserId, '');
-    return Mock.ok({ changed: true });
-});
-
-// Rahsia TOTP baharu (Peringkat 2: dijana di pelayan, disimpan disulitkan selepas disahkan)
-Mock.register('owner/two-factor/setup', function () {
-    var secret = 'JBSWY3DPEHPK3PXP';
-    return Mock.ok({
-        enabled: MockOwner.profile.totp_enabled,
-        secret: secret,
-        otpauth_url: 'otpauth://totp/KoperasiKu:' + encodeURIComponent(MockOwner.profile.email) + '?secret=' + secret + '&issuer=KoperasiKu'
-    });
-});
-
-// Demo: kod "000000" ditolak
-Mock.register('owner/two-factor/enable', function (body) {
-    if (!/^[0-9]{6}$/.test(body.code || '') || body.code === '000000') {
-        return Mock.fail(T('auth.otp_invalid'), { code: T('auth.otp_invalid') });
-    }
-    MockOwner.profile.totp_enabled = true;
-    MockOwner.audit('two_factor.enable', 'platform_user', MockOwner.sessionUserId, '');
-    return Mock.ok({
-        enabled: true,
-        recovery_codes: ['7KQ2-M9XD', 'P4LW-8ZRC', 'H3VN-2TBY', 'Q8FJ-6KSE', 'D5RA-9MXU', 'W2CT-7PLG', 'B6YH-3NQZ', 'L9EK-4VDW']
-    });
-});
-
-// Owner tidak boleh mematikan 2FA (wajib) — hanya jana semula kod pemulihan
-Mock.register('owner/two-factor/regenerate-codes', function (body) {
-    if (!/^[0-9]{6}$/.test(body.code || '') || body.code === '000000') {
-        return Mock.fail(T('auth.otp_invalid'), { code: T('auth.otp_invalid') });
-    }
-    return Mock.ok({ recovery_codes: ['R1AB-2CDE', 'F3GH-4IJK', 'L5MN-6OPQ', 'R7ST-8UVW', 'X9YZ-1ABC', 'D2EF-3GHI', 'J4KL-5MNO', 'P6QR-7STU'] });
 });
 
 // Kekalkan perubahan antara halaman (sessionStorage) — mesti selepas data contoh dijana

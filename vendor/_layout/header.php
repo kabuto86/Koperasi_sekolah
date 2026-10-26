@@ -1,6 +1,13 @@
 <?php
 // Layout vendor — bahagian atas. Halaman set $pageTitle dan $activeMenu dahulu.
-View::partial('partials/head.php', ['pageTitle' => $pageTitle, 'bodyClass' => 'app-panel', 'extraCss' => $extraCss ?? []]);
+// Sesi, peranan & status langganan disemak di pelayan sebelum apa-apa output (PELAN 4, 11)
+VendorAuth::requirePage($activeMenu ?? '');
+View::partial('partials/head.php', [
+    'pageTitle' => $pageTitle,
+    'bodyClass' => 'app-panel',
+    'extraCss'  => $extraCss ?? [],
+    'loginUrl'  => View::url('vendor/login.php'),
+]);
 ?>
 <header class="navbar bg-body border-bottom sticky-top app-topbar px-2 px-lg-3 d-print-none">
     <div class="d-flex align-items-center gap-2 min-w-0">

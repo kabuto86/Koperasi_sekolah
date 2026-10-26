@@ -14,7 +14,7 @@
                     <div class="col-12 col-sm-6">
                         <label class="form-label" for="reg-phone"><?= e(t('field.phone')) ?></label>
                         <input class="form-control" type="tel" id="reg-phone" name="phone" autocomplete="tel" inputmode="tel"
-                               placeholder="012-3456789" pattern="^(\+?60|0)1[0-9][\s-]?[0-9]{7,8}$" required>
+                               placeholder="012-3456789" pattern="(\+?60|0)1[0-9][\s\-]?[0-9]{7,8}" required>
                         <div class="invalid-feedback"><?= e(t('store.auth.phone_invalid')) ?></div>
                     </div>
                     <div class="col-12 col-sm-6">
@@ -73,9 +73,6 @@
                 <i class="bi bi-envelope-check display-5 text-brand" aria-hidden="true"></i>
                 <h2 class="h5 mt-2"><?= e(t('store.verify.sent_title')) ?></h2>
                 <p class="text-body-secondary" id="register-done-text"></p>
-                <button class="btn btn-outline-secondary btn-sm mb-3" type="button" id="register-verify-demo">
-                    <i class="bi bi-link-45deg" aria-hidden="true"></i> <?= e(t('store.verify.demo_link')) ?>
-                </button>
                 <div class="d-grid gap-2">
                     <a class="btn btn-brand" href="<?= e(View::storeUrl($schoolSlug, 'children', ['add' => 1])) ?>"><?= e(t('store.verify.next_children')) ?></a>
                 </div>

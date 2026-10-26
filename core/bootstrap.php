@@ -38,6 +38,11 @@ set_exception_handler('handleUncaughtException');
 
 function handleUncaughtException($exception)
 {
+    // Ralat dijangka dari job (input salah dsb.) → { ok:false, error, errors }
+    if ($exception instanceof ValidationException && IS_API_REQUEST) {
+        Response::fail($exception->getMessage(), $exception->errors(), $exception->status(), $exception->extra());
+    }
+
     error_log('[KoperasiKu] ' . $exception->getMessage() . ' @ ' . $exception->getFile() . ':' . $exception->getLine());
 
     if (IS_API_REQUEST) {

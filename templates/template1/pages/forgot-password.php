@@ -16,9 +16,6 @@
                     </form>
                     <div class="alert alert-success mt-3 mb-0 d-none" id="forgot-sent" role="status">
                         <?= e(t('store.forgot.sent')) ?>
-                        <div class="mt-2 d-none" id="forgot-demo">
-                            <a class="btn btn-sm btn-outline-success" id="forgot-demo-link" href="#"><i class="bi bi-link-45deg" aria-hidden="true"></i> <?= e(t('store.forgot.demo_link')) ?></a>
-                        </div>
                     </div>
                 </div>
 
