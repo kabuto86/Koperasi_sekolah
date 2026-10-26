@@ -1835,4 +1835,14 @@ return [
     'store.slot.full'                    => 'This slot is full. Please choose another.',
     'store.slot.all_full'                => 'All pickup slots are full. Please contact the cooperative.',
     'store.slot.success_note'            => 'Pickup slot: {slot}.',
+
+    // B1 — ralat pelayan (core/Response, Validator, Csrf)
+    'error.forbidden'                    => 'You are not allowed to do this.',
+    'error.method_not_allowed'           => 'Request method not allowed.',
+    'error.csrf'                         => 'Session expired or invalid form. Please reload the page.',
+    'error.server'                       => 'Server error. Please try again shortly.',
+    'error.max_length'                   => 'Maximum {max} characters.',
+    'error.min_length'                   => 'Minimum {min} characters.',
+    'error.date'                         => 'Invalid date.',
+    'error.integer'                      => 'Must be a whole number.',
 ];

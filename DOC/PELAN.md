@@ -5,7 +5,7 @@
 > tanpa bertanya. Status semasa: [PROSES.md](PROSES.md). Prompt kerja:
 > [PROMPT-SESSION.md](PROMPT-SESSION.md).
 
-Kemas kini terakhir: 25 Oktober 2026 (U4 — UI POS kaunter)
+Kemas kini terakhir: 26 Oktober 2026 (B1 — Skema, seed & core)
 Persekitaran sasaran: XAMPP · PHP 8.2 · MariaDB 10.4+ / MySQL 8 · Bootstrap 5
 
 ---
@@ -294,6 +294,11 @@ buka pesanan ibu bapa B → **404**.
 `VENDOR01` (1 koperasi: SK Taman Melati) dan `VENDOR02` (2 koperasi: SJKC Chung Hwa, SMK Seri
 Indah) + 2 ibu bapa (seorang ada anak di dua sekolah). Dengan hanya satu vendor, kebocoran mustahil dikesan.
 
+> B1: `database/seed.sql` mengikut susunan ini (id koperasi 1 = SK Taman Melati/V01, 2 = SJKC Chung Hwa/V02, 3 = SMK Seri Indah/V02).
+> Mock Peringkat 1 (`assets/js/mock/`) berbeza (Chung Hwa di bawah VENDOR01, "SMK Bukit Indah") — bila api.js ditukar ke `fetch`
+> dalam B2+, data datang dari DB; mock tidak perlu diubah. Ibu bapa A (Siti) ada anak di **dua vendor** (Taman Melati & Chung Hwa).
+> Akaun demo & kata laluan disenaraikan di kepala `seed.sql` (tukar sebelum produksi).
+
 ### 8.8 Muat naik diasingkan
 
 `uploads/{vendor_id}/{cooperative_id}/products/{hash}.jpg` — `.htaccess` halang perlaksanaan PHP.
@@ -413,6 +418,33 @@ Nama, harga dan maklumat anak **disalin** (snapshot) ke pesanan dan invois.
 
 Jumlah: **69 jadual** (U6: + `messaging_settings`).
 
+### J. Tambahan B1 — jadual yang diperlukan oleh kontrak UI (PELAN 18) · jumlah sebenar **75 jadual**
+
+`database/schema.sql` ialah sumber kebenaran lajur. Tambahan berbanding senarai A–I di atas:
+
+| Jadual / lajur baharu | Sebab (kontrak UI) |
+|---|---|
+| `refund_items` (sudah disebut di G, kini dikira) | butiran barang refund (U3c) |
+| `totp_recovery_codes` — user_type ENUM(owner, vendor_user), user_id, code_hash, used_at | 8 kod pemulihan 2FA (18.7) |
+| `vendor_notes` — vendor_id, body, created_by | nota dalaman owner + sebab gantung (18.7) |
+| `vendor_announcement_targets` — PK(announcement_id, vendor_id) | pengumuman `target = selected` (18.7) |
+| `vendor_user_tokens` — type ENUM(invite, reset_password), token_hash, expires_at, used_at | e-mel jemputan / reset kakitangan (18.10) |
+| `vendor_customer_notes` — PK(vendor_id, customer_id), note | nota vendor tentang ibu bapa, setiap vendor nampak notanya sahaja (18.9) |
+| `platform_users.language` · `vendor_users.pin_failed_attempts` | profil owner; 5 PIN salah → dikunci (18.11) |
+| `subscriptions.pending_plan_id, pending_billing_cycle` · `subscription_items.cancel_at_period_end` · `cooperative_modules.cancel_at_period_end` | tukar pelan / batal modul pada hujung tempoh (18.10) |
+| `invoices.sst_rate` · `invoice_lines.item_type` + `plan`, `other` · `platform_payments.method, note` (`gateway_ref` = rujukan manual juga) | invois owner (18.7) |
+| `product_variants.cooperative_id` + UNIQUE(cooperative_id, barcode / sku) · `products` UNIQUE(cooperative_id, sku) | barcode & SKU unik dalam koperasi, termasuk varian (18.8) |
+| `orders.pickup_slot_json` (salinan slot) · `order_items.sku` | snapshot slot & SKU (18.9, 18.13) |
+| `cooperative_gateways.config_json` (medan bukan rahsia) · `payment_gateways.supports_refund` | `values` + `secrets_set` (18.10) |
+| `purchase_orders` UNIQUE(cooperative_id, po_no), `created_by` · `refunds` UNIQUE(cooperative_id, refund_no) | nombor unik per koperasi |
+| `stock_take_items` UNIQUE(stock_take_id, product_id, variant_id) · `preorder_seasons` UNIQUE(cooperative_id, school_year) · `clearance_items` UNIQUE(sale, product, variant) | peraturan "satu sahaja" dari UI |
+| `login_attempts.login_type` + `pos_pin` · `notification_queue.last_error` | throttle PIN POS; log mesej |
+| `platform_settings`: `smtp_password_enc`, `owner_gateway_code / mode / config / secrets_enc` | rahsia owner disulitkan (`Crypto`) |
+
+Konvensyen lajur: wang `INT` sen; `variant_id = 0` bermaksud tiada varian (stok, pesanan, troli), kecuali
+`school_kit_items.variant_id NULL` = ibu bapa pilih varian; tarikh `DATETIME` waktu Malaysia (`+08:00`); JSON dalam `TEXT` (`*_json`).
+Keterangan modul disimpan dalam `translations` (`module.{code}.description`); nama modul & darjah dari `lang/*.php` (`module.{code}`, `grade.{code}`).
+
 ## 10. Backend, API & frontend
 
 ### 10.1 Struktur folder
@@ -453,7 +485,7 @@ Koperasi_sekolah/
 ├── modules/        news/ · clearance/ · calendar/ · school_opening/
 ├── lang/           ms.php · en.php · zh.php · ta.php
 ├── cron/           send-emails · expire-cash-orders · generate-invoices · suspend-overdue · promote-grades
-├── tools/          check-ui.php (tiada inline CSS + kunci 4 bahasa sama) — CLI sahaja
+├── tools/          check-ui.php (tiada inline CSS + kunci 4 bahasa sama) · generate-secret.php · verify-b1.php — CLI sahaja
 ├── assets/
 │   ├── lib/        bootstrap/ (5.3.3) · bootstrap-icons/ (1.11.3) · qrcode/ (qrcode-generator 1.4.4, MIT — sejak U2)
 │   ├── css/        app.css · print-label.css · print-slip.css · receipt.css
@@ -464,7 +496,7 @@ Koperasi_sekolah/
 │   ├── img/
 │   └── fonts/      noto-sans-sc/ · noto-sans-tamil/ (woff2 400 & 700, unicode-range — dimuat bila perlu)
 ├── uploads/        {vendor_id}/{cooperative_id}/… (.gitignore isi, .htaccess halang PHP)
-└── database/       schema.sql · seed.sql · migrations/
+└── database/       create-database.sql (DB + koperasi_user) · schema.sql (75 jadual) · seed.sql · migrations/ (`.htaccess` halang akses web; juga `config/ core/ jobs/ lang/ tools/`)
 ```
 
 ### 10.2 Contoh endpoint nipis
@@ -475,15 +507,31 @@ Koperasi_sekolah/
 require __DIR__ . '/../../../../core/bootstrap.php';
 
 VendorAuth::requireRole(['vendor_admin', 'coop_manager']);
-Csrf::check();
+Csrf::verifyRequest();
 
-$vendorId      = VendorAuth::vendorId();                       // dari sesi
-$cooperativeId = (new ValidateCooperativeJob($vendorId))->run(Request::int('cooperative_id'));
-$input         = Validator::product(Request::all());
+$vendorId = VendorAuth::vendorId();                                   // dari sesi
+$coopJob  = new ValidateCooperativeJob($vendorId, Request::int('cooperative_id'));
+$cooperative = $coopJob->run();                                        // null = tiada / milik vendor lain
+if ($cooperative === null) {
+    Response::notFound();
+}
 
-$result = (new SaveProductJob($vendorId, $cooperativeId))->run($input);
+$job = new SaveProductJob($vendorId, $cooperative['id'], Request::all());
+$result = $job->run();                    // job mengesahkan input (Validator) & menulis SQL
 Response::ok($result);
 ```
+
+**Konvensyen job (B1):** satu fail `jobs/{Folder}/{Nama}Job.php`, satu kelas, dimuat automatik oleh `core/bootstrap.php`.
+Id keselamatan (`vendor_id`, `customer_id`) + input dihantar melalui **constructor**; satu kaedah awam `run()`.
+Job memanggil `Database::fetchOne / fetchAll / fetchValue / execute / insert` (PDO prepared, tiada SQL dalam `api/`).
+Ralat pengesahan → job memulangkan / melempar ralat yang dipetakan ke `Response::fail(t('error.check_form'), $errors)`.
+Ralat tidak dijangka dalam `api/` → pengendali global memulangkan `{ ok:false, error: t('error.server') }` (HTTP 500).
+
+**Core B1:** `Database` (PDO utf8mb4, `EMULATE_PREPARES` off, `ERRMODE_EXCEPTION`, zon `+08:00`) · `Request` (GET query, POST JSON/borang;
+`string/int/bool/arrayValue`) · `Response` (`ok`, `fail`, `notFound` 404, `forbidden` 403) · `Validator` (berantai, medan bersarang `names.ms`) ·
+`Csrf` (`token()`, `verifyRequest()` — header `X-CSRF-Token`) · `SecurityHeaders` (+ HSTS bila HTTPS) · `Crypto` (sodium secretbox,
+`config/secret.key` dari `php tools/generate-secret.php`; `randomToken`, `hashToken` SHA-256).
+Semakan: `php tools/verify-b1.php` (utf8mb4, UNIQUE barcode, kebocoran dua vendor, Argon2id, Crypto, Validator).
 
 ### 10.3 Kontrak API
 
