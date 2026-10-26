@@ -4,9 +4,9 @@
 > Kemas kini fail ini di HUJUNG setiap session, sebelum commit & push.
 > Reka bentuk: [PELAN.md](PELAN.md) · Prompt kerja: [PROMPT-SESSION.md](PROMPT-SESSION.md)
 
-**Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · **Peringkat 2 berjalan** — skema & core (B1), auth sebenar (B2), panel owner (B3), katalog & inventori vendor (B4)
-**Session terakhir siap:** B4 — Vendor: koperasi, katalog, inventori
-**Session seterusnya:** **B5 — Kit keperluan sekolah**
+**Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · **Peringkat 2 berjalan** — skema & core (B1), auth sebenar (B2), panel owner (B3), katalog & inventori vendor (B4), kit sekolah (B5)
+**Session terakhir siap:** B5 — Kit keperluan sekolah
+**Session seterusnya:** **B6 — Store ibu bapa: daftar, anak, katalog, kit, troli**
 
 Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 
@@ -40,7 +40,7 @@ Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 | B2 | Auth owner, vendor, ibu bapa + 2FA + throttle | ✅ | 26 Okt 2026 | `847ea89` | 38 endpoint `api/v1/`, 39 job, 13 kelas core baharu, sesi sebenar semua panel & store, `tools/verify-b2.php` 94/94 lulus |
 | B3 | Owner: pelan, harga koperasi, modul, template, vendor | ✅ | 26 Okt 2026 | `764f4c7` | 32 endpoint owner, 33 job + 3 pembantu, `CalculateCoopPriceJob`, owner_staff 403 di pelayan, `tools/verify-b3.php` 101/101 lulus |
 | B4 | Vendor: koperasi, produk, kategori, varian, inventori, pembekal | ✅ | 26 Okt 2026 | `64290c1` | 36 endpoint vendor, 37 job + 7 pembantu, `core/Uploader`, `StockLedger` (stok dalam transaksi), PO & stock take, `tools/verify-b4.php` 118/118 lulus |
-| B5 | Kit keperluan sekolah | ⬜ | | | |
+| B5 | Kit keperluan sekolah | ✅ | 26 Okt 2026 | `8ab4bf5` | 7 endpoint `vendor/kits/*`, 7 job + pembantu `SchoolKits` (`findPublished` untuk store), harga kit dari harga semasa, `tools/verify-b5.php` 59/59 lulus |
 | B6 | Store ibu bapa: daftar, anak, katalog, kit, troli | ⬜ | | | |
 | B7 | Checkout tunai, pesanan, queue e-mel | ⬜ | | | |
 | B8 | Payment gateway + webhook | ⬜ | | | |
@@ -748,6 +748,46 @@ Tertangguh / peralihan:
 - Mock kit (B5), store (B6), pesanan & serah (B9), POS (B10), add-on (B13) masih memakai produk/koperasi mock (`MockVendor`, id tidak sepadan DB)
 - `vendor/settings/*` → B9. Produk dalam pesanan/POS sebenar menolak/menahan stok melalui `StockLedger` (B7, B9, B10)
 - Pratonton harga koperasi baharu dikira, tetapi invois/prorata sebenar → B12
+
+### B5 — Kit keperluan sekolah (26 Okt 2026)
+
+Dibuat:
+- **Job (`jobs/SchoolKit/`, 7 + pembantu):** `ListKitsJob`, `GetKitJob`, `SaveKitJob`, `PublishKitJob` (set-published), `DeleteKitJob`,
+  `CopyKitFromYearJob`, `ListKitProductOptionsJob` + `SchoolKits` (find, summaries/detail dengan harga semasa, `findPublished` untuk store B6,
+  `yearAllowed`)
+- **API (7 fail, tiada SQL):** `vendor/kits/{list,get,product-options,save,set-published,delete,copy-year}` — semua `PANEL_ROLES` +
+  `VendorAuth::requireCooperative()`; POST dengan CSRF
+- **`api.js`:** `vendor/kits/` ditambah ke `Api.livePrefixes`; `Mock.register('vendor/kits/*')`, `mockKitSummary`, `mockFindKit` dibuang dari
+  `mock/vendor-orders.js` (data contoh `MockOrders.kits` kekal untuk mock `store/kit` — B6); `Mock.storageVersion` → v9; `asset_version` → 6
+- 5 kunci bahasa baharu × 4 (`kit.delete_has_orders`, `activity.action.kit_save|kit_unpublish|kit_delete|kit_copy`) — jumlah 1810
+- `tools/verify-b5.php` (59 semakan HTTP sebenar; jadual kit, produk, varian, troli & log aktiviti dipulihkan di hujung)
+
+Disahkan (MariaDB 10.11, PHP 8.3, pemasangan baharu schema + seed — `verify-b5` **59 lulus, 0 gagal**; `verify-b4` 118/118; `verify-b3` 101/101;
+`verify-b2` 94/94; `verify-b1` 42/42; `check-ui` OK; Playwright: grid kit 2027 (D1 RM 69.30 / wajib RM 67.30 dari DB), cipta kit D2 → simpan draf →
+terbit → tarik balik → padam — 0 ralat konsol):
+- **Kebocoran VENDOR01 ↔ VENDOR02:** kit V01 diminta V02 (koperasi V01 atau koperasi sendiri) → 404; `cooperative_id` vendor lain / `'2 OR 1=1'`
+  → 404; set-published, delete, save dengan id kit V01, copy-year ke koperasi V01 → ditolak dan data tidak berubah; `vendor_id` dalam input
+  diabaikan; pengurus Chung Hwa → koperasi 3 404
+- **Kit hanya produk koperasi yang sama:** produk V02 dalam kit V01, produk V01 dalam kit V02, produk koperasi 2 dalam kit koperasi 3 (vendor
+  sama) → semua ditolak; varian produk lain, varian pada produk biasa, kuantiti 0/pecahan, produk tiada / tidak aktif, item pendua → ditolak
+- **Kit draf tidak kelihatan di store:** `SchoolKits::findPublished` memulangkan kit diterbitkan sahaja; tarik balik → hilang; koperasi lain tidak nampak
+- Harga: jumlah dikira pelayan (`unit_price`/`total_price` dalam input diabaikan); tukar harga produk → jumlah kit berubah serta-merta; item tidak
+  aktif tidak dikira; darjah ikut jenis sekolah (T1 untuk SK ditolak); darjah+tahun pendua → `kit.duplicate`; nama Cina/Tamil utf8mb4
+- Sunting: susunan baharu disimpan, id item produk+varian sama dikekalkan, item yang dibuang dipadam; padam kit diterbitkan ditolak, draf → kit & item dibuang
+- Salin 2027 → 2028: 3 kit disalin sebagai draf, item produk tidak aktif dibuang, salin semula → semua dilangkau
+- **Kebocoran ibu bapa A ↔ B:** sesi ibu bapa → semua API kit 401, tiada kit dicipta. Juruwang → 403. POST tanpa CSRF → 419; GET ke POST → 405
+
+Keputusan kecil (dicatat dalam PELAN 18.3, 18.9, 18.14):
+- `get`, `set-published`, `delete` juga menerima & mengesahkan `cooperative_id` (UI sudah menghantarnya melalui `withCoop`) — skop lebih ketat dari indeks U7
+- Jumlah kit hanya mengira item aktif (yang ibu bapa nampak); `item_count` = semua item supaya vendor sedar item tidak aktif
+- Item hanya produk/varian aktif; produk+varian tidak boleh berulang dalam satu kit (kuantiti mengawal bilangan)
+- Tahun yang boleh disimpan/disalin: tahun semasa −1 hingga +2 (musim pre-order bermula Okt–Dis; PELAN 16.13)
+- Terbit memerlukan ≥ 1 item aktif; "Simpan draf" pada kit diterbitkan menjadikannya draf (ikut kontrak mock `publish`)
+- Padam kit yang sudah ada dalam pesanan ditolak (sejarah); baris troli kit yang dipadam dibuang bersama
+
+Tertangguh / peralihan:
+- Paparan kit di store (`store/kit`, `store/cart/add-kit`) masih mock `MockOrders.kits` → B6 (guna `SchoolKits::findPublished` + `SchoolKits::items`)
+- Item kit dengan produk yang kemudian dinyahaktif tidak boleh dipilih semula dalam borang (pilihan produk aktif sahaja) — vendor buang/ganti item itu
 
 ---
 

@@ -828,6 +828,7 @@ return [
     'kit.unpublished_toast'          => 'Kit moved back to draft.',
     'kit.delete_confirm'             => 'Delete this draft kit?',
     'kit.delete_published'           => 'Published kits cannot be deleted. Unpublish first.',
+    'kit.delete_has_orders'          => 'This kit is already used in orders and cannot be deleted. Keep it as a draft.',
     // Pesanan
     'order.order'                    => 'Order',
     'order.detail_title'             => 'Order details',
@@ -1257,6 +1258,10 @@ return [
     'activity.action.stock_adjust'         => 'Adjusted stock',
     'activity.action.po_receive'           => 'Received PO goods',
     'activity.action.kit_publish'          => 'Published a school kit',
+    'activity.action.kit_save'             => 'Saved a school kit',
+    'activity.action.kit_unpublish'        => 'Unpublished a school kit',
+    'activity.action.kit_delete'           => 'Deleted a school kit',
+    'activity.action.kit_copy'             => 'Copied last year\'s kits',
     'activity.action.promotion_save'       => 'Saved a promotion',
     'activity.action.promotion_delete'     => 'Deleted a promotion',
     'activity.action.staff_save'           => 'Saved staff',

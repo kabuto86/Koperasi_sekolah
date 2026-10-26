@@ -17,6 +17,7 @@ var Api = {
         'vendor/auth/', 'vendor/session/', 'vendor/staff/',
         'vendor/cooperatives/', 'vendor/templates/', 'vendor/modules/', 'vendor/grades/', 'vendor/classes/', 'vendor/categories/',
         'vendor/products/', 'vendor/inventory/', 'vendor/suppliers/', 'vendor/purchase-orders/', 'vendor/stock-takes/', 'vendor/dashboard/',
+        'vendor/kits/',
         'store/auth/', 'store/profile/', 'store/session'
     ],
 

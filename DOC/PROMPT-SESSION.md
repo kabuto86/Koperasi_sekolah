@@ -49,11 +49,13 @@ Setiap prompt di bawah bermula dengan "Ikut peraturan umum". Maksudnya:
    Sejak B1: skema sebenar = `database/schema.sql` (75 jadual, PELAN 9 J); lajur baharu → fail `database/migrations/NNN-nama.sql`
    **dan** kemas kini `schema.sql` + PELAN 9. Konvensyen job & core dalam PELAN 10.2 (constructor menerima id dari sesi + input, `run()`,
    `Database::fetchOne/fetchAll/execute/insert`, `Response::ok/fail/notFound`). Data demo & akaun: kepala `database/seed.sql`.
-   Semakan asas sebelum commit: `php tools/verify-b1.php` + `verify-b2.php` + `verify-b3.php` + `verify-b4.php` (mesti 0 gagal) + `php tools/check-ui.php`; tambah skrip semakan
+   Semakan asas sebelum commit: `php tools/verify-b1.php` + `verify-b2.php` + `verify-b3.php` + `verify-b4.php` + `verify-b5.php` (mesti 0 gagal) + `php tools/check-ui.php`; tambah skrip semakan
    session sendiri `tools/verify-bN.php` dengan ujian kebocoran VENDOR01↔VENDOR02 dan ibu bapa A↔B (contoh HTTP sebenar: kelas `Browser`
    dalam `tools/test-helpers.php` sejak B3 — pelayan `php -S` sendiri, cookie, CSRF; `require __DIR__ . '/test-helpers.php'`).
    Sejak B4: skop koperasi melalui `VendorAuth::requireCooperative()`; stok HANYA melalui `StockLedger::move()` dalam transaksi DB;
    gambar melalui `core/Uploader` (data URL dari borang) — PELAN 10.2 "Konvensyen B4".
+   Sejak B5: kit sekolah dalam `jobs/SchoolKit/` (`SchoolKits` pembantu); store mesti guna `SchoolKits::findPublished()` (draf tidak
+   pernah kelihatan); harga kit sentiasa dikira dari harga semasa produk — PELAN 18.9 "B5 (sebenar)".
    Sejak B2: endpoint ikut konvensyen PELAN 10.2 (`Request::requireMethod` → `XAuth::requireRole/requireLogin` → `Csrf::verifyRequest` →
    job yang melempar `ValidationException`). Bila modul siap: **tambah awalan laluan ke `Api.livePrefixes`** (`assets/js/api.js`), buang
    `Mock.register` laluan itu, dan tanda `— (Bn)` dalam PELAN 18.14. Halaman panel sudah dilindungi sesi (`requirePage`); akaun demo:
@@ -336,7 +338,7 @@ Peralihan: mock vendor masih `MockVendor.sessionVendorId = 1` — selepas B4 hal
 > `templates/options` & `modules/active`); `core/Uploader`, `jobs/Billing/PlanLimit`, `StockLedger`; `tools/verify-b4.php`.
 > `vendor/settings/*` DITANGGUH ke B9 (skrin serah/POS mock masih membaca tetapan mock). Seed: contoh PO-2026-0001 & stock take selesai.
 
-## B5 — Kit keperluan sekolah
+## B5 — Kit keperluan sekolah ✅ (26 Okt 2026 — lihat PROSES.md)
 
 ```
 Ikut peraturan umum. Session: B5. Prasyarat: B4 ✅.
@@ -344,6 +346,9 @@ Baca DOC/PELAN.md bahagian 5.2 (6), 9 (E), 16 (perkara 7).
 Job: ListKitsJob, GetKitJob, SaveKitJob, CopyKitFromYearJob, PublishKitJob.
 Sahkan: kit hanya boleh mengandungi produk koperasi yang sama; kit draf tidak kelihatan di store.
 ```
+> Hasil B5: 7 endpoint `vendor/kits/*` sebenar; 7 job + pembantu `SchoolKits` (`findPublished` untuk store B6) + `ListKitProductOptionsJob`;
+> id item kit kekal semasa sunting (rujukan troli B6); padam kit draf ditolak jika ada pesanan; `tools/verify-b5.php`.
+> Mock `MockOrders.kits` kekal untuk `store/kit` sehingga B6.
 
 ## B6 — Store ibu bapa: anak, katalog, kit, troli
 
@@ -353,7 +358,7 @@ Baca DOC/PELAN.md bahagian 5.4, 8.5, 10.5.
 store/index.php: slug → koperasi → template (jatuh balik template1) → halaman.
 Job: SearchSchoolsJob, ListChildrenJob, SaveChildJob, StoreCatalogJob, StoreProductJob,
 StoreKitForChildJob (kit ikut darjah anak & tahun semasa), cart: AddToCartJob,
-AddKitToCartJob (terima senarai item yang masih ditanda), UpdateCartItemJob, GetCartJob
+AddKitToCartJob (terima senarai item yang masih ditanda; kit melalui `SchoolKits::findPublished()` — B5), UpdateCartItemJob, GetCartJob
 (harga dikira semula di pelayan, ikut anak).
 Ujian: ibu bapa A tidak boleh tambah item untuk anak ibu bapa B; harga dari browser diabaikan.
 Sejak B2: akaun & `store/session` sudah sebenar (`GetStoreSessionJob` sudah kira troli & sekolah anak dari DB). Buang jambatan
