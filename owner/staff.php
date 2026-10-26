@@ -5,7 +5,7 @@ require __DIR__ . '/../core/bootstrap.php';
 $pageTitle = t('menu.owner_staff');
 $activeMenu = 'menu.owner_staff';
 $pageActions = [['id' => 'btn-add-staff', 'label' => t('staff.add'), 'icon' => 'bi-person-plus']];
-$pageScripts = [View::asset('js/owner/staff.js')];
+$pageScripts = [View::asset('js/permission-editor.js'), View::asset('js/owner/staff.js')];
 require __DIR__ . '/_layout/header.php';
 ?>
 <div class="card border-0 shadow-sm">
@@ -65,4 +65,5 @@ require __DIR__ . '/_layout/header.php';
         </form>
     </div>
 </div>
+<?php View::partial('partials/permission-modal.php'); ?>
 <?php require __DIR__ . '/_layout/footer.php'; ?>

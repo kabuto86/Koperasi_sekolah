@@ -1,6 +1,6 @@
 <?php
 // Kakitangan vendor untuk sesi semasa: aktif, vendor sama seperti semasa log masuk, + status vendor
-// dan senarai koperasi yang dibenarkan (bukan pentadbir). null = sesi tidak sah lagi.
+// dan senarai koperasi yang dibenarkan (bukan pentadbir) + kebenaran sebenar (B3b). null = sesi tidak sah lagi.
 class LoadVendorSessionJob
 {
     private $userId;
@@ -38,6 +38,7 @@ class LoadVendorSessionJob
             );
             $row['cooperative_ids'] = array_map('intval', array_column($ids, 'cooperative_id'));
         }
+        $row['permissions'] = (new LoadUserPermissionsJob('vendor', $row['id'], $row['role']))->run();
         return $row;
     }
 }

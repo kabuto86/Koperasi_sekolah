@@ -1,9 +1,9 @@
 <?php
-// Papan pemuka owner (owner & owner_staff).
+// Papan pemuka owner.
 require __DIR__ . '/../../../../core/bootstrap.php';
 
 Request::requireMethod('GET');
-OwnerAuth::requireRole(['owner', 'owner_staff']);
+OwnerAuth::requirePermission('dashboard.view');
 
 $job = new GetOwnerDashboardJob();
 Response::ok($job->run());

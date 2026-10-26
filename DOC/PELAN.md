@@ -85,6 +85,9 @@ cookie demo `mock_role` (dibuang dalam B2). **Sejak B2:** `PanelRole::current()`
 `_layout/header.php` & `pos-header.php` memanggil `OwnerAuth::requirePage($activeMenu)` / `VendorAuth::requirePage($activeMenu)` sebelum
 output — belum log masuk → `login.php`; menu tidak dibenarkan (`PanelRole::canOpen`, ikut `'roles'` item menu yang sama `key` dengan
 `$activeMenu`; `module.*` = admin & pengurus) → halaman pertama yang dibenarkan (`PanelRole::firstPage`). API: `requireRole([...])` → 403.
+**Sejak B3b:** `'roles'` diganti `'permission'` (kod kebenaran, 4.1); `PanelRole::filterMenu/canOpen/firstPage` menerima senarai kebenaran
+sesi (`OwnerAuth::permissions()` / `VendorAuth::permissions()`); `module.*` = `module.use`. Vendor tanpa sebarang menu → log keluar,
+`vendor/login.php?reason=no_access`; owner tanpa menu → `owner/profile.php`. API: `requirePermission('kod' | ['kod', …])` (cukup salah satu) → 403.
 
 Owner: `owner_staff` nampak papan pemuka, vendor, koperasi, langganan & invois, log audit sahaja; selebihnya `owner` sahaja.
 **Sejak B3** API menguatkuasakan perkara sama (senarai laluan dalam 18.14); `owner_staff` boleh menambah nota vendor tetapi tidak boleh
@@ -96,6 +99,48 @@ menggantung / mengaktifkan vendor (butang tidak dipapar, API 403).
 | Serah barang, POS kaunter | ✔ | ✔ | ✔ |
 | Refund, promosi, laporan, log aktiviti, modul add-on | ✔ | ✔ | — |
 | Bayaran (gateway), kakitangan, tetapan, langganan & bil | ✔ | — | — |
+
+### 4.1 Kebenaran ikut pengguna (B3b — keputusan pengguna 26 Okt 2026)
+
+Peranan di atas kekal sebagai **lalai**. Pentadbir boleh **menambah atau menarik** kebenaran untuk seorang kakitangan
+(pengecualian ikut pengguna). Tiada "cipta peranan sendiri". Berlaku untuk **vendor dan owner**; ibu bapa tidak.
+
+- Kebenaran = **modul + tindakan** (bukan ikut endpoint). Katalog, lalai peranan & had dalam `core/Permission.php`
+- Disimpan hanya **pengecualian**: `vendor_user_permissions` / `platform_user_permissions` (user, permission, allowed 0/1)
+- Kebenaran sebenar = lalai peranan + pengecualian `allowed=1` − pengecualian `allowed=0`
+- `vendor_admin` dan `owner` **sentiasa semua kebenaran** — tidak boleh disunting (elak vendor/platform terkunci)
+- **Had (tidak boleh diberi kepada peranan lain):** vendor — `payment.manage`, `staff.manage`, `settings.manage`, `subscription.manage`;
+  owner — `staff.manage`, `settings.manage`, `gateway.manage`
+- Tukar peranan kakitangan → pengecualian dibuang (kembali ke lalai peranan baharu). Tidak boleh sunting kebenaran diri sendiri
+- Skop data tidak berubah: `vendor_id` dari sesi, koperasi ikut `vendor_user_cooperatives`
+- Penguatkuasaan: endpoint `VendorAuth::requirePermission('kod')` / `OwnerAuth::requirePermission('kod')` (403); menu item ada
+  `'permission'` (ganti `'roles'`); `requirePage()` menyemak kebenaran yang sama. Perubahan kebenaran direkod (`activity_logs` / `audit_logs`)
+
+**Kebenaran vendor** (lalai: ✔ pengurus `coop_manager` · ✔ juruwang `cashier`):
+
+| Kumpulan | Kod | Menu / tindakan | Pengurus | Juruwang |
+|---|---|---|---|---|
+| Utama | `dashboard.view` | Papan pemuka | ✔ | — |
+| | `cooperative.view` · `cooperative.manage` | Koperasi saya · sunting koperasi | ✔ · ✔ | — |
+| Katalog | `product.view` · `product.manage` | Produk · tambah/sunting produk | ✔ · ✔ | — |
+| | `inventory.view` · `inventory.adjust` | Inventori · laras stok, PO, stock take | ✔ · ✔ | — |
+| | `supplier.manage` · `kit.manage` | Pembekal · kit sekolah | ✔ · ✔ | — |
+| Jualan | `order.view` · `order.manage` | Pesanan · ubah status / batal | ✔ · ✔ | — |
+| | `handover.process` | Serah barang | ✔ | ✔ |
+| | `pos.sell` · `pos.discount` | POS kaunter · diskaun manual | ✔ · ✔ | ✔ · ✔ |
+| | `customer.view` | Ibu bapa | ✔ | — |
+| Kewangan | `refund.manage` · `promotion.manage` | Refund · promosi | ✔ · ✔ | — |
+| | `report.view` · `report.export` | Laporan · eksport CSV | ✔ · ✔ | — |
+| Pentadbiran | `activity_log.view` · `module.use` | Log aktiviti · halaman modul add-on | ✔ · ✔ | — |
+| (admin sahaja) | `payment.manage` · `staff.manage` · `settings.manage` · `subscription.manage` | Bayaran · kakitangan · tetapan · langganan | had | had |
+
+**Kebenaran owner** (lalai `owner_staff`): ✔ `dashboard.view`, `vendor.view`, `vendor.note`, `cooperative.view`, `subscription.view`,
+`audit.view` · — `vendor.status`, `plan.manage` (pelan & harga koperasi), `module.manage`, `template.manage`, `invoice.manage`,
+`translation.manage`, `grade.manage`, `email_template.manage`, `announcement.manage` · had: `gateway.manage`, `settings.manage`, `staff.manage`
+
+API kebenaran (B3b): `{owner|vendor}/staff/permissions {id}` (GET) → `{ user: { id, full_name, role }, editable, groups: [{ key, items:
+[{ code, allowed, default, locked }] }] }` · `{owner|vendor}/staff/save-permissions { id, permissions: ['kod', …] }` (POST) — pelayan
+menyimpan beza dengan lalai sahaja; kod `locked` / tidak dikenali diabaikan. Kosongkan semua pengecualian = `reset: true`.
 
 ## 5. Modul
 
@@ -422,7 +467,7 @@ Nama, harga dan maklumat anak **disalin** (snapshot) ke pesanan dan invois.
 
 Jumlah: **69 jadual** (U6: + `messaging_settings`).
 
-### J. Tambahan B1 — jadual yang diperlukan oleh kontrak UI (PELAN 18) · jumlah sebenar **75 jadual** (B2: **76**)
+### J. Tambahan B1 — jadual yang diperlukan oleh kontrak UI (PELAN 18) · jumlah sebenar **75 jadual** (B2: **76**, B3b: **78**)
 
 `database/schema.sql` ialah sumber kebenaran lajur. Tambahan berbanding senarai A–I di atas:
 
@@ -446,6 +491,7 @@ Jumlah: **69 jadual** (U6: + `messaging_settings`).
 | `platform_settings`: `smtp_password_enc`, `owner_gateway_code / mode / config / secrets_enc` | rahsia owner disulitkan (`Crypto`) |
 | **B2** `platform_user_tokens` — platform_user_id, type ENUM(invite, reset_password), token_hash, expires_at, used_at (`migrations/001`) | jemputan kakitangan owner (`staff.invite_note`) & lupa kata laluan owner |
 | **B2** `platform_users.totp_last_step` · `vendor_users.totp_last_step` | kod TOTP yang sudah diterima tidak boleh diguna semula |
+| **B3b** `platform_user_permissions` (platform_user_id, permission, allowed, updated_by) · `vendor_user_permissions` (vendor_id, vendor_user_id, permission, allowed, updated_by) — `migrations/002` | pengecualian kebenaran ikut pengguna (4.1) |
 
 Konvensyen lajur: wang `INT` sen; `variant_id = 0` bermaksud tiada varian (stok, pesanan, troli), kecuali
 `school_kit_items.variant_id NULL` = ibu bapa pilih varian; tarikh `DATETIME` waktu Malaysia (`+08:00`); JSON dalam `TEXT` (`*_json`).
@@ -464,7 +510,7 @@ Koperasi_sekolah/
 │                   Database · Request · Response · Validator · Csrf · Lang (+ t(), e()) · ValidationException (B2)
 │                   OwnerAuth · VendorAuth · CustomerAuth · Session · Password · Totp · RateLimit (B2) · ApiTokenAuth
 │                   PhoneNumber · IsoDate · Pagination (B2) · PanelRole (U7, sesi sejak B2)
-│                   Crypto (sodium) · ModuleAccess · PlanLimit · Mailer · Uploader · View · SecurityHeaders
+│                   Crypto (sodium) · ModuleAccess · PlanLimit · Mailer · Uploader · View · SecurityHeaders · Permission (katalog kebenaran — B3b)
 ├── jobs/           SATU KELAS = SATU KERJA
 │   ├── Auth/ Owner/ Vendor/ Cooperative/ Plan/ Billing/ Module/ Template/
 │   ├── Product/ Inventory/ Supplier/ Promotion/ SchoolKit/
@@ -1347,7 +1393,7 @@ vendor) → `booked--`. **Lencana "Jualan murah"** (sedia sejak U5) kini dari `M
 ### 18.14 Indeks laluan API lengkap (U7) — spesifikasi backend
 
 Senarai **semua** laluan yang didaftar dalam `assets/js/mock/*.js` (214 laluan, dijana dari kod mock pada U7; B2 menambah 9 laluan auth
-— jumlah **223**; B3 menambah `owner/plans/options` — **224**). Lajur Mock `— (B2)` / `— (B3)` = sudah sebenar (`api/v1/`), mock dibuang. Bentuk `data` setiap laluan
+— jumlah **223**; B3 menambah `owner/plans/options` — **224**; B3b menambah 4 laluan kebenaran — **228**). Lajur Mock `— (B2)` / `— (B3)` = sudah sebenar (`api/v1/`), mock dibuang. Bentuk `data` setiap laluan
 ada dalam 18.4–18.13; jadual ini ialah senarai semak Peringkat 2 — setiap baris mesti menjadi `api/v1/{laluan}.php` (nipis, tiada SQL)
 yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan CSRF, B14).
 
@@ -1361,6 +1407,8 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 - `awam + slug` — sekolah dari slug (koperasi aktif sahaja); `ibu bapa (sesi)` — `customer_id` dari sesi/token sahaja
 - Peranan vendor (B2): laluan kewangan/kakitangan/langganan hanya `vendor_admin`; juruwang hanya `vendor/pos/*`, `vendor/handover/*`
   dan bacaan yang diperlukan oleh skrin itu (lihat jadual peranan dalam PELAN 4)
+- **Sejak B3b:** skop peranan di atas ialah **lalai**; setiap endpoint panel menyemak kod kebenaran (`requirePermission`, PELAN 4.1) —
+  laluan B4 dan seterusnya pilih kod dari jadual 4.1 (cth. `vendor/products/save` → `product.manage`, `vendor/refunds/*` → `refund.manage`)
 
 **owner/** 
 
@@ -1406,6 +1454,8 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 | `owner/staff/reset-2fa` | POST | owner | B2 | — (B2) |
 | `owner/staff/save` | POST | owner | B2 | — (B2) |
 | `owner/staff/set-active` | POST | owner | B2 | — (B2) |
+| `owner/staff/permissions` | GET | owner (`staff.manage`) | B3b | — (baharu B3b) |
+| `owner/staff/save-permissions` | POST | owner (`staff.manage`) | B3b | — (baharu B3b) |
 | `owner/subscriptions/list` | GET | owner | B12 | `owner.js` |
 | `owner/templates/list` | GET | owner | B3 | — (B3) |
 | `owner/templates/save` | POST | owner | B3 | — (B3) |
@@ -1581,6 +1631,8 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 | `vendor/staff/save` | POST | vendor sesi | B2 | — (B2) |
 | `vendor/staff/send-reset` | POST | vendor sesi | B2 | — (B2) |
 | `vendor/staff/set-active` | POST | vendor sesi | B2 | — (B2) |
+| `vendor/staff/permissions` | GET | vendor sesi (`staff.manage`; kakitangan vendor lain → 404) | B3b | — (baharu B3b) |
+| `vendor/staff/save-permissions` | POST | vendor sesi (`staff.manage`; kakitangan vendor lain → 404) | B3b | — (baharu B3b) |
 | `vendor/stock-takes/complete` | POST | vendor sesi | B11 | `vendor.js` |
 | `vendor/stock-takes/get` | GET | vendor sesi | B11 | `vendor.js` |
 | `vendor/stock-takes/list` | GET | vendor sesi + koperasi | B11 | `vendor.js` |

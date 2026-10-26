@@ -1,9 +1,9 @@
 <?php
-// Tambah / sunting pelan (owner sahaja).
+// Tambah / sunting pelan.
 require __DIR__ . '/../../../../core/bootstrap.php';
 
 Request::requireMethod('POST');
-OwnerAuth::requireRole(['owner']);
+OwnerAuth::requirePermission('plan.manage');
 Csrf::verifyRequest();
 
 $job = new SavePlanJob(OwnerAuth::id(), Request::all());

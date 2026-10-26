@@ -83,6 +83,31 @@ class VendorAuth
         }
     }
 
+    // Kebenaran sebenar (lalai peranan ± pengecualian — PELAN 4.1)
+    public static function permissions()
+    {
+        $user = self::user();
+        return $user ? $user['permissions'] : [];
+    }
+
+    // $codes = satu kod atau senarai (cukup salah satu)
+    public static function can($codes)
+    {
+        return count(array_intersect((array) $codes, self::permissions())) > 0;
+    }
+
+    // API: tiada kebenaran → 403. $allowBillingOnly seperti requireRole
+    public static function requirePermission($codes, $allowBillingOnly = false)
+    {
+        self::requireLogin();
+        if (!self::can($codes)) {
+            Response::forbidden();
+        }
+        if (!$allowBillingOnly && self::isBillingOnly()) {
+            Response::fail(t('auth.vendor_suspended'), [], 403, ['billing_only' => true]);
+        }
+    }
+
     // API. $allowBillingOnly = true hanya untuk laluan bil/langganan/log keluar
     public static function requireRole(array $roles, $allowBillingOnly = false)
     {
@@ -108,9 +133,20 @@ class VendorAuth
             }
             Session::redirect('vendor/subscription.php');
         }
-        if (!PanelRole::canOpen('vendor', self::role(), $activeMenu)) {
-            Session::redirect(PanelRole::firstPage('vendor', self::role()));
+        if (!PanelRole::canOpen('vendor', self::permissions(), $activeMenu)) {
+            self::redirectFirstPage();
         }
+    }
+
+    // Halaman pertama yang dibenarkan; kakitangan tanpa sebarang kebenaran menu → log keluar dengan notis
+    public static function redirectFirstPage()
+    {
+        $url = PanelRole::firstPage('vendor', self::permissions());
+        if ($url === null) {
+            self::logout();
+            Session::redirect('vendor/login.php?reason=no_access');
+        }
+        Session::redirect($url);
     }
 
     // Langkah 1 berjaya tetapi pengguna ada 2FA

@@ -1,9 +1,9 @@
 <?php
-// Senarai template frontend (owner sahaja).
+// Senarai template frontend.
 require __DIR__ . '/../../../../core/bootstrap.php';
 
 Request::requireMethod('GET');
-OwnerAuth::requireRole(['owner']);
+OwnerAuth::requirePermission('template.manage');
 
 $job = new ListTemplatesJob();
 Response::ok($job->run());

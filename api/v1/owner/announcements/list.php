@@ -1,9 +1,9 @@
 <?php
-// Senarai pengumuman vendor (owner sahaja).
+// Senarai pengumuman vendor.
 require __DIR__ . '/../../../../core/bootstrap.php';
 
 Request::requireMethod('GET');
-OwnerAuth::requireRole(['owner']);
+OwnerAuth::requirePermission('announcement.manage');
 
 $job = new ListAnnouncementsJob(Request::all());
 Response::ok($job->run());

@@ -5,7 +5,7 @@ require __DIR__ . '/../core/bootstrap.php';
 $pageTitle = t('menu.staff');
 $activeMenu = 'menu.staff';
 $pageActions = [['id' => 'btn-add-staff', 'label' => t('staff.add'), 'icon' => 'bi-person-plus']];
-$pageScripts = [View::asset('js/vendor/staff.js')];
+$pageScripts = [View::asset('js/permission-editor.js'), View::asset('js/vendor/staff.js')];
 $vendorRoles = ['vendor_admin', 'coop_manager', 'cashier'];
 require __DIR__ . '/_layout/header.php';
 ?>
@@ -116,4 +116,5 @@ require __DIR__ . '/_layout/header.php';
         </form>
     </div>
 </div>
+<?php View::partial('partials/permission-modal.php'); ?>
 <?php require __DIR__ . '/_layout/footer.php'; ?>

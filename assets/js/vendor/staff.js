@@ -57,6 +57,12 @@ function staffActions(row) {
     wrap.appendChild(createButton('', 'btn-outline-secondary', 'bi-envelope', function () {
         sendReset(row);
     }, T('staff_v.send_reset')));
+    // Kebenaran: bukan pentadbir (sentiasa semua) & bukan diri sendiri (PELAN 4.1)
+    if (row.role !== 'vendor_admin' && !row.is_self) {
+        wrap.appendChild(createButton('', 'btn-outline-secondary', 'bi-shield-lock', function () {
+            PermissionEditor.open('vendor', row, loadStaff);
+        }, T('permission.title')));
+    }
     if (!row.is_self) {
         wrap.appendChild(createButton('', row.is_active ? 'btn-outline-danger' : 'btn-outline-success', row.is_active ? 'bi-person-slash' : 'bi-person-check', function () {
             setActive(row, !row.is_active);

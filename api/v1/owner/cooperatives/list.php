@@ -1,9 +1,9 @@
 <?php
-// Semua koperasi semua vendor — baca sahaja (owner & owner_staff).
+// Semua koperasi semua vendor — baca sahaja.
 require __DIR__ . '/../../../../core/bootstrap.php';
 
 Request::requireMethod('GET');
-OwnerAuth::requireRole(['owner', 'owner_staff']);
+OwnerAuth::requirePermission('cooperative.view');
 
 $job = new ListAllCooperativesJob(Request::all());
 Response::ok($job->run());

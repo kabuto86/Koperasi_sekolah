@@ -28,6 +28,12 @@ function staffActions(person) {
     wrap.appendChild(createButton('', 'btn-outline-secondary', 'bi-pencil', function () {
         openStaffForm(person);
     }, T('btn.edit')));
+    // Kebenaran: owner_staff sahaja — owner sentiasa semua (PELAN 4.1)
+    if (person.role === 'owner_staff') {
+        wrap.appendChild(createButton('', 'btn-outline-secondary', 'bi-shield-lock', function () {
+            PermissionEditor.open('owner', person, loadStaff);
+        }, T('permission.title')));
+    }
     if (person.totp_enabled) {
         wrap.appendChild(createButton('', 'btn-outline-secondary', 'bi-shield-x', function () {
             staffAction('owner/staff/reset-2fa', { id: person.id }, T('staff.reset_2fa_confirm', { name: person.full_name }), T('staff.reset_2fa'));

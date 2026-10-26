@@ -1,9 +1,9 @@
 <?php
-// Senarai pelan dengan harga (owner sahaja).
+// Senarai pelan dengan harga.
 require __DIR__ . '/../../../../core/bootstrap.php';
 
 Request::requireMethod('GET');
-OwnerAuth::requireRole(['owner']);
+OwnerAuth::requirePermission('plan.manage');
 
 $job = new ListPlansJob();
 Response::ok($job->run());

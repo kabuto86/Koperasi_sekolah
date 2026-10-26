@@ -1,9 +1,9 @@
 <?php
-// Padam pengumuman (owner sahaja).
+// Padam pengumuman.
 require __DIR__ . '/../../../../core/bootstrap.php';
 
 Request::requireMethod('POST');
-OwnerAuth::requireRole(['owner']);
+OwnerAuth::requirePermission('announcement.manage');
 Csrf::verifyRequest();
 
 $job = new DeleteAnnouncementJob(OwnerAuth::id(), Request::int('id', 0));

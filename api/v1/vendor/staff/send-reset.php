@@ -3,7 +3,7 @@
 require __DIR__ . '/../../../../core/bootstrap.php';
 
 Request::requireMethod('POST');
-VendorAuth::requireRole(VendorAuth::ADMIN_ROLES);
+VendorAuth::requirePermission('staff.manage');
 Csrf::verifyRequest();
 
 $job = new SendStaffResetJob(VendorAuth::vendorId(), VendorAuth::id(), Request::int('id'));

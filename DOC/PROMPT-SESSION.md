@@ -49,9 +49,10 @@ Setiap prompt di bawah bermula dengan "Ikut peraturan umum". Maksudnya:
    Sejak B1: skema sebenar = `database/schema.sql` (75 jadual, PELAN 9 J); lajur baharu → fail `database/migrations/NNN-nama.sql`
    **dan** kemas kini `schema.sql` + PELAN 9. Konvensyen job & core dalam PELAN 10.2 (constructor menerima id dari sesi + input, `run()`,
    `Database::fetchOne/fetchAll/execute/insert`, `Response::ok/fail/notFound`). Data demo & akaun: kepala `database/seed.sql`.
-   Semakan asas sebelum commit: `php tools/verify-b1.php` + `verify-b2.php` + `verify-b3.php` (mesti 0 gagal) + `php tools/check-ui.php`; tambah skrip semakan
+   Semakan asas sebelum commit: `php tools/verify-b1.php` + `verify-b2.php` + `verify-b3.php` + `verify-b3b.php` (mesti 0 gagal) + `php tools/check-ui.php`; tambah skrip semakan
    session sendiri `tools/verify-bN.php` dengan ujian kebocoran VENDOR01↔VENDOR02 dan ibu bapa A↔B (contoh HTTP sebenar: kelas `Browser`
    dalam `tools/test-helpers.php` sejak B3 — pelayan `php -S` sendiri, cookie, CSRF; `require __DIR__ . '/test-helpers.php'`).
+   Sejak B3b: endpoint panel guna `XAuth::requirePermission('kod')` (PELAN 4.1) — kod baharu ditambah ke `core/Permission.php` + 4 bahasa.
    Sejak B2: endpoint ikut konvensyen PELAN 10.2 (`Request::requireMethod` → `XAuth::requireRole/requireLogin` → `Csrf::verifyRequest` →
    job yang melempar `ValidationException`). Bila modul siap: **tambah awalan laluan ke `Api.livePrefixes`** (`assets/js/api.js`), buang
    `Mock.register` laluan itu, dan tanda `— (Bn)` dalam PELAN 18.14. Halaman panel sudah dilindungi sesi (`requirePage`); akaun demo:
@@ -317,6 +318,26 @@ Sahkan: owner_staff ditolak untuk harga & tetapan (403).
 > Hasil B3: 32 endpoint owner sebenar (langganan/invois kekal mock → B12, terjemahan → B14); laluan baharu `owner/plans/options`
 > (tapisan vendor untuk owner_staff); `tools/verify-b3.php` + `tools/test-helpers.php` (kelas `Browser` dikongsi); seed templat e-mel,
 > nota vendor & pengumuman contoh. Nama modul/darjah owner disimpan dalam `translations` — `t()` di halaman lain masih dari `lang/*.php` (B14).
+
+## B3b — Kebenaran ikut pengguna (vendor & owner) ✅ (26 Okt 2026 — lihat PROSES.md)
+
+```
+Ikut peraturan umum. Session: B3b — Kebenaran ikut pengguna. Prasyarat: B3 ✅.
+Baca DOC/PELAN.md bahagian 4 & 4.1, 18.7 (OwnerStaff), 18.10 (kakitangan vendor), 18.14.
+
+Peranan lalai kekal; pentadbir boleh tambah / tarik kebenaran seorang kakitangan (pengecualian ikut pengguna).
+1. database/migrations/002-user-permissions.sql (+ schema.sql): vendor_user_permissions, platform_user_permissions
+2. core/Permission.php — katalog kod (vendor & owner), lalai peranan, had (locked), effective()
+3. jobs/Permission/: LoadUserPermissionsJob, GetStaffPermissionsJob, SaveStaffPermissionsJob
+4. VendorAuth / OwnerAuth: can(), requirePermission() (403); menu 'permission' ganti 'roles'; PanelRole ikut kebenaran
+5. Tukar endpoint sedia ada (B2, B3) daripada requireRole kepada requirePermission; tukar peranan → buang pengecualian
+6. API {owner|vendor}/staff/permissions & save-permissions; UI modal "Kebenaran" di halaman kakitangan owner & vendor
+   (kumpulan kotak semak, lencana "lalai", had dinyahaktifkan, butang "Set semula ke lalai") — 4 bahasa
+Sahkan: lalai sama seperti sebelum B3b; juruwang diberi refund.manage → boleh; pengurus ditarik report.view → 403 & menu hilang;
+had tidak boleh diberi; admin/owner tidak boleh disunting; VENDOR01 tidak boleh sunting kakitangan VENDOR02 (404).
+```
+> Hasil B3b: `core/Permission.php`, `jobs/Permission/*`, migrasi 002, 4 laluan baharu, modal `partials/permission-modal.php` +
+> `assets/js/permission-editor.js`, `tools/verify-b3b.php`. Endpoint B4+ mesti guna `requirePermission` dengan kod dari PELAN 4.1.
 
 ## B4 — Vendor: koperasi, katalog, inventori
 

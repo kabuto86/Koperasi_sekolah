@@ -1,9 +1,9 @@
 <?php
-// Simpan tetapan platform (owner sahaja).
+// Simpan tetapan platform.
 require __DIR__ . '/../../../../core/bootstrap.php';
 
 Request::requireMethod('POST');
-OwnerAuth::requireRole(['owner']);
+OwnerAuth::requirePermission('settings.manage');
 Csrf::verifyRequest();
 
 $job = new SavePlatformSettingsJob(OwnerAuth::id(), Request::all());

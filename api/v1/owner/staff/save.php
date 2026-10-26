@@ -1,9 +1,9 @@
 <?php
-// Tambah / sunting kakitangan owner (owner sahaja).
+// Tambah / sunting kakitangan owner.
 require __DIR__ . '/../../../../core/bootstrap.php';
 
 Request::requireMethod('POST');
-OwnerAuth::requireRole(['owner']);
+OwnerAuth::requirePermission('staff.manage');
 Csrf::verifyRequest();
 
 $job = new SaveOwnerStaffJob(OwnerAuth::id(), Request::all());

@@ -39,6 +39,10 @@ class SaveVendorStaffJob
         try {
             $id = $current === null ? $this->insert($data) : $this->update($id, $data);
             $this->saveCooperatives($id, $data['cooperative_ids']);
+            // Tukar peranan → pengecualian kebenaran dibuang, kembali ke lalai peranan baharu (PELAN 4.1)
+            if ($current !== null && $current['role'] !== $data['role']) {
+                Database::execute("DELETE FROM vendor_user_permissions WHERE vendor_id = ? AND vendor_user_id = ?", [$this->vendorId, $id]);
+            }
             Database::commit();
         } catch (Throwable $exception) {
             Database::rollBack();

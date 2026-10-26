@@ -1,9 +1,9 @@
 <?php
-// Aktif / nyahaktif kakitangan owner (owner sahaja).
+// Aktif / nyahaktif kakitangan owner.
 require __DIR__ . '/../../../../core/bootstrap.php';
 
 Request::requireMethod('POST');
-OwnerAuth::requireRole(['owner']);
+OwnerAuth::requirePermission('staff.manage');
 Csrf::verifyRequest();
 
 $job = new SetOwnerStaffActiveJob(OwnerAuth::id(), Request::all());

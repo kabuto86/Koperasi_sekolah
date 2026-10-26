@@ -1,9 +1,9 @@
 <?php
-// Senarai darjah / tingkatan (owner sahaja).
+// Senarai darjah / tingkatan.
 require __DIR__ . '/../../../../core/bootstrap.php';
 
 Request::requireMethod('GET');
-OwnerAuth::requireRole(['owner']);
+OwnerAuth::requirePermission('grade.manage');
 
 $job = new ListGradesJob();
 Response::ok($job->run());

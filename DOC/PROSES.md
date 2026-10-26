@@ -4,8 +4,8 @@
 > Kemas kini fail ini di HUJUNG setiap session, sebelum commit & push.
 > Reka bentuk: [PELAN.md](PELAN.md) · Prompt kerja: [PROMPT-SESSION.md](PROMPT-SESSION.md)
 
-**Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · **Peringkat 2 berjalan** — skema & core (B1), auth sebenar (B2), panel owner (B3)
-**Session terakhir siap:** B3 — Owner: pelan, harga koperasi, modul, template, vendor
+**Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · **Peringkat 2 berjalan** — skema & core (B1), auth sebenar (B2), panel owner (B3), kebenaran ikut pengguna (B3b)
+**Session terakhir siap:** B3b — Kebenaran ikut pengguna (vendor & owner)
 **Session seterusnya:** **B4 — Vendor: koperasi, katalog, inventori**
 
 Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
@@ -39,6 +39,7 @@ Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 | B1 | Skema, seed, core | ✅ | 26 Okt 2026 | `8479340` | 75 jadual, seed 2 vendor/3 koperasi/2 ibu bapa, 6 kelas core baharu, `ValidateCooperativeJob`, `tools/verify-b1.php` 42/42 lulus |
 | B2 | Auth owner, vendor, ibu bapa + 2FA + throttle | ✅ | 26 Okt 2026 | `847ea89` | 38 endpoint `api/v1/`, 39 job, 13 kelas core baharu, sesi sebenar semua panel & store, `tools/verify-b2.php` 94/94 lulus |
 | B3 | Owner: pelan, harga koperasi, modul, template, vendor | ✅ | 26 Okt 2026 | `764f4c7` | 32 endpoint owner, 33 job + 3 pembantu, `CalculateCoopPriceJob`, owner_staff 403 di pelayan, `tools/verify-b3.php` 101/101 lulus |
+| B3b | Kebenaran ikut pengguna (vendor & owner) — lalai peranan + pengecualian | ✅ | 26 Okt 2026 | (lihat git log) | Keputusan pengguna (PELAN 4.1); 2 jadual, 4 laluan, modal kebenaran, `verify-b3b` 38/38 |
 | B4 | Vendor: koperasi, produk, kategori, varian, inventori, pembekal | ⬜ | | | |
 | B5 | Kit keperluan sekolah | ⬜ | | | |
 | B6 | Store ibu bapa: daftar, anak, katalog, kit, troli | ⬜ | | | |
@@ -690,6 +691,45 @@ Tertangguh:
 - Pengumuman belum dipapar kepada vendor (tiada laluan vendor dalam U) — kemudian
 - Gateway disekat owner: semakan semasa vendor memilih/membayar — B8. `preview_image` template sebenar — bila template2/3 dibina
 
+### B3b — Kebenaran ikut pengguna, vendor & owner (26 Okt 2026)
+
+Arahan pengguna: kekalkan peranan lalai; pentadbir tambah/tarik kebenaran **ikut pengguna** (bukan peranan tersuai); vendor **dan** owner.
+
+Dibuat:
+- `database/migrations/002-user-permissions.sql` (+ `schema.sql`): `platform_user_permissions`, `vendor_user_permissions` — **78 jadual**
+- `core/Permission.php` — katalog (vendor 25 kod / 5 kumpulan, owner 18 kod / 3 kumpulan), lalai `coop_manager`, `cashier`, `owner_staff`,
+  had (`LOCKED`), `effective()`; `vendor_admin` & `owner` sentiasa semua
+- `jobs/Permission/` LoadUserPermissionsJob, GetStaffPermissionsJob, SaveStaffPermissionsJob (simpan beza dengan lalai sahaja; log
+  `staff.permissions` → `activity_logs` / `audit_logs`). `Load{Owner,Vendor}SessionJob` memuat `permissions` setiap permintaan
+- `OwnerAuth` / `VendorAuth`: `permissions()`, `can()`, `requirePermission()`; `VendorAuth::redirectFirstPage()` (tiada akses → log keluar,
+  notis `auth.no_access`). `PanelRole` ikut kebenaran; menu `'roles'` → `'permission'`; seksyen add-on vendor ikut `module.use`
+- Semua endpoint owner B2/B3 & kakitangan vendor: `requireRole` → `requirePermission` (`vendors/options`, `plans/options` terima salah satu)
+- Tukar peranan kakitangan (owner & vendor) → pengecualian dibuang
+- API baharu: `{owner|vendor}/staff/permissions` & `save-permissions` (laluan 228)
+- UI: `partials/permission-modal.php` + `assets/js/permission-editor.js`; butang perisai "Kebenaran" di `owner/staff.php` (owner_staff) &
+  `vendor/staff.php` (bukan pentadbir, bukan diri sendiri); `owner/vendor.php` ikut `vendor.status` / `vendor.note`
+- 62 kunci bahasa baharu × 4 — jumlah 1858. `tools/verify-b3b.php` (38 semakan); `verify-b1` → 78 jadual
+
+Disahkan (`verify-b3b` **38 lulus, 0 gagal**; `verify-b3` 101/101, `verify-b2` 94/94, `verify-b1` 42/42; `check-ui` OK; `ui-audit` halaman
+kakitangan 0 isu; Playwright: modal vendor (MS, 1366px) tanda refund → simpan → baris DB `refund.manage 1` → set semula → 0; modal owner
+(ZH, 375px); 0 ralat konsol):
+- Lalai sama seperti sebelum B3b (semua ujian B2/B3 lulus tanpa diubah)
+- Juruwang + `refund.manage` → halaman refund dibuka pada sesi sedia ada; kakitangan masih 403. Pengurus − `report.view` → halaman dialih,
+  pautan menu hilang. owner_staff + `plan.manage` − `audit.view` → pelan dibuka, log audit 403; `settings.manage` (had) diabaikan
+- **Kebocoran:** VENDOR01 baca/simpan kebenaran kakitangan VENDOR02 → 404, DB tidak berubah (dan sebaliknya); `vendor_id` input diabaikan;
+  sesi vendor → API kebenaran owner 401; pengurus/owner_staff → API kebenaran 403
+- Pentadbir/owner tidak boleh disunting; diri sendiri ditolak; kakitangan tanpa sebarang kebenaran menu → log keluar dengan notis
+
+Keputusan kecil (PELAN 4, 4.1, 9 J, 10.1, 18.14):
+- Juruwang lalai termasuk `pos.discount` (skrin POS U4 tidak menyekat diskaun juruwang) — pentadbir boleh tarik
+- `vendor/cooperatives/list` & `vendor/session/cooperative` kekal untuk semua kakitangan (pemilih koperasi), tanpa kod kebenaran
+- Kod kebenaran yang dibuang dari katalog kemudian diabaikan secara automatik (`effective()` menapis kod tidak dikenali)
+
+Tertangguh:
+- Kod seperti `product.manage`, `inventory.adjust`, `order.manage`, `pos.discount`, `report.export`, `cooperative.manage` belum ada
+  endpoint — dikuatkuasakan dalam session B masing-masing (B4–B13); halaman U yang masih mock belum menyorok butang ikut kebenaran
+- `owner/invoices/*` (B12): `subscription.view` untuk baca, `invoice.manage` untuk issue/void/mark-paid
+
 ---
 
 ## Log perubahan pengguna
@@ -706,3 +746,4 @@ Tertangguh:
 | 24 Okt 2026 | Beli ala carte **atau** kit; ambil barang jangan sulit, ada pilihan; murid boleh ambil barang yang ibu bapa bayar | PELAN 5.4, 7 |
 | 24 Okt 2026 | Repo projek `kabuto86/Koperasi_sekolah`; setiap kerja siap di-push | CLAUDE.md |
 | 24 Okt 2026 | UI dahulu → backend & API → Flutter selepas desktop siap; prompt session per modul; simpan dalam `DOC/` | PELAN 3, PROMPT-SESSION, CLAUDE.md |
+| 26 Okt 2026 | Kebenaran boleh dilaras: kekalkan peranan lalai, pentadbir tambah/tarik kebenaran ikut pengguna (bukan peranan tersuai); vendor **dan** owner; session baharu B3b sebelum B4 | PELAN 4.1, PROMPT-SESSION B3b, PROSES |

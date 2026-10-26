@@ -1,9 +1,9 @@
 <?php
-// Simpan gateway owner untuk kutip yuran (owner sahaja).
+// Simpan gateway owner untuk kutip yuran.
 require __DIR__ . '/../../../../core/bootstrap.php';
 
 Request::requireMethod('POST');
-OwnerAuth::requireRole(['owner']);
+OwnerAuth::requirePermission('gateway.manage');
 Csrf::verifyRequest();
 
 $job = new SaveOwnerGatewayJob(OwnerAuth::id(), Request::all());

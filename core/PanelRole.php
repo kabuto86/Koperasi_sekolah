@@ -1,16 +1,11 @@
 <?php
-// Peranan pengguna panel (owner / vendor) & menu yang dibenarkan (PELAN 4).
-// Sejak B2: peranan dari sesi (OwnerAuth / VendorAuth). Halaman disekat oleh requirePage(),
-// API oleh requireRole() — menu yang ditapis hanya kemudahan paparan.
+// Menu panel (owner / vendor) yang dibenarkan ikut kebenaran pengguna (PELAN 4 & 4.1).
+// Sejak B3b: item menu ada 'permission' (kod dalam core/Permission.php; tiada = semua pengguna panel).
+// Halaman disekat oleh requirePage(), API oleh requirePermission() — menu yang ditapis hanya kemudahan paparan.
 class PanelRole
 {
-    const ROLES = [
-        'owner'  => ['owner', 'owner_staff'],
-        'vendor' => ['vendor_admin', 'coop_manager', 'cashier'],
-    ];
-
-    // Halaman modul add-on ('module.*') — juruwang tidak mengurus modul
-    const ADDON_ROLES = ['vendor_admin', 'coop_manager'];
+    // Halaman modul add-on ('module.*')
+    const ADDON_PERMISSION = 'module.use';
 
     // Vendor digantung: hanya halaman langganan & invois (activeMenu 'menu.subscription')
     const BILLING_MENUS = ['menu.subscription'];
@@ -20,13 +15,18 @@ class PanelRole
         return $panel === 'owner' ? OwnerAuth::role() : VendorAuth::role();
     }
 
-    // Item menu tanpa 'roles' = semua peranan. Seksyen kosong dibuang
-    public static function filterMenu(array $sections, $role)
+    public static function permissions($panel)
+    {
+        return $panel === 'owner' ? OwnerAuth::permissions() : VendorAuth::permissions();
+    }
+
+    // Item tanpa 'permission' = semua. Seksyen kosong dibuang
+    public static function filterMenu(array $sections, array $permissions)
     {
         $result = [];
         foreach ($sections as $section) {
-            $section['items'] = array_values(array_filter($section['items'], function ($item) use ($role) {
-                return empty($item['roles']) || in_array($role, $item['roles'], true);
+            $section['items'] = array_values(array_filter($section['items'], function ($item) use ($permissions) {
+                return self::itemAllowed($item, $permissions);
             }));
             if ($section['items']) {
                 $result[] = $section;
@@ -36,33 +36,40 @@ class PanelRole
         return $result;
     }
 
-    // Halaman dengan $activeMenu ini boleh dibuka oleh peranan ini?
-    // Menu tiada dalam senarai (cth. profil, '') = semua peranan panel itu
-    public static function canOpen($panel, $role, $activeMenu)
+    // Halaman dengan $activeMenu ini boleh dibuka? Menu tiada dalam senarai (cth. profil, '') = semua pengguna panel
+    public static function canOpen($panel, array $permissions, $activeMenu)
     {
         if (strpos((string) $activeMenu, 'module.') === 0) {
-            return in_array($role, self::ADDON_ROLES, true);
+            return in_array(self::ADDON_PERMISSION, $permissions, true);
         }
         foreach (self::menu($panel) as $section) {
             foreach ($section['items'] as $item) {
                 if ($item['key'] === $activeMenu) {
-                    return empty($item['roles']) || in_array($role, $item['roles'], true);
+                    return self::itemAllowed($item, $permissions);
                 }
             }
         }
-        return in_array($role, self::ROLES[$panel], true);
+        return true;
     }
 
-    // URL halaman pertama yang dibenarkan untuk peranan ini
-    public static function firstPage($panel, $role)
+    // URL halaman pertama yang dibenarkan. Tiada menu langsung: owner → profil; vendor → null (tiada akses)
+    public static function firstPage($panel, array $permissions)
     {
-        $sections = self::filterMenu(self::menu($panel), $role);
-        return $sections ? $sections[0]['items'][0]['url'] : $panel . '/login.php';
+        $sections = self::filterMenu(self::menu($panel), $permissions);
+        if ($sections) {
+            return $sections[0]['items'][0]['url'];
+        }
+        return $panel === 'owner' ? 'owner/profile.php' : null;
     }
 
     public static function isBillingMenu($activeMenu)
     {
         return in_array($activeMenu, self::BILLING_MENUS, true);
+    }
+
+    private static function itemAllowed(array $item, array $permissions)
+    {
+        return empty($item['permission']) || in_array($item['permission'], $permissions, true);
     }
 
     private static function menu($panel)

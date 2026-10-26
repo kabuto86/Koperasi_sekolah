@@ -6,8 +6,8 @@ require __DIR__ . '/../core/bootstrap.php';
 $pageTitle = t('vendor.detail_title');
 $activeMenu = 'menu.vendors';
 $backUrl = View::url('owner/vendors.php');
-// Gantung / aktifkan: owner sahaja (owner_staff hanya lihat & tambah nota — PELAN 4; API juga menolak)
-$pageActions = OwnerAuth::role() !== 'owner' ? [] : [
+// Gantung / aktifkan: kebenaran vendor.status; nota: vendor.note (PELAN 4.1 — API juga menolak)
+$pageActions = !OwnerAuth::can('vendor.status') ? [] : [
     ['id' => 'btn-activate', 'label' => t('vendor.activate'), 'icon' => 'bi-check-circle', 'class' => 'btn-success d-none'],
     ['id' => 'btn-suspend', 'label' => t('vendor.suspend'), 'icon' => 'bi-pause-circle', 'class' => 'btn-outline-danger d-none'],
 ];
@@ -88,6 +88,7 @@ require __DIR__ . '/_layout/header.php';
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-body fw-semibold"><?= e(t('vendor.notes')) ?></div>
             <div class="card-body">
+                <?php if (OwnerAuth::can('vendor.note')): ?>
                 <form id="note-form" class="mb-3" novalidate>
                     <label class="form-label visually-hidden" for="note-body"><?= e(t('vendor.add_note')) ?></label>
                     <textarea class="form-control mb-2" id="note-body" name="body" rows="2" required
@@ -95,6 +96,7 @@ require __DIR__ . '/_layout/header.php';
                     <div class="invalid-feedback"><?= e(t('error.required')) ?></div>
                     <button type="submit" class="btn btn-sm btn-brand"><?= e(t('vendor.add_note')) ?></button>
                 </form>
+                <?php endif; ?>
                 <ul class="list-unstyled mb-0" id="notes-list"></ul>
             </div>
         </div>

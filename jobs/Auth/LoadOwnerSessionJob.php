@@ -1,5 +1,5 @@
 <?php
-// Pengguna owner untuk sesi semasa — hanya akaun aktif. null = sesi tidak sah lagi.
+// Pengguna owner untuk sesi semasa — hanya akaun aktif, + kebenaran sebenar (B3b). null = sesi tidak sah lagi.
 class LoadOwnerSessionJob
 {
     private $userId;
@@ -21,6 +21,7 @@ class LoadOwnerSessionJob
         }
         $row['id'] = (int) $row['id'];
         $row['totp_enabled'] = (bool) $row['totp_enabled'];
+        $row['permissions'] = (new LoadUserPermissionsJob('owner', $row['id'], $row['role']))->run();
         return $row;
     }
 }

@@ -48,6 +48,10 @@ class SaveOwnerStaffJob
             "UPDATE platform_users SET full_name = ?, email = ?, role = ? WHERE id = ?",
             [trim($this->input['full_name']), $email, $role, $id]
         );
+        // Tukar peranan → pengecualian kebenaran dibuang, kembali ke lalai peranan baharu (PELAN 4.1)
+        if ($role !== $current['role']) {
+            Database::execute("DELETE FROM platform_user_permissions WHERE platform_user_id = ?", [$id]);
+        }
         (new WriteAuditLogJob('owner', $this->actorId, null, 'staff.save', 'platform_user', $id, $email))->run();
         return ListOwnerStaffJob::find($id);
     }

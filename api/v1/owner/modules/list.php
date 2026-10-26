@@ -1,9 +1,9 @@
 <?php
-// Katalog modul add-on (owner sahaja).
+// Katalog modul add-on.
 require __DIR__ . '/../../../../core/bootstrap.php';
 
 Request::requireMethod('GET');
-OwnerAuth::requireRole(['owner']);
+OwnerAuth::requirePermission('module.manage');
 
 $job = new ListModulesJob();
 Response::ok($job->run());

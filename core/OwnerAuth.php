@@ -63,14 +63,36 @@ class OwnerAuth
         }
     }
 
+    // Kebenaran sebenar (lalai peranan ± pengecualian — PELAN 4.1)
+    public static function permissions()
+    {
+        $user = self::user();
+        return $user ? $user['permissions'] : [];
+    }
+
+    // $codes = satu kod atau senarai (cukup salah satu)
+    public static function can($codes)
+    {
+        return count(array_intersect((array) $codes, self::permissions())) > 0;
+    }
+
+    // API: tiada kebenaran → 403
+    public static function requirePermission($codes)
+    {
+        self::requireLogin();
+        if (!self::can($codes)) {
+            Response::forbidden();
+        }
+    }
+
     // Halaman panel: belum log masuk → log masuk; menu tidak dibenarkan → halaman pertama yang dibenarkan
     public static function requirePage($activeMenu)
     {
         if (self::user() === null) {
             Session::redirect('owner/login.php');
         }
-        if (!PanelRole::canOpen('owner', self::role(), $activeMenu)) {
-            Session::redirect(PanelRole::firstPage('owner', self::role()));
+        if (!PanelRole::canOpen('owner', self::permissions(), $activeMenu)) {
+            Session::redirect(PanelRole::firstPage('owner', self::permissions()));
         }
     }
 

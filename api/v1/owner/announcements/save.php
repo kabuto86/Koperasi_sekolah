@@ -1,9 +1,9 @@
 <?php
-// Simpan draf / terbit pengumuman (owner sahaja).
+// Simpan draf / terbit pengumuman.
 require __DIR__ . '/../../../../core/bootstrap.php';
 
 Request::requireMethod('POST');
-OwnerAuth::requireRole(['owner']);
+OwnerAuth::requirePermission('announcement.manage');
 Csrf::verifyRequest();
 
 $job = new SaveAnnouncementJob(OwnerAuth::id(), Request::all());

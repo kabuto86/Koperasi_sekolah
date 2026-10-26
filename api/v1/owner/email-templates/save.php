@@ -1,9 +1,9 @@
 <?php
-// Simpan templat e-mel (owner sahaja).
+// Simpan templat e-mel.
 require __DIR__ . '/../../../../core/bootstrap.php';
 
 Request::requireMethod('POST');
-OwnerAuth::requireRole(['owner']);
+OwnerAuth::requirePermission('email_template.manage');
 Csrf::verifyRequest();
 
 $job = new SaveEmailTemplateJob(OwnerAuth::id(), Request::all());

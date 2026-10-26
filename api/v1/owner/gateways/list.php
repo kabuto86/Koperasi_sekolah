@@ -1,9 +1,9 @@
 <?php
-// Driver gateway & gateway owner (owner sahaja). Rahsia tidak dipulangkan.
+// Driver gateway & gateway owner. Rahsia tidak dipulangkan.
 require __DIR__ . '/../../../../core/bootstrap.php';
 
 Request::requireMethod('GET');
-OwnerAuth::requireRole(['owner']);
+OwnerAuth::requirePermission('gateway.manage');
 
 $job = new ListPaymentGatewaysJob();
 Response::ok($job->run());

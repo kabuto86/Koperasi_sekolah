@@ -3,7 +3,7 @@
 require __DIR__ . '/../../../../core/bootstrap.php';
 
 Request::requireMethod('GET');
-VendorAuth::requireRole(VendorAuth::ADMIN_ROLES);
+VendorAuth::requirePermission('staff.manage');
 
 $job = new ListVendorStaffJob(VendorAuth::vendorId(), VendorAuth::id(), Request::all());
 Response::ok($job->run());

@@ -1,9 +1,9 @@
 <?php
-// Sunting darjah / tingkatan (owner sahaja).
+// Sunting darjah / tingkatan.
 require __DIR__ . '/../../../../core/bootstrap.php';
 
 Request::requireMethod('POST');
-OwnerAuth::requireRole(['owner']);
+OwnerAuth::requirePermission('grade.manage');
 Csrf::verifyRequest();
 
 $job = new SaveGradeJob(OwnerAuth::id(), Request::all());

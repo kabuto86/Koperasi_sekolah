@@ -13,11 +13,11 @@
         </div>
 
         <?php View::partial('partials/sidebar-menu.php', [
-            'menuSections' => PanelRole::filterMenu(require __DIR__ . '/menu.php', PanelRole::current('vendor')),
+            'menuSections' => PanelRole::filterMenu(require __DIR__ . '/menu.php', PanelRole::permissions('vendor')),
             'activeMenu'   => $activeMenu ?? '',
         ]); ?>
 
-        <?php if (PanelRole::current('vendor') !== 'cashier'): // juruwang tidak mengurus modul add-on ?>
+        <?php if (VendorAuth::can(PanelRole::ADDON_PERMISSION)): // modul add-on hanya dengan kebenaran module.use ?>
         <div class="app-sidebar-nav w-100 pb-3">
             <div class="app-sidebar-section"><?= e(t('menu.section.addons')) ?></div>
             <ul class="nav flex-column">

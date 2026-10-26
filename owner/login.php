@@ -4,7 +4,7 @@
 require __DIR__ . '/../core/bootstrap.php';
 
 if (OwnerAuth::user() !== null) {
-    Session::redirect(PanelRole::firstPage('owner', OwnerAuth::role()));
+    Session::redirect(PanelRole::firstPage('owner', OwnerAuth::permissions()));
 }
 
 View::partial('partials/login-form.php', [

@@ -41,7 +41,7 @@ function renderVendor(vendor) {
     }
 
     // Gantung: bukan suspended/cancelled. Aktifkan: trial (lulus), past_due, suspended.
-    // Butang hanya wujud untuk peranan owner
+    // Butang hanya wujud dengan kebenaran vendor.status
     var canSuspend = ['suspended', 'cancelled'].indexOf(vendor.status) === -1;
     var canActivate = ['trial', 'past_due', 'suspended'].indexOf(vendor.status) !== -1;
     toggleAction('btn-suspend', canSuspend);
@@ -132,13 +132,15 @@ bindForm('suspend-form', 'owner/vendors/set-status', function () {
     return payload;
 });
 
-bindForm('note-form', 'owner/vendors/add-note', function () {
-    resetForm(document.getElementById('note-form'));
-    showToast(T('common.saved'), 'success');
-    loadVendor();
-}, function (payload) {
-    payload.id = vendorId;
-    return payload;
-});
+if (document.getElementById('note-form')) {
+    bindForm('note-form', 'owner/vendors/add-note', function () {
+        resetForm(document.getElementById('note-form'));
+        showToast(T('common.saved'), 'success');
+        loadVendor();
+    }, function (payload) {
+        payload.id = vendorId;
+        return payload;
+    });
+}
 
 loadVendor();

@@ -1,9 +1,9 @@
 <?php
-// Sunting template frontend (owner sahaja).
+// Sunting template frontend.
 require __DIR__ . '/../../../../core/bootstrap.php';
 
 Request::requireMethod('POST');
-OwnerAuth::requireRole(['owner']);
+OwnerAuth::requirePermission('template.manage');
 Csrf::verifyRequest();
 
 $job = new SaveTemplateJob(OwnerAuth::id(), Request::all());

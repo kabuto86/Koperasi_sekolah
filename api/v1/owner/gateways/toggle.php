@@ -1,9 +1,9 @@
 <?php
-// Benarkan / sekat driver gateway untuk vendor (owner sahaja).
+// Benarkan / sekat driver gateway untuk vendor.
 require __DIR__ . '/../../../../core/bootstrap.php';
 
 Request::requireMethod('POST');
-OwnerAuth::requireRole(['owner']);
+OwnerAuth::requirePermission('gateway.manage');
 Csrf::verifyRequest();
 
 $job = new TogglePaymentGatewayJob(OwnerAuth::id(), Request::all());

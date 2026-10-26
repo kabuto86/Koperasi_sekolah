@@ -6,7 +6,7 @@
     </div>
     <div class="offcanvas-body p-0">
         <?php View::partial('partials/sidebar-menu.php', [
-            'menuSections' => PanelRole::filterMenu(require __DIR__ . '/menu.php', PanelRole::current('owner')),
+            'menuSections' => PanelRole::filterMenu(require __DIR__ . '/menu.php', PanelRole::permissions('owner')),
             'activeMenu'   => $activeMenu ?? '',
         ]); ?>
     </div>
