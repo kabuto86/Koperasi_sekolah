@@ -18,7 +18,9 @@ var Api = {
         'vendor/cooperatives/', 'vendor/templates/', 'vendor/modules/', 'vendor/grades/', 'vendor/classes/', 'vendor/categories/',
         'vendor/products/', 'vendor/inventory/', 'vendor/suppliers/', 'vendor/purchase-orders/', 'vendor/stock-takes/', 'vendor/dashboard/',
         'vendor/kits/',
-        'store/auth/', 'store/profile/', 'store/session'
+        'store/auth/', 'store/profile/', 'store/session',
+        'store/schools/', 'store/school', 'store/classes', 'store/children/', 'store/catalog', 'store/product', 'store/kit',
+        'store/cart/', 'store/news/', 'store/clearance/'
     ],
 
     // Api.get('vendor/cooperatives/list', { page: 1, q: 'melati' })
@@ -43,7 +45,7 @@ var Api = {
     request: function (method, path, payload) {
         if (Api.isLive(path)) {
             return Api.fetchJson(method, path, payload).then(function (res) {
-                // Peralihan B2–B6: mock boleh ikut sesi sebenar (cth. ibu bapa yang log masuk)
+                // Peralihan B2–B7: mock boleh ikut sesi sebenar (cth. ibu bapa yang log masuk)
                 if (typeof Mock !== 'undefined' && Mock.afterLive) {
                     Mock.afterLive(path, res);
                 }

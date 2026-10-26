@@ -379,6 +379,7 @@ Nama, harga dan maklumat anak **disalin** (snapshot) ke pesanan dan invois.
 - **`customers`** — id, full_name, phone UNIQUE, email UNIQUE, password_hash VARCHAR(255), relationship ENUM(mother, father, guardian), language, email_verified_at, pdpa_consent_at, is_active, failed_attempts, locked_until, last_login_at, deleted_at
   > Tiada `vendor_id` — ibu bapa ialah akaun global yang boleh membeli dari beberapa koperasi.
 - **`children`** — id, customer_id FK, cooperative_id FK, vendor_id (salinan, untuk tapisan vendor), full_name, grade_level_code, school_class_id NULL, class_name, school_year, is_active
+  > Seed (B6): Adam (anak ibu bapa A) Darjah 1 tahun **2027** — sepadan dengan Kit Darjah 1 2027 yang diterbitkan (demo aliran kit).
 - **`customer_tokens`** — id, customer_id, type ENUM(verify_email, reset_password), token_hash, expires_at, used_at
 - **`api_tokens`** — id, customer_id, token_hash UNIQUE, device_name, last_used_at, expires_at, revoked_at
 - **`push_devices`** — id, customer_id, platform ENUM(android, ios), push_token, created_at
@@ -469,7 +470,7 @@ Koperasi_sekolah/
 ├── jobs/           SATU KELAS = SATU KERJA
 │   ├── Auth/ Owner/ Vendor/ Cooperative/ Plan/ Billing/ Module/ Template/
 │   ├── Product/ Inventory/ Supplier/ Promotion/ SchoolKit/
-│   ├── Customer/ Child/ Cart/ Order/ Pickup/ Payment/ Pos/ Report/
+│   ├── Customer/ Child/ Cart/ Store/ Order/ Pickup/ Payment/ Pos/ Report/   (Store/ = slug → koperasi, harga store, katalog, kit — B6)
 │   └── News/ Clearance/ Calendar/ SchoolOpening/ Notification/ Language/ Setting/ Announcement/ (B3)
 ├── payments/       GatewayInterface.php · GatewayFactory.php
 │   └── drivers/    ToyyibPayGateway · BillplzGateway · SenangPayGateway · Ipay88Gateway · StripeGateway
@@ -487,6 +488,7 @@ Koperasi_sekolah/
 │   │               whatsapp_sms · advanced_report / mobile_app / membership (halaman sementara)
 │   └── pos/        POS kaunter + skrin serah barang
 ├── store/          index.php (titik masuk ibu bapa: slug → koperasi → template)
+├── .htaccess       URL store cantik /{slug}/{halaman} → store/index.php (B6; aktif bila config pretty_store_urls = true)
 ├── templates/
 │   └── template1/  manifest.json · layout.php · partials/ · pages/ · css/ · js/
 ├── modules/        news/ · clearance/ · calendar/ · school_opening/
@@ -494,7 +496,7 @@ Koperasi_sekolah/
 ├── cron/           send-emails · expire-cash-orders · generate-invoices · suspend-overdue · promote-grades
 ├── tools/          check-ui.php (tiada inline CSS + kunci 4 bahasa sama) · generate-secret.php · verify-b1.php · verify-b2.php
 │                   dev-totp.php (kod 2FA ujian) · ui-audit.js (pelayar, log masuk sebenar sejak B2) — CLI sahaja
-│                   verify-b3.php · test-helpers.php (Browser HTTP dikongsi — B3) · verify-b4.php (B4)
+│                   verify-b3.php · test-helpers.php (Browser HTTP dikongsi — B3) · verify-b4.php (B4) · verify-b5.php (B5) · verify-b6.php (B6)
 ├── assets/
 │   ├── lib/        bootstrap/ (5.3.3) · bootstrap-icons/ (1.11.3) · qrcode/ (qrcode-generator 1.4.4, MIT — sejak U2)
 │   ├── css/        app.css · print-label.css · print-slip.css · receipt.css
@@ -566,6 +568,12 @@ gagal di tengah transaksi tidak meninggalkan separuh perubahan. Ujian HTTP: `too
 dikunci dengan `SELECT … FOR UPDATE` pada baris koperasi / vendor. Pembantu B4: `PlanLimit` (jobs/Billing), `CooperativeSettings`,
 `ProductCatalog`, `InventoryRows`, `StockTakes`, `PurchaseOrders`. Muat naik: `core/Uploader::saveImage()` (data URL → fail).
 
+**Konvensyen B6 (store):** endpoint store menyelesaikan koperasi dengan `StoreSchool::require(Request::string('slug'))` (404
+`store.school_not_found`) dan menghantar **baris koperasi** (bukan id dari input) kepada job; `vendor_id` diambil dari baris itu. Laluan ibu bapa:
+`CustomerAuth::requireLogin()` dahulu (401 `auth_required`), kemudian slug; `CustomerAuth::id()` → constructor job. Harga, stok & had sentiasa melalui
+`StorePricing`; troli melalui `Carts` (`ensure` = INSERT IGNORE + `FOR UPDATE` dalam transaksi, `assertFits`, `quote`); anak melalui `Children`
+(`find` sentiasa `customer_id` + `is_active`, pilihan koperasi). Had kadar: `store_cart:{customer}` 120/minit, `store_child_save:{customer}` 60/10 minit.
+
 ### 10.3 Kontrak API
 
 - Format jawapan: `{ "ok": true, "data": ... }` atau `{ "ok": false, "error": "mesej", "errors": { "field": "mesej" } }`
@@ -591,6 +599,8 @@ dikunci dengan `SELECT … FOR UPDATE` pada baris koperasi / vendor. Pembantu B4
 - Logik, harga, stok, kit — semuanya dalam job/API. Template baharu = salin folder, tukar rupa. **Aliran kerja sama**
 - `manifest.json`: `code`, `name`, `version`, `pages` wajib: `home, school-select, catalog, product, kit, cart, checkout, order-success, orders, order-detail, children, login, register, forgot-password, profile, news, clearance`
 - Vendor memilih template yang dilanggan untuk setiap koperasi (`cooperatives.template_id`). Template tidak dilanggan → jatuh balik ke `template1`
+  (**sejak B6** `ResolveStoreTemplateJob`: template aktif + dilanggan vendor + folder lengkap dengan semua halaman wajib manifest; pratonton
+  `?template=` hanya owner / vendor pemilik koperasi)
 - **Sejak U5:** logik setiap halaman store dalam `assets/js/store/{halaman}.js` (+ `common.js`, `layout.js`) — dikongsi semua template.
   Template baharu mesti mengekalkan `id` / atribut `data-*` yang dibaca JS (cth. `#store-context`, `data-cart-count`, `data-module`,
   `data-auth-guest|user`, `#slip-area`) dan boleh menukar rupa melalui `css/` sendiri. Slip & resit: `templates/{kod}/css/print-slip.css`
@@ -761,11 +771,14 @@ Dalam mock: `Mock.paginate(rows, params, ['medan_carian', ...])`.
 - **Peralihan (sejak B2):** `Api.livePrefixes` dalam `api.js` = laluan yang sudah sebenar (`fetch`, POST JSON + `X-CSRF-Token`);
   selebihnya masih mock. Setiap session B **menambah awalan** modulnya dan membuang `Mock.register` laluan itu. Jambatan sementara:
   `Mock.onLive(laluan, fn)` (selepas jawapan sebenar) dan `Mock.beforeFirst(fn)` (sekali sebelum jawapan mock pertama) — cth.
-  `mock/store.js` menyelaraskan `MockStore.session` dengan ibu bapa sebenar (dipadankan ikut e-mel) dan mengisi `cart_count` / `schools`
-  `store/session` dari troli & anak mock sehingga B6. **Sejak B4** laluan koperasi, kelas, kategori, produk, inventori, pembekal, PO,
+  `mock/store.js` menyelaraskan `MockStore.session` dengan ibu bapa sebenar (dipadankan ikut e-mel) supaya pesanan mock (B7) ditapis
+  ibu bapa sesi. **Sejak B6** sekolah, kelas, anak, katalog, produk, kit, troli, berita & jualan murah store sebenar; `mock/store.js` hanya
+  tinggal checkout & pesanan (B7) + simulasi bayaran (B8). Jambatan B6→B7: halaman checkout memuat troli SEBENAR (`store/cart/get`) melalui
+  `Mock.beforeFirst`, checkout mock mengira promosi/cukai/slot atas baris itu (pesanan mock bertanda `live_cart`, stok mock tidak ditahan) dan
+  mengosongkan troli sebenar (`store/cart/clear`, `fetch keepalive`). Sekolah yang tiada dalam mock (`smk-seri-indah`) → checkout gagal sehingga B7. **Sejak B4** laluan koperasi, kelas, kategori, produk, inventori, pembekal, PO,
   stock take, papan pemuka, `templates/options` & `modules/active` sebenar; `mock/vendor.js` hanya menyimpan data contoh (`MockVendor`, `sessionVendorId = 1`)
-  untuk mock modul lain (store B6, pesanan B9, POS B10, add-on B13) — id mock tidak sepadan dengan DB. **Sejak B5** `vendor/kits/*` sebenar;
-  `MockOrders.kits` (`mock/vendor-orders.js`) kekal hanya untuk mock `store/kit` sehingga B6.
+  untuk mock modul lain (checkout B7, pesanan B9, POS B10, add-on B13) — id mock tidak sepadan dengan DB. **Sejak B5** `vendor/kits/*` sebenar;
+  `MockOrders.kits` dibuang dalam B6 (store/kit sebenar).
   Sejak B3 `mock/owner.js` hanya mengandungi langganan & invois (B12) dan terjemahan (B14); data vendor/pelan di dalamnya hanya untuk
   ringkasan laluan itu (id mock tidak sepadan dengan DB)
 - `vendor_id` dalam mock datang dari `MockVendor.sessionVendorId` (meniru sesi) — tidak pernah dari parameter
@@ -816,8 +829,10 @@ Mock demo: kata laluan `salah` → ralat log masuk; kod 2FA `000000` → ditolak
   dibuka oleh `vendor-layout.js` jika `vendor/modules/active` mengandungi kodnya
 - Store Peringkat 1: `store/index.php?school={slug}&page={halaman}` — `View::storeUrl($slug, $page, $params)` / JS `storeUrl()`.
   Tanpa slug hanya `home, school-select, login, register, forgot-password, profile, children` (akaun global); halaman lain → kembali ke utama.
-  `&template={kod}` = pratonton template dari panel owner (hanya jika folder wujud; B6 hadkan kepada owner).
-  URL cantik `/{slug}/` ditambah dalam B6 (.htaccess) tanpa mengubah template
+  `&template={kod}` = pratonton template — **sejak B6** hanya owner (sesi KOPOWNER) atau vendor pemilik koperasi itu (sesi KOPVENDOR), dan hanya
+  jika folder lengkap (`ResolveStoreTemplateJob::folderReady`). **URL cantik (B6):** `/{slug}/` & `/{slug}/{halaman}` melalui `.htaccess` akar +
+  `config pretty_store_urls = true` (Apache mod_rewrite); `View::storeUrl()` & JS `storeUrl()` (`data-pretty-url` pada `#store-context`) menjana
+  bentuk itu. Lalai `false` (php -S / ujian) — `?school=` tetap diterima
 - Helpers: `formatRM(sen)`, `formatDate(iso, withTime)`, `showToast(msg, type)`,
   `confirmDialog(msg, {title, okText, okClass})` → Promise<boolean>,
   `renderTable(tbody, items, [{key, className, render}])`, `statusBadge(status)`, `createEl(tag, class, text)`
@@ -1073,7 +1088,8 @@ KitDetail  = KitSummary + { items: [{ id, product_id, variant_id /* null = ibu b
 > Sunting mengekalkan id item yang produk+variannya sama (rujukan `cart_items.school_kit_item_id` untuk B6). `publish` dalam `save` menetapkan
 > status (Simpan draf = draf); terbit memerlukan ≥ 1 item aktif. Tahun boleh disimpan/disalin: tahun semasa −1 hingga +2.
 > `delete` = draf sahaja, ditolak jika kit ada dalam `order_items` (`kit.delete_has_orders`); baris troli kit itu dibuang bersama.
-> Store (B6) WAJIB guna `SchoolKits::findPublished($cooperative, $grade, $year)` — draf tidak pernah dipulangkan.
+> Store (B6) WAJIB guna `SchoolKits::findPublished($cooperative, $grade, $year)` — draf tidak pernah dipulangkan (sejak B6: `StoreKitForChildJob`,
+> `AddKitToCartJob`).
 > Log aktiviti: `kit_save`, `kit_publish`, `kit_unpublish`, `kit_delete`, `kit_copy`.
 
 **OrderSummary** — `vendor/orders/list` (tapis `q` [no., kod pendek, nama murid/ibu bapa, telefon, token QR], `status` [boleh senarai
@@ -1323,6 +1339,24 @@ semasa checkout (B7: hash Argon2id, tidak boleh dipapar semula) dan memberitahu 
 digunakan automatik oleh pelayan (modul aktif, dalam tempoh) dengan had `qty_limit`. **Promosi:** sama seperti POS — satu setiap pesanan, kupon atau
 diskaun automatik terbaik, cukai selepas diskaun. **Slip beg** (cara D): satu setiap anak (sekolah, nama, kelas, no. pendek besar, QR, "BAYAR TUNAI").
 
+> **B6 (sebenar — `jobs/Store/`, `jobs/Child/`, `jobs/Cart/`):** 19 laluan store (sekolah, kelas, anak, katalog, produk, kit, troli, berita,
+> jualan murah) dari DB. Slug → koperasi melalui `StoreSchool::findBySlug/require` (koperasi `active` **dan** vendor `trial|active|past_due`;
+> vendor digantung → store ditutup, 404 `store.school_not_found`). Harga/stok/had dari `StorePricing` (harga + `price_delta`, jualan murah
+> `clearance_items` hanya jika modul `clearance` aktif & dalam tempoh — `variant_id 0` = semua saiz; baki = `qty_on_hand − qty_reserved`; had =
+> min(`max_per_order`, `qty_limit`)). Had & stok dikira **setiap produk+varian merentas seluruh troli** (semua anak, kit & ala carte); kuantiti
+> 1–99; ≤ 200 baris troli. Produk dalam kategori tidak aktif tidak dijual. Nama/keterangan ikut bahasa (`product_translations`, jatuh balik nama asal).
+> Anak: `store/children/save` → sekolah dari `school_slug` (cooperative_id & vendor_id dari baris koperasi), darjah ikut jenis sekolah, tahun =
+> tahun ini / depan, kelas dipadankan tanpa beza huruf (`school_class_id` + nama rasmi), ≤ 20 anak aktif; tukar sekolah / buang anak → baris troli
+> anak itu dibuang; `promote_to` (Okt–Dis atau tahun sudah lepas, bukan darjah terakhir) → `store/children/promote { id, class_name? }`.
+> Kit (`store/kit`): kit diterbitkan ikut darjah + `school_year` anak; item aktif sahaja; `in_cart` dari baris troli `school_kit_item_id`.
+> `store/cart/add-kit`: kit mesti kit anak itu (`kit_id` sepadan), item dari kit itu sahaja, tiada pendua, saiz wajib (`variant_{id}`), ralat stok
+> `qty_{id}`; baris kit + anak yang sama **diganti**. `store/cart/update` menyimpan kuantiti 1–99 (melebihi stok/had → `problem` dalam CartQuote,
+> checkout disekat). CartQuote B6: `discount 0`, `promotion_* null` (promosi & kupon dalam checkout B7), `tax` = `tax_rate` koperasi,
+> `payment_methods` dari `accept_cash/accept_online`, `requires_code` dari `pickup_methods` (E) / `pickup_code_required_above`.
+> `store/school.notices`: `closure` (modul calendar, `blocks_orders`, berlaku / dalam 14 hari), `preorder` (modul school_opening, musim dibuka).
+> Berita: diterbitkan & `published_at <= NOW()`. Modul tidak aktif → 404 `store.module_unavailable` (JS halaman berita/jualan murah menyemak
+> `Store.school.modules` dahulu). Template: `ResolveStoreTemplateJob` (`cooperatives.template_id` aktif + dilanggan + folder lengkap, jika tidak `template1`).
+
 ### 18.13 Objek modul add-on (U6) — `assets/js/mock/vendor-addons.js`
 
 Data modul (`MockAddons`: `news, clearanceSales, clearanceItems, calendarEvents, seasons, slots, messaging, notifications`) dikongsi panel vendor
@@ -1376,7 +1410,7 @@ vendor) → `booked--`. **Lencana "Jualan murah"** (sedia sejak U5) kini dari `M
 ### 18.14 Indeks laluan API lengkap (U7) — spesifikasi backend
 
 Senarai **semua** laluan yang didaftar dalam `assets/js/mock/*.js` (214 laluan, dijana dari kod mock pada U7; B2 menambah 9 laluan auth
-— jumlah **223**; B3 menambah `owner/plans/options` — **224**; B4 & B5 tiada laluan baharu). Lajur Mock `— (B2)` … `— (B5)` = sudah sebenar (`api/v1/`), mock dibuang.
+— jumlah **223**; B3 menambah `owner/plans/options` — **224**; B4, B5 & B6 tiada laluan baharu). Lajur Mock `— (B2)` … `— (B5)` = sudah sebenar (`api/v1/`), mock dibuang.
 **B4:** PO, stock take, `templates/options` & `modules/active` disiapkan lebih awal (prompt B4); `vendor/settings/*` ditangguh ke B9 (skrin serah & POS mock masih membaca tetapan mock). Bentuk `data` setiap laluan
 ada dalam 18.4–18.13; jadual ini ialah senarai semak Peringkat 2 — setiap baris mesti menjadi `api/v1/{laluan}.php` (nipis, tiada SQL)
 yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan CSRF, B14).
@@ -1461,36 +1495,36 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 | `store/auth/resend-verification` | POST | ibu bapa (sesi) | B2 | — (B2) |
 | `store/auth/reset` | POST | awam | B2 | — (B2) |
 | `store/auth/verify-email` | POST | awam | B2 | — (B2) |
-| `store/cart/add` | POST | ibu bapa (sesi) + slug | B6 | `store.js` |
-| `store/cart/add-kit` | POST | ibu bapa (sesi) + slug | B6 | `store.js` |
-| `store/cart/clear` | POST | ibu bapa (sesi) + slug | B6 | `store.js` |
-| `store/cart/get` | GET | ibu bapa (sesi) + slug | B6 | `store.js` |
-| `store/cart/remove` | POST | ibu bapa (sesi) + slug | B6 | `store.js` |
-| `store/cart/summary` | GET | awam + slug | B6 | `store.js` |
-| `store/cart/update` | POST | ibu bapa (sesi) + slug | B6 | `store.js` |
-| `store/catalog` | GET | awam + slug | B6 | `store.js` |
+| `store/cart/add` | POST | ibu bapa (sesi) + slug | B6 | — (B6) |
+| `store/cart/add-kit` | POST | ibu bapa (sesi) + slug | B6 | — (B6) |
+| `store/cart/clear` | POST | ibu bapa (sesi) + slug | B6 | — (B6) |
+| `store/cart/get` | GET | ibu bapa (sesi) + slug | B6 | — (B6) |
+| `store/cart/remove` | POST | ibu bapa (sesi) + slug | B6 | — (B6) |
+| `store/cart/summary` | GET | awam + slug | B6 | — (B6) |
+| `store/cart/update` | POST | ibu bapa (sesi) + slug | B6 | — (B6) |
+| `store/catalog` | GET | awam + slug | B6 | — (B6) |
 | `store/checkout/place` | POST | ibu bapa (sesi) + slug | B7 | `store.js` |
 | `store/checkout/quote` | GET | ibu bapa (sesi) + slug | B7 | `store.js` |
-| `store/children/list` | GET | ibu bapa (sesi) | B6 | `store.js` |
-| `store/children/promote` | POST | ibu bapa (sesi) | B6 | `store.js` |
-| `store/children/remove` | POST | ibu bapa (sesi) | B6 | `store.js` |
-| `store/children/save` | POST | ibu bapa (sesi) | B6 | `store.js` |
-| `store/classes` | GET | awam + slug | B6 | `store.js` |
-| `store/clearance/list` | GET | awam + slug | B6 | `store.js` |
-| `store/kit` | GET | ibu bapa (sesi) + slug | B6 | `store.js` |
-| `store/news/list` | GET | awam + slug | B6 | `store.js` |
+| `store/children/list` | GET | ibu bapa (sesi) | B6 | — (B6) |
+| `store/children/promote` | POST | ibu bapa (sesi) | B6 | — (B6) |
+| `store/children/remove` | POST | ibu bapa (sesi) | B6 | — (B6) |
+| `store/children/save` | POST | ibu bapa (sesi) | B6 | — (B6) |
+| `store/classes` | GET | awam + slug | B6 | — (B6) |
+| `store/clearance/list` | GET | awam + slug | B6 | — (B6) |
+| `store/kit` | GET | ibu bapa (sesi) + slug | B6 | — (B6) |
+| `store/news/list` | GET | awam + slug | B6 | — (B6) |
 | `store/orders/cancel` | POST | ibu bapa (sesi) + slug | B7 | `store.js` |
 | `store/orders/get` | GET | ibu bapa (sesi) + slug | B7 | `store.js` |
 | `store/orders/list` | GET | ibu bapa (sesi) + slug | B7 | `store.js` |
 | `store/orders/pay` | POST | ibu bapa (sesi) + slug | B7 | `store.js` |
 | `store/payment/simulate` | POST | ibu bapa (sesi) + slug | B8 | `store.js` |
-| `store/product` | GET | awam + slug | B6 | `store.js` |
+| `store/product` | GET | awam + slug | B6 | — (B6) |
 | `store/profile/delete` | POST | ibu bapa (sesi) | B2 | — (B2) |
 | `store/profile/get` | GET | ibu bapa (sesi) | B2 | — (B2) |
 | `store/profile/password` | POST | ibu bapa (sesi) | B2 | — (B2) |
 | `store/profile/save` | POST | ibu bapa (sesi) | B2 | — (B2) |
-| `store/school` | GET | awam + slug | B6 | `store.js` |
-| `store/schools/list` | GET | awam | B6 | `store.js` |
+| `store/school` | GET | awam + slug | B6 | — (B6) |
+| `store/schools/list` | GET | awam | B6 | — (B6) |
 | `store/session` | GET | awam + slug | B2 | — (B2) |
 
 **vendor/** 

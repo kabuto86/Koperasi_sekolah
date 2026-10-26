@@ -55,4 +55,11 @@ function loadClearance() {
     });
 }
 
-onStoreReady(loadClearance);
+// Modul tidak aktif untuk koperasi ini → mesej terus (tanpa permintaan ke pelayan)
+onStoreReady(function (store) {
+    if (store.school.modules.indexOf('clearance') === -1) {
+        emptyState(document.getElementById('clearance-list'), 'bi-tags', T('store.module_unavailable'), T('store.nav.home'), storeUrl('home'));
+        return;
+    }
+    loadClearance();
+});

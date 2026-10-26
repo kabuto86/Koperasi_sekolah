@@ -54,6 +54,13 @@ class Browser
         return $this->send('GET', 'api/v1/' . $route . '.php', null)['status'];
     }
 
+    // Status HTTP GET dengan parameter (B6): status('store/kit', ['slug' => 'x'])
+    public function status($route, $params = [])
+    {
+        $query = $params ? '?' . http_build_query($params) : '';
+        return $this->send('GET', 'api/v1/' . $route . '.php' . $query, null)['status'];
+    }
+
     public function post($route, $body = [], $withCsrf = true)
     {
         return $this->send('POST', 'api/v1/' . $route . '.php', $body, $withCsrf)['json'];
@@ -144,5 +151,6 @@ function storeLogin($base, $login, $password = 'Demo@12345')
 function clearTestLocks()
 {
     Database::execute("DELETE FROM login_attempts WHERE ip_address IN ('127.0.0.1', '::1', '0.0.0.0')");
-    Database::execute("DELETE FROM rate_limits WHERE bucket_key LIKE '%127.0.0.1%' OR bucket_key LIKE 'forgot:%' OR bucket_key LIKE 'resend_verify:%'");
+    Database::execute("DELETE FROM rate_limits WHERE bucket_key LIKE '%127.0.0.1%' OR bucket_key LIKE 'forgot:%' OR bucket_key LIKE 'resend_verify:%'"
+        . " OR bucket_key LIKE 'store_cart:%' OR bucket_key LIKE 'store_child_save:%'");
 }

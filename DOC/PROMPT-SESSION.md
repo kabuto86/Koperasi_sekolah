@@ -49,13 +49,16 @@ Setiap prompt di bawah bermula dengan "Ikut peraturan umum". Maksudnya:
    Sejak B1: skema sebenar = `database/schema.sql` (75 jadual, PELAN 9 J); lajur baharu → fail `database/migrations/NNN-nama.sql`
    **dan** kemas kini `schema.sql` + PELAN 9. Konvensyen job & core dalam PELAN 10.2 (constructor menerima id dari sesi + input, `run()`,
    `Database::fetchOne/fetchAll/execute/insert`, `Response::ok/fail/notFound`). Data demo & akaun: kepala `database/seed.sql`.
-   Semakan asas sebelum commit: `php tools/verify-b1.php` + `verify-b2.php` + `verify-b3.php` + `verify-b4.php` + `verify-b5.php` (mesti 0 gagal) + `php tools/check-ui.php`; tambah skrip semakan
+   Semakan asas sebelum commit: `php tools/verify-b1.php` + `verify-b2.php` + `verify-b3.php` + `verify-b4.php` + `verify-b5.php` + `verify-b6.php` (mesti 0 gagal) + `php tools/check-ui.php`; tambah skrip semakan
    session sendiri `tools/verify-bN.php` dengan ujian kebocoran VENDOR01↔VENDOR02 dan ibu bapa A↔B (contoh HTTP sebenar: kelas `Browser`
    dalam `tools/test-helpers.php` sejak B3 — pelayan `php -S` sendiri, cookie, CSRF; `require __DIR__ . '/test-helpers.php'`).
    Sejak B4: skop koperasi melalui `VendorAuth::requireCooperative()`; stok HANYA melalui `StockLedger::move()` dalam transaksi DB;
    gambar melalui `core/Uploader` (data URL dari borang) — PELAN 10.2 "Konvensyen B4".
    Sejak B5: kit sekolah dalam `jobs/SchoolKit/` (`SchoolKits` pembantu); store mesti guna `SchoolKits::findPublished()` (draf tidak
    pernah kelihatan); harga kit sentiasa dikira dari harga semasa produk — PELAN 18.9 "B5 (sebenar)".
+   Sejak B6: store menyelesaikan koperasi dengan `StoreSchool::require($slug)` (baris koperasi → job; tiada id dari input); harga/stok/had
+   store HANYA melalui `StorePricing`; troli melalui `Carts` (`quote` = CartQuote), anak melalui `Children` — PELAN 10.2 "Konvensyen B6", 18.12 "B6 (sebenar)".
+   Ujian HTTP dengan parameter: `$browser->status($laluan, $params)` (`tools/test-helpers.php`).
    Sejak B2: endpoint ikut konvensyen PELAN 10.2 (`Request::requireMethod` → `XAuth::requireRole/requireLogin` → `Csrf::verifyRequest` →
    job yang melempar `ValidationException`). Bila modul siap: **tambah awalan laluan ke `Api.livePrefixes`** (`assets/js/api.js`), buang
    `Mock.register` laluan itu, dan tanda `— (Bn)` dalam PELAN 18.14. Halaman panel sudah dilindungi sesi (`requirePage`); akaun demo:
@@ -350,7 +353,7 @@ Sahkan: kit hanya boleh mengandungi produk koperasi yang sama; kit draf tidak ke
 > id item kit kekal semasa sunting (rujukan troli B6); padam kit draf ditolak jika ada pesanan; `tools/verify-b5.php`.
 > Mock `MockOrders.kits` kekal untuk `store/kit` sehingga B6.
 
-## B6 — Store ibu bapa: anak, katalog, kit, troli
+## B6 — Store ibu bapa: anak, katalog, kit, troli ✅ (26 Okt 2026 — lihat PROSES.md)
 
 ```
 Ikut peraturan umum. Session: B6. Prasyarat: B5 ✅.
@@ -364,6 +367,10 @@ Ujian: ibu bapa A tidak boleh tambah item untuk anak ibu bapa B; harga dari brow
 Sejak B2: akaun & `store/session` sudah sebenar (`GetStoreSessionJob` sudah kira troli & sekolah anak dari DB). Buang jambatan
 sementara dalam `mock/store.js` (`storeAdoptCustomer`, `storeAdoptSession`, `Mock.onLive`, `Mock.beforeFirst`) bila anak & troli sebenar.
 ```
+> Hasil B6: 19 laluan store sebenar (sekolah, kelas, anak, katalog, produk, kit, troli, berita, jualan murah); 19 job (termasuk `ResolveStoreTemplateJob`) + 4 pembantu
+> `StoreSchool`, `StorePricing`, `Children`, `Carts`; template ikut `cooperatives.template_id` (jatuh balik template1), pratonton
+> `?template=` hanya owner / vendor pemilik; URL cantik `/{slug}/` (`.htaccess` + `config pretty_store_urls`); `tools/verify-b6.php`.
+> Jambatan sesi ibu bapa mock DIKEKALKAN untuk pesanan mock (B7) + jambatan troli sebenar → checkout mock (lihat B7).
 
 ## B7 — Checkout tunai, pesanan & e-mel
 
@@ -377,6 +384,9 @@ core/Mailer + email_queue + cron/send-emails.php (SMTP vanila atau PHPMailer dis
 Composer), cron/expire-cash-orders.php. E-mel: amaran vendor (semua alert_emails),
 resit ibu bapa (no. pendek + QR), ikut bahasa.
 Sahkan: dua checkout serentak untuk stok terakhir → satu sahaja berjaya.
+Sejak B6: troli & harga sebenar — CheckoutJob guna `Carts::quote()` / `StorePricing` (jangan tulis semula pengiraan harga), tambah promosi
+(satu setiap pesanan, kupon / automatik terbaik, cukai selepas diskaun) dan slot ambil. Bila checkout & pesanan sebenar: buang baki
+`mock/store.js` (jambatan `MockStore.liveCart`, `storeClearLiveCart`, `storeAdoptCustomer/Session`, `Mock.onLive`, `Mock.beforeFirst`).
 ```
 
 ## B8 — Payment gateway

@@ -1,7 +1,7 @@
 <?php // Bar atas store: nama sekolah, menu (desktop), bahasa, akaun ?>
 <header class="navbar navbar-expand-lg bg-brand sticky-top store-topbar d-print-none" data-bs-theme="dark"
         id="store-context" data-school-slug="<?= e($schoolSlug) ?>" data-page="<?= e($storePage) ?>"
-        data-store-url="<?= e(View::url('store/index.php')) ?>">
+        data-store-url="<?= e(View::url('store/index.php')) ?>" data-pretty-url="<?= e(Config::get('pretty_store_urls') ? View::url('') : '') ?>">
     <div class="container">
         <a class="navbar-brand d-flex align-items-center gap-2 min-w-0" href="<?= e(View::storeUrl($schoolSlug)) ?>">
             <i class="bi bi-shop-window" aria-hidden="true"></i>

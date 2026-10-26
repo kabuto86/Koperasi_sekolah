@@ -69,11 +69,14 @@ class View
         require APP_ROOT . '/' . $file;
     }
 
-    // URL halaman store ibu bapa. Peringkat 1: store/index.php?school=slug&page=...
-    // (B6 boleh tukar kepada /{slug}/{page} melalui .htaccess tanpa ubah template)
+    // URL halaman store ibu bapa: store/index.php?school=slug&page=... atau /{slug}/{halaman} (config pretty_store_urls, B6).
     // Tanpa slug (belum pilih sekolah) → hanya halaman akaun / pilih sekolah
     public static function storeUrl($slug, $page = 'home', $params = [])
     {
+        if ($slug !== '' && Config::get('pretty_store_urls')) {
+            $url = self::url(rawurlencode($slug) . '/' . ($page !== 'home' ? rawurlencode($page) : ''));
+            return $params ? $url . '?' . http_build_query($params) : $url;
+        }
         $query = [];
         if ($slug !== '') {
             $query['school'] = $slug;

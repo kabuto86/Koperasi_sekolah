@@ -47,4 +47,11 @@ function loadNews() {
     });
 }
 
-onStoreReady(loadNews);
+// Modul tidak aktif untuk koperasi ini → mesej terus (tanpa permintaan ke pelayan)
+onStoreReady(function (store) {
+    if (store.school.modules.indexOf('news') === -1) {
+        emptyState(document.getElementById('news-list'), 'bi-megaphone', T('store.module_unavailable'), T('store.nav.home'), storeUrl('home'));
+        return;
+    }
+    loadNews();
+});

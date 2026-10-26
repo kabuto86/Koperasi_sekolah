@@ -4,7 +4,7 @@
 var Mock = {
     routes: {},
     stores: [],
-    storageVersion: 'v9',
+    storageVersion: 'v10',
 
     // handler(payload, method) mesti memulangkan Mock.ok(...) atau Mock.fail(...)
     register: function (path, handler) {

@@ -13,8 +13,12 @@ return [
     // Produksi: WAJIB diisi — elak pautan reset kata laluan dipalsukan melalui header Host
     'app_url'           => null,
 
+    // URL store cantik /{slug}/{halaman} (B6). Perlu Apache mod_rewrite + .htaccess di akar projek.
+    // false = store/index.php?school={slug}&page=... (berfungsi di semua pelayan, termasuk php -S)
+    'pretty_store_urls' => false,
+
     // Naikkan nombor ini bila CSS/JS berubah supaya pelayar tidak guna cache lama
-    'asset_version'     => '6',
+    'asset_version'     => '7',
 
     // Peringkat 1: data dari assets/js/mock/*.js. Peringkat 2: laluan yang sudah siap guna fetch() (Api.livePrefixes
     // dalam api.js); selebihnya masih mock sehingga session masing-masing. Tukar ke false bila semua B siap
