@@ -4,9 +4,9 @@
 > Kemas kini fail ini di HUJUNG setiap session, sebelum commit & push.
 > Reka bentuk: [PELAN.md](PELAN.md) · Prompt kerja: [PROMPT-SESSION.md](PROMPT-SESSION.md)
 
-**Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · semua skrin desktop/web dengan data mock, disemak 4 bahasa × 2 lebar
-**Session terakhir siap:** U7 — Semakan UI menyeluruh
-**Session seterusnya:** **B1 — Skema, seed & core** (Peringkat 2)
+**Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · **Peringkat 2 bermula** — skema, seed & core siap (B1)
+**Session terakhir siap:** B1 — Skema, seed & core
+**Session seterusnya:** **B2 — Auth** (owner, vendor, ibu bapa + 2FA + throttle)
 
 Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 
@@ -36,7 +36,7 @@ Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 
 | Session | Tajuk | Status | Tarikh siap | Commit | Nota |
 |---|---|---|---|---|---|
-| B1 | Skema, seed, core | ⬜ | | | |
+| B1 | Skema, seed, core | ✅ | 26 Okt 2026 | `8479340` | 75 jadual, seed 2 vendor/3 koperasi/2 ibu bapa, 6 kelas core baharu, `ValidateCooperativeJob`, `tools/verify-b1.php` 42/42 lulus |
 | B2 | Auth owner, vendor, ibu bapa + 2FA + throttle | ⬜ | | | |
 | B3 | Owner: pelan, harga koperasi, modul, template, vendor | ⬜ | | | |
 | B4 | Vendor: koperasi, produk, kategori, varian, inventori, pembekal | ⬜ | | | |
@@ -520,6 +520,51 @@ Dokumen:
 | Halaman `advanced_report`, `membership` (sementara "sedang dibina"); `mobile_app` | kemudian / F1–F4 |
 | Imbas QR/barcode dengan kamera | F1 (app) |
 | Pemilih koperasi POS disembunyikan < 768px (tukar koperasi dari panel) | kekal — reka bentuk |
+
+### B1 — Skema, seed & core (26 Okt 2026)
+
+Dibuat:
+- `database/create-database.sql` — `koperasi_saas` (utf8mb4_unicode_ci) + pengguna `koperasi_user@localhost` dengan akses **`koperasi_saas.*` sahaja**
+  (tukar `GANTI_KATA_LALUAN_KUAT`; tidak menyentuh `tuisyen` / `pos_saas`)
+- `database/schema.sql` — **75 jadual** (69 PELAN 9 + `refund_items` + 5 jadual yang kontrak UI perlukan — PELAN 9 J), InnoDB, FK,
+  UNIQUE & indeks bermula `vendor_id` (PELAN 8.6). Baris pertama `SET NAMES utf8mb4`, UTF-8 tanpa BOM
+- `database/seed.sql` — 4 bahasa (ms lalai), 13 darjah, owner + owner_staff, tetapan platform, 3 pelan + 4 peringkat koperasi, 8 modul (+ keterangan
+  dalam `translations`), 3 template, 5 gateway; **VENDOR01** (SK Taman Melati) & **VENDOR02** (SJKC Chung Hwa, SMK Seri Indah), langganan + item,
+  modul dilanggan, 5 kakitangan (PIN 1234), tetapan koperasi lengkap, kelas, kategori, 11 produk (6 varian), stok + pergerakan, pembekal, 4 kit 2027,
+  2 ibu bapa (Siti: anak di Taman Melati **dan** Chung Hwa — dua vendor; Rajesh: Seri Indah), berita/kalendar/jualan murah contoh.
+  Nama Cina & Tamil dalam `product_translations`, resit Cina dalam `cooperative_settings`. Akaun demo di kepala fail (kata laluan `Demo@12345`)
+- `config/database.example.php` (+ `config/database.php` tempatan, .gitignore) · `config/app.php`: `debug`, `password_options` (Argon2id 19456/2/1), `secret_key_file`
+- `core/Database.php` (PDO utf8mb4 + `SET NAMES` + zon `+08:00`, `EMULATE_PREPARES` off, `ERRMODE_EXCEPTION`, fetchOne/fetchAll/fetchValue/execute/insert, transaksi) ·
+  `Request.php` · `Response.php` · `Validator.php` · `Csrf.php` · `Crypto.php` (sodium secretbox) · `SecurityHeaders.php` (+ HSTS bila HTTPS) ·
+  `bootstrap.php` (autoload `core/` & `jobs/*/`, pengendali ralat JSON untuk `api/`)
+- `jobs/Cooperative/ValidateCooperativeJob.php` — `new ValidateCooperativeJob($vendorIdDariSesi, $cooperativeId)` → `run()` = baris koperasi atau `null`
+- `tools/generate-secret.php` (jana `config/secret.key`), `tools/verify-b1.php` (semakan B1)
+- `.htaccess` "Require all denied" dalam `config/ core/ database/ jobs/ lang/ tools/`; `uploads/.htaccess` halang PHP
+- 8 kunci bahasa baharu (`error.forbidden`, `error.method_not_allowed`, `error.csrf`, `error.server`, `error.max_length`, `error.min_length`,
+  `error.date`, `error.integer`) dalam 4 bahasa — jumlah 1781
+
+Disahkan (MariaDB 10.11, PHP 8.3 — `php tools/verify-b1.php` → **42 lulus, 0 gagal**):
+- Import dari kosong dengan `mysql --default-character-set=utf8mb4` sebagai `koperasi_user`; pengguna itu hanya nampak `koperasi_saas`
+- Sambungan PDO: client/connection/results `utf8mb4`, collation `utf8mb4_unicode_ci`; 75 jadual semua InnoDB + utf8mb4_unicode_ci
+- **HEX nama Cina melalui PDO** `练习簿（80页）` = `E7BB83E4B9A0E7B0BF…` (sama dengan `bin2hex` PHP); Tamil dibaca sama; tulis/baca Cina + Tamil + emoji 📚
+- **UNIQUE barcode**: `9555000000017` wujud di koperasi 1 & 2; pendua dalam koperasi sama → 1062; koperasi lain → dibenarkan
+- **Kebocoran**: `ValidateCooperativeJob` VENDOR02→koperasi 1, VENDOR01→koperasi 2/3, id tiada, vendor 0, `'1 OR 1=1'` → semua `null`;
+  anak ibu bapa B tidak dijumpai dengan `customer_id` ibu bapa A; `vendor_id` anak & produk sepadan dengan koperasi
+- Argon2id `$argon2id$v=19$m=19456,t=2,p=1$…`, `password_needs_rehash` = false; Crypto: buka semula, nonce rawak, teks diubah → null
+- Halaman sedia ada (owner, vendor, store) masih 200 dengan `bootstrap.php` baharu; ralat dalam `api/` → JSON `{ ok:false, error: "Ralat pelayan…" }` HTTP 500
+- `php tools/check-ui.php` → OK, 1781 kunci sama dalam 4 bahasa
+
+Keputusan kecil (dicatat dalam PELAN 8.7, 9 J, 10.1, 10.2):
+- Seed ikut PELAN 8.7 (bukan susunan mock): VENDOR02 memiliki Chung Hwa & **SMK Seri Indah**; mock Peringkat 1 tidak diubah
+- `variant_id = 0` = tiada varian dalam stok/pesanan/troli (PK tidak boleh NULL); kit `variant_id NULL` = ibu bapa pilih
+- `ValidateCooperativeJob` hanya menyemak pemilikan; status koperasi dipulangkan dan pemanggil memutuskan (laporan koperasi `closed` masih boleh dibaca)
+- POST dari `api.js` (B2+) dihantar sebagai JSON; CSRF melalui header `X-CSRF-Token` (`Csrf::verifyRequest()`), kod 419 bila tidak sah
+- Keterangan modul dalam jadual `translations`; nama modul & darjah kekal dalam `lang/*.php`
+- `api.js` belum ditukar — tiada laluan backend dalam B1 (`use_mock` kekal `true`)
+
+Tertangguh:
+- `api/v1/` belum wujud — bermula B2 (auth). `config/malaysia.php` kekal fail (tidak dipindah ke DB)
+- Kata laluan demo & `config/database.php` tempatan mesti ditukar di pelayan sebenar
 
 ---
 

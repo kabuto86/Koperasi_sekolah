@@ -1835,4 +1835,14 @@ return [
     'store.slot.full'                    => '此时段已满。请选择其他时段。',
     'store.slot.all_full'                => '所有取货时段已满。请联系合作社。',
     'store.slot.success_note'            => '取货时段：{slot}。',
+
+    // B1 — ralat pelayan (core/Response, Validator, Csrf)
+    'error.forbidden'                    => '您无权执行此操作。',
+    'error.method_not_allowed'           => '不允许的请求方法。',
+    'error.csrf'                         => '会话已过期或表单无效，请重新加载页面。',
+    'error.server'                       => '服务器错误，请稍后再试。',
+    'error.max_length'                   => '最多 {max} 个字符。',
+    'error.min_length'                   => '至少 {min} 个字符。',
+    'error.date'                         => '日期无效。',
+    'error.integer'                      => '必须是整数。',
 ];

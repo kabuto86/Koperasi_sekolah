@@ -46,6 +46,11 @@ Setiap prompt di bawah bermula dengan "Ikut peraturan umum". Maksudnya:
    butang ikon ada `aria-label`, carta SVG ada `<title>`, kontras teks ≥ 4.5:1 (WCAG AA).
    Sebelum commit jalankan `php tools/check-ui.php` (tiada inline CSS, tiada CDN, tiada teks paparan ditulis terus dalam HTML, kunci 4 bahasa sama).
 7. **Peringkat 2 (B):** jalankan ujian kebocoran dua vendor + dua ibu bapa (PELAN 15) sebelum tutup session.
+   Sejak B1: skema sebenar = `database/schema.sql` (75 jadual, PELAN 9 J); lajur baharu → fail `database/migrations/NNN-nama.sql`
+   **dan** kemas kini `schema.sql` + PELAN 9. Konvensyen job & core dalam PELAN 10.2 (constructor menerima id dari sesi + input, `run()`,
+   `Database::fetchOne/fetchAll/execute/insert`, `Response::ok/fail/notFound`). Data demo & akaun: kepala `database/seed.sql`.
+   Semakan asas sebelum commit: `php tools/verify-b1.php` (mesti 0 gagal) + `php tools/check-ui.php`; tambah skrip semakan
+   session sendiri `tools/verify-bN.php` dengan ujian kebocoran VENDOR01↔VENDOR02 dan ibu bapa A↔B.
 8. **Penutup wajib:**
    - Kemas kini `DOC/PROSES.md`: status ✅, tarikh, commit, nota, dan "Butiran session yang siap"
      (fail dicipta, keputusan kecil, perkara tertangguh)
@@ -281,6 +286,9 @@ Ikut peraturan umum. Session: B2 — Auth. Prasyarat: B1 ✅.
 Baca DOC/PELAN.md bahagian 4, 11, 15.
 
 core/OwnerAuth, VendorAuth, CustomerAuth (tiga nama sesi berasingan), core/Totp, RateLimit.
+Jadual sedia ada dari B1: login_attempts (+ jenis pos_pin), rate_limits, totp_recovery_codes, customer_tokens,
+vendor_user_tokens (jemputan / reset kakitangan); TOTP disulitkan dengan Crypto. Tukar api.js kepada fetch() untuk
+laluan auth (header X-CSRF-Token dari <body data-csrf>), mock kekal untuk modul lain sehingga session masing-masing.
 jobs/Auth/: OwnerLoginJob, VendorLoginJob, CustomerLoginJob (e-mel atau telefon),
 CustomerRegisterJob, VerifyEmailJob, ForgotPasswordJob, ResetPasswordJob, ThrottleJob,
 CheckSubscriptionJob, SetupTotpJob, VerifyTotpJob, PosPinLoginJob.

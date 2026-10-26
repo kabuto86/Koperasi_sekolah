@@ -1850,4 +1850,14 @@ return [
     'store.slot.full'                    => 'Slot ini sudah penuh. Sila pilih slot lain.',
     'store.slot.all_full'                => 'Semua slot ambil sudah penuh. Sila hubungi koperasi.',
     'store.slot.success_note'            => 'Slot ambil: {slot}.',
+
+    // B1 — ralat pelayan (core/Response, Validator, Csrf)
+    'error.forbidden'                    => 'Anda tidak dibenarkan melakukan tindakan ini.',
+    'error.method_not_allowed'           => 'Kaedah permintaan tidak dibenarkan.',
+    'error.csrf'                         => 'Sesi tamat atau borang tidak sah. Sila muat semula halaman.',
+    'error.server'                       => 'Ralat pelayan. Sila cuba lagi sebentar.',
+    'error.max_length'                   => 'Maksimum {max} aksara.',
+    'error.min_length'                   => 'Minimum {min} aksara.',
+    'error.date'                         => 'Tarikh tidak sah.',
+    'error.integer'                      => 'Mesti nombor bulat.',
 ];
