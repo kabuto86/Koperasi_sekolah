@@ -49,9 +49,11 @@ Setiap prompt di bawah bermula dengan "Ikut peraturan umum". Maksudnya:
    Sejak B1: skema sebenar = `database/schema.sql` (75 jadual, PELAN 9 J); lajur baharu → fail `database/migrations/NNN-nama.sql`
    **dan** kemas kini `schema.sql` + PELAN 9. Konvensyen job & core dalam PELAN 10.2 (constructor menerima id dari sesi + input, `run()`,
    `Database::fetchOne/fetchAll/execute/insert`, `Response::ok/fail/notFound`). Data demo & akaun: kepala `database/seed.sql`.
-   Semakan asas sebelum commit: `php tools/verify-b1.php` + `verify-b2.php` + `verify-b3.php` (mesti 0 gagal) + `php tools/check-ui.php`; tambah skrip semakan
+   Semakan asas sebelum commit: `php tools/verify-b1.php` + `verify-b2.php` + `verify-b3.php` + `verify-b4.php` (mesti 0 gagal) + `php tools/check-ui.php`; tambah skrip semakan
    session sendiri `tools/verify-bN.php` dengan ujian kebocoran VENDOR01↔VENDOR02 dan ibu bapa A↔B (contoh HTTP sebenar: kelas `Browser`
    dalam `tools/test-helpers.php` sejak B3 — pelayan `php -S` sendiri, cookie, CSRF; `require __DIR__ . '/test-helpers.php'`).
+   Sejak B4: skop koperasi melalui `VendorAuth::requireCooperative()`; stok HANYA melalui `StockLedger::move()` dalam transaksi DB;
+   gambar melalui `core/Uploader` (data URL dari borang) — PELAN 10.2 "Konvensyen B4".
    Sejak B2: endpoint ikut konvensyen PELAN 10.2 (`Request::requireMethod` → `XAuth::requireRole/requireLogin` → `Csrf::verifyRequest` →
    job yang melempar `ValidationException`). Bila modul siap: **tambah awalan laluan ke `Api.livePrefixes`** (`assets/js/api.js`), buang
    `Mock.register` laluan itu, dan tanda `— (Bn)` dalam PELAN 18.14. Halaman panel sudah dilindungi sesi (`requirePage`); akaun demo:
@@ -318,7 +320,7 @@ Sahkan: owner_staff ditolak untuk harga & tetapan (403).
 > (tapisan vendor untuk owner_staff); `tools/verify-b3.php` + `tools/test-helpers.php` (kelas `Browser` dikongsi); seed templat e-mel,
 > nota vendor & pengumuman contoh. Nama modul/darjah owner disimpan dalam `translations` — `t()` di halaman lain masih dari `lang/*.php` (B14).
 
-## B4 — Vendor: koperasi, katalog, inventori
+## B4 — Vendor: koperasi, katalog, inventori ✅ (26 Okt 2026 — lihat PROSES.md)
 
 ```
 Ikut peraturan umum. Session: B4. Prasyarat: B3 ✅.
@@ -330,6 +332,9 @@ stock take. Semua stok_movements dalam DB transaction.
 Ujian kebocoran: produk VENDOR01 diminta oleh VENDOR02 → 404; cooperative_id vendor lain → ditolak.
 Peralihan: mock vendor masih `MockVendor.sessionVendorId = 1` — selepas B4 halaman katalog guna data DB (VENDOR02 / SMK Seri Indah).
 ```
+> Hasil B4: 36 endpoint vendor sebenar (koperasi, kelas, kategori, produk, inventori, pembekal, PO, stock take, papan pemuka, juga
+> `templates/options` & `modules/active`); `core/Uploader`, `jobs/Billing/PlanLimit`, `StockLedger`; `tools/verify-b4.php`.
+> `vendor/settings/*` DITANGGUH ke B9 (skrin serah/POS mock masih membaca tetapan mock). Seed: contoh PO-2026-0001 & stock take selesai.
 
 ## B5 — Kit keperluan sekolah
 
@@ -392,6 +397,8 @@ PrintLabelsJob, FindOrdersForPickupJob (cara A nama/kelas, B no. pendek, C/D tok
 VerifyPickupCodeJob (cara E, had cubaan), HandoverOrderJob (DB transaction: order_pickups,
 collected_qty, tolak stok sebenar, lepas tahanan, status, e-mel "telah diambil oleh ...").
 Sahkan: juruwang koperasi lain tidak boleh serah pesanan koperasi ini; kod salah 5 kali → dikunci.
+Juga (dari B4): vendor/settings/get|save sebenar (cooperative_settings + cooperatives.default_language; pickup_methods dibaca skrin serah)
+— gunakan CooperativeSettings (jobs/Cooperative). Stok: tahan/lepas/ambil melalui StockLedger::move() (reserve/release/collect).
 ```
 
 ## B10 — POS kaunter
@@ -408,11 +415,12 @@ Sahkan: cashier ditolak untuk endpoint katalog/tetapan (403).
 ```
 
 ## B11 — Laporan, refund, PO & stock take
+> PO & stock take sudah siap dalam B4 — B11 tinggal laporan, refund & promosi.
 
 ```
 Ikut peraturan umum. Session: B11. Prasyarat: B10 ✅.
 Job laporan (harian, bulanan, produk, darjah, kelas, untung, stok, tunai vs online, ExportCsvJob),
-RefundOrderJob (pulang stok, gateway refund jika disokong, audit log), promosi
+RefundOrderJob (pulang stok melalui StockLedger, gateway refund jika disokong, audit log), promosi
 (SavePromotionJob, ApplyPromotionJob dalam GetCartJob & PosCalculateCartJob).
 Sahkan: semua laporan menapis vendor_id + cooperative_id yang disahkan.
 ```

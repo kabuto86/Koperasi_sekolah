@@ -664,6 +664,8 @@ return [
     'product.final_price'                 => 'இறுதி விலை',
     'product.add_variant'                 => 'வகையைச் சேர்',
     'product.variants_required'           => 'குறைந்தது ஒரு வகையைச் சேர்க்கவும்.',
+    'product.limit_reached'               => 'உங்கள் திட்டம் {max} பொருட்களை மட்டுமே அனுமதிக்கிறது. மேலும் சேர்க்க திட்டத்தை மேம்படுத்தவும்.',
+    'product.variant_locked'              => 'இருப்பு அல்லது வரலாறு (ஆர்டர், கொள்முதல் ஆணை, இருப்பு நகர்வு) உள்ள வகையை நீக்க முடியாது. அதை செயலிழக்கச் செய்யவும்.',
     // Inventori
     'inventory.on_hand'                   => 'கையிருப்பு',
     'inventory.reserved'                  => 'ஒதுக்கப்பட்டது',
@@ -1267,6 +1269,13 @@ return [
     'activity.action.template_subscribe'   => 'வார்ப்புருவுக்குச் சந்தா செய்தார்',
     'activity.action.subscription_change'  => 'திட்ட மாற்றத்தைத் திட்டமிட்டார்',
     'activity.action.invoice_pay'          => 'விலைப்பட்டியலைச் செலுத்தினார்',
+    'activity.action.cooperative_save'     => 'கூட்டுறவைச் சேமித்தார்',
+    'activity.action.product_save'         => 'பொருளைச் சேமித்தார்',
+    'activity.action.stock_in'             => 'இருப்பு உள்வரவு',
+    'activity.action.po_save'              => 'கொள்முதல் ஆணையைச் சேமித்தார்',
+    'activity.action.po_cancel'            => 'கொள்முதல் ஆணையை ரத்து செய்தார்',
+    'activity.action.stocktake_complete'   => 'இருப்புக் கணக்கெடுப்பை முடித்தார்',
+    'activity.action.supplier_save'        => 'விநியோகஸ்தரைச் சேமித்தார்',
     'payment.methods_help'                 => 'குறைந்தது ஒரு முறை செயலில் இருக்க வேண்டும்.',
     // POS (U4)
     'pos.tab_sale'                         => 'விற்பனை',

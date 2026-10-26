@@ -464,7 +464,8 @@ Koperasi_sekolah/
 │                   Database · Request · Response · Validator · Csrf · Lang (+ t(), e()) · ValidationException (B2)
 │                   OwnerAuth · VendorAuth · CustomerAuth · Session · Password · Totp · RateLimit (B2) · ApiTokenAuth
 │                   PhoneNumber · IsoDate · Pagination (B2) · PanelRole (U7, sesi sejak B2)
-│                   Crypto (sodium) · ModuleAccess · PlanLimit · Mailer · Uploader · View · SecurityHeaders
+│                   Crypto (sodium) · ModuleAccess · Mailer · Uploader (B4) · View · SecurityHeaders
+│                   (PlanLimit = jobs/Billing/PlanLimit.php sejak B4 — membaca DB, jadi bukan dalam core/)
 ├── jobs/           SATU KELAS = SATU KERJA
 │   ├── Auth/ Owner/ Vendor/ Cooperative/ Plan/ Billing/ Module/ Template/
 │   ├── Product/ Inventory/ Supplier/ Promotion/ SchoolKit/
@@ -493,7 +494,7 @@ Koperasi_sekolah/
 ├── cron/           send-emails · expire-cash-orders · generate-invoices · suspend-overdue · promote-grades
 ├── tools/          check-ui.php (tiada inline CSS + kunci 4 bahasa sama) · generate-secret.php · verify-b1.php · verify-b2.php
 │                   dev-totp.php (kod 2FA ujian) · ui-audit.js (pelayar, log masuk sebenar sejak B2) — CLI sahaja
-│                   verify-b3.php · test-helpers.php (Browser HTTP dikongsi — B3)
+│                   verify-b3.php · test-helpers.php (Browser HTTP dikongsi — B3) · verify-b4.php (B4)
 ├── assets/
 │   ├── lib/        bootstrap/ (5.3.3) · bootstrap-icons/ (1.11.3) · qrcode/ (qrcode-generator 1.4.4, MIT — sejak U2)
 │   ├── css/        app.css · print-label.css · print-slip.css · receipt.css
@@ -557,6 +558,13 @@ nombor). Tetapan platform melalui `PlatformSettings::get/set` (dicache satu perm
 `TranslationValues::many/get/save` (DB → `lang/*.php` → `''`). Pengendali ralat global memanggil `Database::rollBack()` supaya job yang
 gagal di tengah transaksi tidak meninggalkan separuh perubahan. Ujian HTTP: `tools/test-helpers.php` (`check()`, `Browser`, `ownerLogin`,
 `vendorLogin`, `storeLogin`, `clearTestLocks`) dikongsi oleh `verify-b2.php` & `verify-b3.php`.
+
+**Konvensyen B4:** endpoint skop "vendor sesi + koperasi" memanggil `VendorAuth::requireCooperative(Request::int('cooperative_id'))`
+(`ValidateCooperativeJob` + akses kakitangan → 404 jika gagal) dan menghantar `$cooperative['id']` kepada job. Peranan katalog/inventori =
+`VendorAuth::PANEL_ROLES` (juruwang 403). **Stok hanya diubah melalui `StockLedger::move()`** (`jobs/Inventory/`) — mengunci baris
+`stock_levels` (`FOR UPDATE`), menulis `stock_movements.balance_after`, dan menolak panggilan di luar transaksi DB. Nombor bersiri & had pelan
+dikunci dengan `SELECT … FOR UPDATE` pada baris koperasi / vendor. Pembantu B4: `PlanLimit` (jobs/Billing), `CooperativeSettings`,
+`ProductCatalog`, `InventoryRows`, `StockTakes`, `PurchaseOrders`. Muat naik: `core/Uploader::saveImage()` (data URL → fail).
 
 ### 10.3 Kontrak API
 
@@ -754,7 +762,9 @@ Dalam mock: `Mock.paginate(rows, params, ['medan_carian', ...])`.
   selebihnya masih mock. Setiap session B **menambah awalan** modulnya dan membuang `Mock.register` laluan itu. Jambatan sementara:
   `Mock.onLive(laluan, fn)` (selepas jawapan sebenar) dan `Mock.beforeFirst(fn)` (sekali sebelum jawapan mock pertama) — cth.
   `mock/store.js` menyelaraskan `MockStore.session` dengan ibu bapa sebenar (dipadankan ikut e-mel) dan mengisi `cart_count` / `schools`
-  `store/session` dari troli & anak mock sehingga B6. Mock vendor kekal `sessionVendorId = 1` sehingga B4.
+  `store/session` dari troli & anak mock sehingga B6. **Sejak B4** laluan koperasi, kelas, kategori, produk, inventori, pembekal, PO,
+  stock take, papan pemuka, `templates/options` & `modules/active` sebenar; `mock/vendor.js` hanya menyimpan data contoh (`MockVendor`, `sessionVendorId = 1`)
+  untuk mock modul lain (kit B5, store B6, pesanan B9, POS B10, add-on B13) — id mock tidak sepadan dengan DB.
   Sejak B3 `mock/owner.js` hanya mengandungi langganan & invois (B12) dan terjemahan (B14); data vendor/pelan di dalamnya hanya untuk
   ringkasan laluan itu (id mock tidak sepadan dengan DB)
 - `vendor_id` dalam mock datang dari `MockVendor.sessionVendorId` (meniru sesi) — tidak pernah dari parameter
@@ -992,6 +1002,14 @@ Ringkasan senarai: `{ id, name, sku, barcode, category_id, category_name, price,
 grade_levels, stock_available, is_low, is_active }`. SKU & barcode unik dalam koperasi. Varian baharu → baris stok 0.
 `vendor/products/options` → `[{ product_id, variant_id /* 0 = tiada */, name, sku, cost_price }]` (untuk PO).
 Gambar Peringkat 1: data URL; Peringkat 2: muat naik berasingan (`finfo`, ≤ 2MB, `uploads/{vendor_id}/{cooperative_id}/`)
+
+> **B4 (sebenar):** `image_url` / `logo_url` dalam badan simpan: data URL = gambar baharu (disahkan `core/Uploader` — finfo + getimagesize,
+> JPG/PNG/WebP ≤ 2MB, nama fail = SHA-256) · kosong/`null` = buang · URL sedia ada = kekal. Fail: `uploads/{vendor_id}/{cooperative_id}/products|logo/`.
+> SKU & barcode unik dalam koperasi **merentas produk dan varian** (tanpa beza huruf besar). Varian/baris tanpa varian yang sudah ada stok atau
+> sejarah (pergerakan, pesanan, PO, stock take, kit, troli) tidak boleh dibuang → `product.variant_locked` (nyahaktif sahaja). Had pelan
+> `max_products` (semua koperasi vendor) & `max_cooperatives` (koperasi bukan `closed`). Koperasi ke-n ≥ 2 → baris `subscription_items`
+> (`item_type = cooperative`, harga peringkat kitaran semasa). No. PO `PO-{tahun}-{0001}` bersiri dalam koperasi. Slug sistem (`api`, `vendor`,
+> `store`, …) dilaporkan "sudah digunakan". Pengurus boleh sunting koperasi yang diberi; tambah koperasi & `pricing-preview` pentadbir sahaja.
 
 **InventoryRow** — `vendor/inventory/list` (tapis `q, category_id, low_only`; `data.low_count`)
 ```js
@@ -1347,7 +1365,8 @@ vendor) → `booked--`. **Lencana "Jualan murah"** (sedia sejak U5) kini dari `M
 ### 18.14 Indeks laluan API lengkap (U7) — spesifikasi backend
 
 Senarai **semua** laluan yang didaftar dalam `assets/js/mock/*.js` (214 laluan, dijana dari kod mock pada U7; B2 menambah 9 laluan auth
-— jumlah **223**; B3 menambah `owner/plans/options` — **224**). Lajur Mock `— (B2)` / `— (B3)` = sudah sebenar (`api/v1/`), mock dibuang. Bentuk `data` setiap laluan
+— jumlah **223**; B3 menambah `owner/plans/options` — **224**; B4 tiada laluan baharu). Lajur Mock `— (B2)` / `— (B3)` / `— (B4)` = sudah sebenar (`api/v1/`), mock dibuang.
+**B4:** PO, stock take, `templates/options` & `modules/active` disiapkan lebih awal (prompt B4); `vendor/settings/*` ditangguh ke B9 (skrin serah & POS mock masih membaca tetapan mock). Bentuk `data` setiap laluan
 ada dalam 18.4–18.13; jadual ini ialah senarai semak Peringkat 2 — setiap baris mesti menjadi `api/v1/{laluan}.php` (nipis, tiada SQL)
 yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan CSRF, B14).
 
@@ -1477,35 +1496,35 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 | `vendor/calendar/delete` | POST | koperasi + modul `calendar` | B13 | `vendor-addons.js` |
 | `vendor/calendar/list` | GET | koperasi + modul `calendar` | B13 | `vendor-addons.js` |
 | `vendor/calendar/save` | POST | koperasi + modul `calendar` | B13 | `vendor-addons.js` |
-| `vendor/categories/delete` | POST | vendor sesi + koperasi | B4 | `vendor.js` |
-| `vendor/categories/list` | GET | vendor sesi + koperasi | B4 | `vendor.js` |
-| `vendor/categories/save` | POST | vendor sesi + koperasi | B4 | `vendor.js` |
-| `vendor/classes/add` | POST | vendor sesi + koperasi | B4 | `vendor.js` |
-| `vendor/classes/delete` | POST | vendor sesi | B4 | `vendor.js` |
-| `vendor/classes/list` | GET | vendor sesi + koperasi | B4 | `vendor.js` |
-| `vendor/classes/update` | POST | vendor sesi | B4 | `vendor.js` |
+| `vendor/categories/delete` | POST | vendor sesi + koperasi | B4 | — (B4) |
+| `vendor/categories/list` | GET | vendor sesi + koperasi | B4 | — (B4) |
+| `vendor/categories/save` | POST | vendor sesi + koperasi | B4 | — (B4) |
+| `vendor/classes/add` | POST | vendor sesi + koperasi | B4 | — (B4) |
+| `vendor/classes/delete` | POST | vendor sesi | B4 | — (B4) |
+| `vendor/classes/list` | GET | vendor sesi + koperasi | B4 | — (B4) |
+| `vendor/classes/update` | POST | vendor sesi | B4 | — (B4) |
 | `vendor/clearance/delete` | POST | koperasi + modul `clearance` | B13 | `vendor-addons.js` |
 | `vendor/clearance/get` | GET | koperasi + modul `clearance` | B13 | `vendor-addons.js` |
 | `vendor/clearance/item-delete` | POST | koperasi + modul `clearance` | B13 | `vendor-addons.js` |
 | `vendor/clearance/item-save` | POST | koperasi + modul `clearance` | B13 | `vendor-addons.js` |
 | `vendor/clearance/list` | GET | koperasi + modul `clearance` | B13 | `vendor-addons.js` |
 | `vendor/clearance/save` | POST | koperasi + modul `clearance` | B13 | `vendor-addons.js` |
-| `vendor/cooperatives/check-slug` | GET | vendor sesi | B4 | `vendor.js` |
-| `vendor/cooperatives/get` | GET | vendor sesi | B4 | `vendor.js` |
+| `vendor/cooperatives/check-slug` | GET | vendor sesi | B4 | — (B4) |
+| `vendor/cooperatives/get` | GET | vendor sesi | B4 | — (B4) |
 | `vendor/cooperatives/list` | GET | vendor sesi | B2 (baca) / B4 | — (B2) |
-| `vendor/cooperatives/pricing-preview` | GET | vendor sesi | B4 | `vendor.js` |
-| `vendor/cooperatives/save` | POST | vendor sesi | B4 | `vendor.js` |
+| `vendor/cooperatives/pricing-preview` | GET | vendor sesi | B4 | — (B4) |
+| `vendor/cooperatives/save` | POST | vendor sesi | B4 | — (B4) |
 | `vendor/customers/list` | GET | vendor sesi + koperasi | B9 | `vendor-orders.js` |
 | `vendor/customers/save-note` | POST | vendor sesi + koperasi | B9 | `vendor-orders.js` |
-| `vendor/dashboard/summary` | GET | vendor sesi + koperasi | B4 | `vendor.js` |
-| `vendor/grades/list` | GET | vendor sesi + koperasi | B4 | `vendor.js` |
+| `vendor/dashboard/summary` | GET | vendor sesi + koperasi | B4 | — (B4) |
+| `vendor/grades/list` | GET | vendor sesi + koperasi | B4 | — (B4) |
 | `vendor/handover/collect` | POST | vendor sesi + koperasi | B9 | `vendor-orders.js` |
 | `vendor/handover/receive-cash` | POST | vendor sesi + koperasi | B9 | `vendor-orders.js` |
 | `vendor/handover/search` | GET | vendor sesi + koperasi | B9 | `vendor-orders.js` |
-| `vendor/inventory/adjust` | POST | vendor sesi + koperasi | B4 | `vendor.js` |
-| `vendor/inventory/list` | GET | vendor sesi + koperasi | B4 | `vendor.js` |
-| `vendor/inventory/movements` | GET | vendor sesi + koperasi | B4 | `vendor.js` |
-| `vendor/inventory/stock-in` | POST | vendor sesi + koperasi | B4 | `vendor.js` |
+| `vendor/inventory/adjust` | POST | vendor sesi + koperasi | B4 | — (B4) |
+| `vendor/inventory/list` | GET | vendor sesi + koperasi | B4 | — (B4) |
+| `vendor/inventory/movements` | GET | vendor sesi + koperasi | B4 | — (B4) |
+| `vendor/inventory/stock-in` | POST | vendor sesi + koperasi | B4 | — (B4) |
 | `vendor/invoices/get` | GET | vendor sesi | B12 | `vendor-finance.js` |
 | `vendor/invoices/list` | GET | vendor sesi | B12 | `vendor-finance.js` |
 | `vendor/invoices/pay` | POST | vendor sesi | B12 | `vendor-finance.js` |
@@ -1520,7 +1539,7 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 | `vendor/messaging/log` | GET | koperasi + modul `whatsapp_sms` | B13 | `vendor-addons.js` |
 | `vendor/messaging/save` | POST | koperasi + modul `whatsapp_sms` | B13 | `vendor-addons.js` |
 | `vendor/messaging/test` | POST | koperasi + modul `whatsapp_sms` | B13 | `vendor-addons.js` |
-| `vendor/modules/active` | GET | vendor sesi + koperasi | B13 | `vendor.js` |
+| `vendor/modules/active` | GET | vendor sesi + koperasi | B4 (asal B13) | — (B4) |
 | `vendor/news/delete` | POST | koperasi + modul `news` | B13 | `vendor-addons.js` |
 | `vendor/news/list` | GET | koperasi + modul `news` | B13 | `vendor-addons.js` |
 | `vendor/news/recipients` | GET | koperasi + modul `news` | B13 | `vendor-addons.js` |
@@ -1551,19 +1570,19 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 | `vendor/pos/shift-close` | POST | vendor sesi | B10 | `vendor-pos.js` |
 | `vendor/pos/shift-open` | POST | vendor sesi | B10 | `vendor-pos.js` |
 | `vendor/pos/shift-summary` | GET | vendor sesi | B10 | `vendor-pos.js` |
-| `vendor/products/get` | GET | vendor sesi | B4 | `vendor.js` |
-| `vendor/products/list` | GET | vendor sesi + koperasi | B4 | `vendor.js` |
-| `vendor/products/options` | GET | vendor sesi + koperasi | B4 | `vendor.js` |
-| `vendor/products/save` | POST | vendor sesi + koperasi | B4 | `vendor.js` |
-| `vendor/products/set-active` | POST | vendor sesi | B4 | `vendor.js` |
+| `vendor/products/get` | GET | vendor sesi | B4 | — (B4) |
+| `vendor/products/list` | GET | vendor sesi + koperasi | B4 | — (B4) |
+| `vendor/products/options` | GET | vendor sesi + koperasi | B4 | — (B4) |
+| `vendor/products/save` | POST | vendor sesi + koperasi | B4 | — (B4) |
+| `vendor/products/set-active` | POST | vendor sesi | B4 | — (B4) |
 | `vendor/promotions/delete` | POST | vendor sesi | B10 | `vendor-finance.js` |
 | `vendor/promotions/list` | GET | vendor sesi + koperasi | B10 | `vendor-finance.js` |
 | `vendor/promotions/save` | POST | vendor sesi + koperasi | B10 | `vendor-finance.js` |
-| `vendor/purchase-orders/cancel` | POST | vendor sesi | B11 | `vendor.js` |
-| `vendor/purchase-orders/get` | GET | vendor sesi | B11 | `vendor.js` |
-| `vendor/purchase-orders/list` | GET | vendor sesi + koperasi | B11 | `vendor.js` |
-| `vendor/purchase-orders/receive` | POST | vendor sesi | B11 | `vendor.js` |
-| `vendor/purchase-orders/save` | POST | vendor sesi + koperasi | B11 | `vendor.js` |
+| `vendor/purchase-orders/cancel` | POST | vendor sesi | B4 (asal B11) | — (B4) |
+| `vendor/purchase-orders/get` | GET | vendor sesi | B4 (asal B11) | — (B4) |
+| `vendor/purchase-orders/list` | GET | vendor sesi + koperasi | B4 (asal B11) | — (B4) |
+| `vendor/purchase-orders/receive` | POST | vendor sesi | B4 (asal B11) | — (B4) |
+| `vendor/purchase-orders/save` | POST | vendor sesi + koperasi | B4 (asal B11) | — (B4) |
 | `vendor/refunds/create` | POST | vendor sesi + koperasi | B11 | `vendor-finance.js` |
 | `vendor/refunds/list` | GET | vendor sesi + koperasi | B11 | `vendor-finance.js` |
 | `vendor/refunds/order` | GET | vendor sesi + koperasi | B11 | `vendor-finance.js` |
@@ -1575,21 +1594,21 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 | `vendor/school-opening/slot-save` | POST | koperasi + modul `school_opening` | B13 | `vendor-addons.js` |
 | `vendor/school-opening/slots` | GET | koperasi + modul `school_opening` | B13 | `vendor-addons.js` |
 | `vendor/session/cooperative` | POST | vendor sesi + koperasi | B2 | — (B2) |
-| `vendor/settings/get` | GET | vendor sesi + koperasi | B4 | `vendor-finance.js` |
-| `vendor/settings/save` | POST | vendor sesi + koperasi | B4 | `vendor-finance.js` |
+| `vendor/settings/get` | GET | vendor sesi + koperasi | B9 (asal B4) | `vendor-finance.js` |
+| `vendor/settings/save` | POST | vendor sesi + koperasi | B9 (asal B4) | `vendor-finance.js` |
 | `vendor/staff/list` | GET | vendor sesi | B2 | — (B2) |
 | `vendor/staff/save` | POST | vendor sesi | B2 | — (B2) |
 | `vendor/staff/send-reset` | POST | vendor sesi | B2 | — (B2) |
 | `vendor/staff/set-active` | POST | vendor sesi | B2 | — (B2) |
-| `vendor/stock-takes/complete` | POST | vendor sesi | B11 | `vendor.js` |
-| `vendor/stock-takes/get` | GET | vendor sesi | B11 | `vendor.js` |
-| `vendor/stock-takes/list` | GET | vendor sesi + koperasi | B11 | `vendor.js` |
-| `vendor/stock-takes/save-counts` | POST | vendor sesi | B11 | `vendor.js` |
-| `vendor/stock-takes/start` | POST | vendor sesi + koperasi | B11 | `vendor.js` |
+| `vendor/stock-takes/complete` | POST | vendor sesi | B4 (asal B11) | — (B4) |
+| `vendor/stock-takes/get` | GET | vendor sesi | B4 (asal B11) | — (B4) |
+| `vendor/stock-takes/list` | GET | vendor sesi + koperasi | B4 (asal B11) | — (B4) |
+| `vendor/stock-takes/save-counts` | POST | vendor sesi | B4 (asal B11) | — (B4) |
+| `vendor/stock-takes/start` | POST | vendor sesi + koperasi | B4 (asal B11) | — (B4) |
 | `vendor/subscription/cancel-change` | POST | vendor sesi | B12 | `vendor-finance.js` |
 | `vendor/subscription/change` | POST | vendor sesi | B12 | `vendor-finance.js` |
 | `vendor/subscription/get` | GET | vendor sesi | B12 | `vendor-finance.js` |
 | `vendor/subscription/plans` | GET | vendor sesi | B12 | `vendor-finance.js` |
-| `vendor/suppliers/list` | GET | vendor sesi | B4 | `vendor.js` |
-| `vendor/suppliers/save` | POST | vendor sesi | B4 | `vendor.js` |
-| `vendor/templates/options` | GET | vendor sesi | B12 | `vendor.js` |
+| `vendor/suppliers/list` | GET | vendor sesi | B4 | — (B4) |
+| `vendor/suppliers/save` | POST | vendor sesi | B4 | — (B4) |
+| `vendor/templates/options` | GET | vendor sesi | B4 (asal B12) | — (B4) |

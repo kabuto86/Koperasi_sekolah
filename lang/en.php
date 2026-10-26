@@ -664,6 +664,8 @@ return [
     'product.final_price'                 => 'Final price',
     'product.add_variant'                 => 'Add variant',
     'product.variants_required'           => 'Add at least one variant.',
+    'product.limit_reached'               => 'Your plan allows {max} products. Upgrade your plan to add more products.',
+    'product.variant_locked'              => 'A variant that already has stock or history (orders, POs, stock movements) cannot be removed. Deactivate it instead.',
     // Inventori
     'inventory.on_hand'                   => 'On hand',
     'inventory.reserved'                  => 'Reserved',
@@ -1267,6 +1269,13 @@ return [
     'activity.action.template_subscribe'   => 'Subscribed to a template',
     'activity.action.subscription_change'  => 'Scheduled a plan change',
     'activity.action.invoice_pay'          => 'Paid an invoice',
+    'activity.action.cooperative_save'     => 'Saved a cooperative',
+    'activity.action.product_save'         => 'Saved a product',
+    'activity.action.stock_in'             => 'Stock in',
+    'activity.action.po_save'              => 'Saved a purchase order',
+    'activity.action.po_cancel'            => 'Cancelled a purchase order',
+    'activity.action.stocktake_complete'   => 'Completed a stock take',
+    'activity.action.supplier_save'        => 'Saved a supplier',
     'payment.methods_help'                 => 'At least one method must be active.',
     // POS (U4)
     'pos.tab_sale'                         => 'Sale',

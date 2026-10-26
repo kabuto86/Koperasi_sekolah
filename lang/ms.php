@@ -679,6 +679,8 @@ return [
     'product.final_price'                 => 'Harga akhir',
     'product.add_variant'                 => 'Tambah varian',
     'product.variants_required'           => 'Tambah sekurang-kurangnya satu varian.',
+    'product.limit_reached'               => 'Had pelan anda ialah {max} produk. Naik taraf pelan untuk menambah produk.',
+    'product.variant_locked'              => 'Varian yang sudah ada stok atau sejarah (pesanan, PO, pergerakan stok) tidak boleh dibuang. Nyahaktifkan varian itu sahaja.',
     // Inventori
     'inventory.on_hand'                   => 'Dalam stok',
     'inventory.reserved'                  => 'Ditahan',
@@ -1282,6 +1284,13 @@ return [
     'activity.action.template_subscribe'   => 'Langgan template',
     'activity.action.subscription_change'  => 'Jadual tukar pelan',
     'activity.action.invoice_pay'          => 'Bayar invois',
+    'activity.action.cooperative_save'     => 'Simpan koperasi',
+    'activity.action.product_save'         => 'Simpan produk',
+    'activity.action.stock_in'             => 'Stok masuk',
+    'activity.action.po_save'              => 'Simpan pesanan belian',
+    'activity.action.po_cancel'            => 'Batal pesanan belian',
+    'activity.action.stocktake_complete'   => 'Selesai stock take',
+    'activity.action.supplier_save'        => 'Simpan pembekal',
     'payment.methods_help'                 => 'Sekurang-kurangnya satu kaedah mesti aktif.',
     // POS kaunter (U4)
     'pos.tab_sale'                         => 'Jualan',

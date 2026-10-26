@@ -14,7 +14,9 @@ var Api = {
         'owner/auth/', 'owner/profile/', 'owner/staff/', 'owner/two-factor/',
         'owner/dashboard/', 'owner/vendors/', 'owner/cooperatives/', 'owner/plans/', 'owner/modules/', 'owner/templates/',
         'owner/gateways/', 'owner/grades/', 'owner/email-templates/', 'owner/announcements/', 'owner/audit-logs/', 'owner/settings/',
-        'vendor/auth/', 'vendor/session/', 'vendor/cooperatives/list', 'vendor/staff/',
+        'vendor/auth/', 'vendor/session/', 'vendor/staff/',
+        'vendor/cooperatives/', 'vendor/templates/', 'vendor/modules/', 'vendor/grades/', 'vendor/classes/', 'vendor/categories/',
+        'vendor/products/', 'vendor/inventory/', 'vendor/suppliers/', 'vendor/purchase-orders/', 'vendor/stock-takes/', 'vendor/dashboard/',
         'store/auth/', 'store/profile/', 'store/session'
     ],
 
