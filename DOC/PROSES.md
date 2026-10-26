@@ -4,9 +4,9 @@
 > Kemas kini fail ini di HUJUNG setiap session, sebelum commit & push.
 > Reka bentuk: [PELAN.md](PELAN.md) · Prompt kerja: [PROMPT-SESSION.md](PROMPT-SESSION.md)
 
-**Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · **Peringkat 2 berjalan** — skema & core (B1), auth sebenar (B2), panel owner (B3), katalog & inventori vendor (B4), kit sekolah (B5)
-**Session terakhir siap:** B5 — Kit keperluan sekolah
-**Session seterusnya:** **B6 — Store ibu bapa: daftar, anak, katalog, kit, troli**
+**Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · **Peringkat 2 berjalan** — skema & core (B1), auth sebenar (B2), panel owner (B3), katalog & inventori vendor (B4), kit sekolah (B5), store ibu bapa: anak, katalog, kit, troli (B6)
+**Session terakhir siap:** B6 — Store ibu bapa: daftar, anak, katalog, kit, troli
+**Session seterusnya:** **B7 — Checkout tunai, pesanan, queue e-mel**
 
 Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 
@@ -41,7 +41,7 @@ Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 | B3 | Owner: pelan, harga koperasi, modul, template, vendor | ✅ | 26 Okt 2026 | `764f4c7` | 32 endpoint owner, 33 job + 3 pembantu, `CalculateCoopPriceJob`, owner_staff 403 di pelayan, `tools/verify-b3.php` 101/101 lulus |
 | B4 | Vendor: koperasi, produk, kategori, varian, inventori, pembekal | ✅ | 26 Okt 2026 | `64290c1` | 36 endpoint vendor, 37 job + 7 pembantu, `core/Uploader`, `StockLedger` (stok dalam transaksi), PO & stock take, `tools/verify-b4.php` 118/118 lulus |
 | B5 | Kit keperluan sekolah | ✅ | 26 Okt 2026 | `8ab4bf5` | 7 endpoint `vendor/kits/*`, 7 job + pembantu `SchoolKits` (`findPublished` untuk store), harga kit dari harga semasa, `tools/verify-b5.php` 59/59 lulus |
-| B6 | Store ibu bapa: daftar, anak, katalog, kit, troli | ⬜ | | | |
+| B6 | Store ibu bapa: daftar, anak, katalog, kit, troli | ✅ | 26 Okt 2026 | `47a4acb` | 19 endpoint store, 19 job + 4 pembantu (`StoreSchool`, `StorePricing`, `Children`, `Carts`), template ikut koperasi, URL `/{slug}/`, `tools/verify-b6.php` 85/85 lulus |
 | B7 | Checkout tunai, pesanan, queue e-mel | ⬜ | | | |
 | B8 | Payment gateway + webhook | ⬜ | | | |
 | B9 | Pengurusan pesanan & serah barang | ⬜ | | | |
@@ -100,7 +100,7 @@ Disahkan:
 Keputusan kecil (dicatat dalam PELAN 10.1 & 18):
 - Semua teks JS dihantar dalam atribut `data-lang` pada `<body>` (bukan fail JSON berasingan) — satu permintaan kurang
 - Halaman modul add-on vendor: `vendor/addons/{code}.php` (U6 boleh ubah)
-- Store Peringkat 1: `store/index.php?school={slug}&page=...`; URL `/{slug}/` dalam B6
+- Store Peringkat 1: `store/index.php?school={slug}&page=...`; URL `/{slug}/` dalam B6 (siap — `.htaccess` + `pretty_store_urls`)
 - Pilihan koperasi vendor disimpan sementara dalam `localStorage` + `Api.post('vendor/session/cooperative')`
 
 Tertangguh:
@@ -510,13 +510,13 @@ Dokumen:
 | Kaitan promosi dengan pesanan (`orders.promotion_id`, `used_count`) | B7/B10 |
 | Gateway sebenar (redirect + webhook), QR POS sebenar | B8 |
 | Buka kunci pesanan oleh pengurus (selepas 5 cubaan kod) | B9 |
-| Muat turun resit / slip PDF (sekarang cetak sahaja) | B6/B9 |
+| Muat turun resit / slip PDF (sekarang cetak sahaja) | B9 |
 | PIN Argon2id, buka kunci PIN oleh pentadbir | B10 |
 | Refund tunai POS ditolak dari jangkaan tunai laci; refund automatik melalui API gateway | B10/B11/B8 |
 | Bayaran invois vendor melalui gateway pemilik + webhook | B12 |
 | Penghantaran WhatsApp/SMS sebenar; mesej automatik "sedia diambil / telah diambil" | B13 |
 | E-mel berita sebenar | B13 |
-| URL cantik store `/{slug}/` (.htaccess); pratonton `?template=` hadkan kepada owner | B6 |
+| ~~URL cantik store `/{slug}/` (.htaccess); pratonton `?template=` hadkan kepada owner~~ — owner / vendor pemilik | ✅ B6 |
 | Halaman `advanced_report`, `membership` (sementara "sedang dibina"); `mobile_app` | kemudian / F1–F4 |
 | Imbas QR/barcode dengan kamera | F1 (app) |
 | Pemilih koperasi POS disembunyikan < 768px (tukar koperasi dari panel) | kekal — reka bentuk |
@@ -786,8 +786,66 @@ Keputusan kecil (dicatat dalam PELAN 18.3, 18.9, 18.14):
 - Padam kit yang sudah ada dalam pesanan ditolak (sejarah); baris troli kit yang dipadam dibuang bersama
 
 Tertangguh / peralihan:
-- Paparan kit di store (`store/kit`, `store/cart/add-kit`) masih mock `MockOrders.kits` → B6 (guna `SchoolKits::findPublished` + `SchoolKits::items`)
+- Paparan kit di store (`store/kit`, `store/cart/add-kit`) masih mock `MockOrders.kits` → B6 (guna `SchoolKits::findPublished` + `SchoolKits::items`) — siap B6
 - Item kit dengan produk yang kemudian dinyahaktif tidak boleh dipilih semula dalam borang (pilihan produk aktif sahaja) — vendor buang/ganti item itu
+
+### B6 — Store ibu bapa: anak, katalog, kit, troli (26 Okt 2026)
+
+Dibuat:
+- **Pembantu:** `jobs/Store/StoreSchool` (slug → koperasi aktif + vendor tidak digantung, modul store aktif, darjah, kaedah bayaran),
+  `jobs/Store/StorePricing` (produk aktif + terjemahan, varian aktif, harga + jualan murah, baki `on_hand − reserved`, had beli, kad StoreProduct),
+  `jobs/Child/Children` (find/all ikut `customer_id`, `promote_to`, padanan kelas, buang baris troli), `jobs/Cart/Carts` (troli `ensure` FOR UPDATE,
+  `assertFits` stok & had merentas troli, `quote` = CartQuote)
+- **Job (19):** `jobs/Store/` SearchSchoolsJob, GetStoreSchoolJob (+ notis koperasi tutup & musim pre-order), ListStoreClassesJob, StoreCatalogJob,
+  StoreProductJob, StoreKitForChildJob, ListStoreNewsJob, ListStoreClearanceJob, ResolveStoreTemplateJob · `jobs/Child/` ListChildrenJob,
+  SaveChildJob, RemoveChildJob, PromoteChildJob · `jobs/Cart/` GetCartJob, AddToCartJob, AddKitToCartJob, UpdateCartItemJob, RemoveCartItemJob, ClearCartJob
+- **API (19 fail, tiada SQL):** `store/{schools/list, school, classes, catalog, product, kit}`, `store/children/{list,save,remove,promote}`,
+  `store/cart/{get,summary,add,add-kit,update,remove,clear}`, `store/news/list`, `store/clearance/list`
+- **`store/index.php`:** slug diselesaikan di pelayan (slug tidak sah → HTTP 404 + mesej), template dari `cooperatives.template_id` melalui
+  `ResolveStoreTemplateJob` (tidak dilanggan / tidak aktif / folder tidak lengkap → `template1`), pratonton `?template=` hanya owner atau vendor
+  pemilik koperasi (sesi panel dibaca hanya jika cookie wujud)
+- **URL cantik:** `.htaccess` akar (`/{slug}/`, `/{slug}/{halaman}`) + `config pretty_store_urls` (lalai `false`), `View::storeUrl()` & JS `storeUrl()`
+  (`data-pretty-url`)
+- **`api.js`:** 10 awalan store ditambah ke `Api.livePrefixes`; `mock/store.js` dikecilkan kepada checkout, pesanan & simulasi bayaran + jambatan
+  (sesi ibu bapa, troli sebenar → checkout mock); `MockOrders.kits` dibuang; `Mock.storageVersion` → v10; `asset_version` → 7
+- `store/news.js` & `store/clearance.js` menyemak `Store.school.modules` sebelum memanggil API (tiada permintaan 404 bila modul tidak aktif)
+- 2 kunci bahasa baharu × 4 (`store.children.limit`, `store.cart.too_many_lines`) — jumlah 1812
+- Seed: Adam (ibu bapa A) Darjah 1 tahun 2027 → sepadan Kit Darjah 1 2027 (demo aliran kit)
+- `tools/verify-b6.php` (85 semakan HTTP sebenar; jadual diubah dipulihkan di hujung); `test-helpers.php`: `Browser::status($laluan, $params)`,
+  `clearTestLocks()` juga membuang had kadar troli/anak
+
+Disahkan (MariaDB 10.11, PHP 8.3, pemasangan baharu schema + seed — `verify-b6` **85 lulus, 0 gagal**; `verify-b5` 59/59; `verify-b4` 118/118;
+`verify-b3` 101/101; `verify-b2` 94/94; `verify-b1` 42/42; `check-ui` OK; `ui-audit` lang=ms store 38 halaman × 2 lebar: 0 isu; Playwright 390px:
+log masuk ibu bapa A → kit Adam (Darjah 1 2027, 4 item dari DB, RM 69.30) → pilih saiz → troli (11 unit) → checkout mock → pesanan TM-2610-…
+dan troli sebenar dikosongkan — 0 ralat konsol):
+- **Kebocoran ibu bapa A ↔ B:** A sunting / buang / naik darjah anak B → 404 dan data tidak berubah; A tambah barang / kit untuk anak B → ditolak,
+  tiada baris; A ubah / buang baris troli B (melalui slug mana-mana) → 404, troli B kekal; kosongkan troli A tidak menyentuh troli B;
+  `store/kit` dengan anak B / anak A di sekolah lain → 404; `customer_id`, `vendor_id`, `cooperative_id` dalam input anak diabaikan
+- **Kebocoran VENDOR01 ↔ VENDOR02 (slug):** produk V02 melalui slug V01 (dan sebaliknya) → 404 untuk katalog/produk/troli; kelas & kategori tidak
+  bercampur; slug `x' OR 1=1` → 404; koperasi digantung / vendor digantung → hilang dari senarai & 404
+- Harga dari pelayar (`unit_price`, `price`) diabaikan; tukar harga produk → troli dikira semula; produk dinyahaktif → `unavailable`; stok kurang →
+  `stock`; had beli & stok dikira merentas troli (semua anak, kit + ala carte); kuantiti 0/100/-1/"abc"/1.5 ditolak; varian wajib & varian produk lain ditolak
+- Kit: draf (T2 2027) tidak dipapar walaupun anak sepadan → terbit → dipapar; item pilih saiz tanpa saiz → `variant_{id}`; item kit lain / pendua /
+  kit bukan untuk darjah anak / senarai kosong → ditolak; masuk semula kit → baris diganti; `in_cart` dipulangkan
+- Akses: tanpa sesi → kit/troli/anak `auth_required`; sesi vendor → `auth_required`; POST tanpa CSRF → 419; GET ke POST → 405
+- Modul: berita berjadual tidak dipapar; modul tamat → jualan murah 404 & katalog kembali harga biasa; template tidak dilanggan → template1
+
+Keputusan kecil (dicatat dalam PELAN 10.1, 10.2, 10.5, 18.3, 18.5, 18.12, 18.14):
+- Store ditutup bila vendor `suspended` / `cancelled` (koperasi `active` sahaja tidak mencukupi)
+- Had beli & stok dikira setiap **produk + varian** (sama seperti mock U5); kuantiti troli 1–99; ≤ 200 baris troli; ≤ 20 anak aktif setiap akaun
+- `store/cart/update` menyimpan kuantiti walaupun melebihi stok/had — CartQuote menanda `problem` dan checkout disekat (ikut kontrak U5)
+- CartQuote B6 tanpa promosi (`discount 0`); promosi & kupon dikira dalam checkout (B7) — paparan troli = jumlah sebelum diskaun
+- Produk dalam kategori tidak aktif tidak dijual di store (katalog, produk, troli, kit)
+- Tukar sekolah anak / buang anak → baris troli anak itu dibuang; naik darjah mengekalkan nama kelas (dipadankan semula dengan kelas darjah baharu)
+- Modul tidak aktif → HTTP 404 `store.module_unavailable`; JS berita/jualan murah menyemak modul dahulu
+- URL cantik pilihan (`pretty_store_urls`) kerana `php -S` (pembangunan & ujian) tidak membaca `.htaccess`
+
+Tertangguh / peralihan:
+- Checkout, pesanan saya (B7) & bayaran (B8) masih mock. Jambatan: checkout memuat troli SEBENAR, mengira promosi/cukai/slot mock, mencipta
+  pesanan mock (`live_cart`, stok mock tidak ditahan) dan mengosongkan troli sebenar. Sekolah tiada dalam mock (`smk-seri-indah`) → checkout gagal sehingga B7
+- `store/school.notices.preorder` & slot ambil dari DB (tiada musim dalam seed) — checkout mock masih memakai slot mock (B7/B13)
+- Gambar produk sebenar dipapar jika vendor memuat naik; resit PDF → B9
+- `ui-audit` vendor: `vendor_school-kit` melaporkan kotak semak pratonton `aria-hidden` tanpa label (sedia ada sejak B5, bukan ralat konsol)
 
 ---
 

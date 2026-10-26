@@ -376,7 +376,7 @@ INSERT INTO customers (id, full_name, phone, email, password_hash, relationship,
 
 INSERT INTO children (id, customer_id, cooperative_id, vendor_id, full_name, grade_level_code, school_class_id, class_name, school_year, is_active) VALUES
 (1, 1, 1, 1, 'Aisyah binti Faizal', 'D4', 3,    'Bestari', 2026, 1),
-(2, 1, 1, 1, 'Adam bin Faizal',     'D1', 1,    'Bestari', 2026, 1),
+(2, 1, 1, 1, 'Adam bin Faizal',     'D1', 1,    'Bestari', 2027, 1),
 (3, 1, 2, 2, 'Faris bin Faizal',    'D2', 6,    '2A',      2026, 1),
 (4, 2, 3, 2, 'Arjun a/l Rajesh',    'T2', 8,    'Amanah',  2026, 1);
 

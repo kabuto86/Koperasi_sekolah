@@ -1,29 +1,36 @@
 <?php
-// Titik masuk store ibu bapa: slug → koperasi → template → halaman.
-// Data sekolah, katalog & akaun dimuat oleh JS melalui Api (assets/js/store/). Akaun ibu bapa sebenar sejak B2.
+// Titik masuk store ibu bapa: slug → koperasi → template → halaman (PELAN 10.5).
+// URL: store/index.php?school={slug}&page=... atau /{slug}/{page} (config pretty_store_urls + .htaccess akar).
+// Data sekolah, katalog, anak & troli dimuat oleh JS melalui Api (assets/js/store/).
 require __DIR__ . '/../core/bootstrap.php';
 
-// Sesi ibu bapa (KOPSTORE) — token CSRF dalam <body data-csrf>
-CustomerAuth::start();
-
 $schoolSlug = $_GET['school'] ?? '';
-if (!preg_match('/^[a-z0-9-]{1,80}$/', $schoolSlug)) {
+if (!is_string($schoolSlug) || !preg_match('/^[a-z0-9-]{1,80}$/', $schoolSlug)) {
     $schoolSlug = '';
 }
-
-// B6: ambil dari cooperatives.template_id; template tidak dilanggan → template1
-$templateCode = 'template1';
-
-// Pratonton dari panel owner: ?template=kod (hanya jika folder wujud). B6: hadkan kepada owner
-$previewTemplate = $_GET['template'] ?? '';
-if (preg_match('/^[a-z0-9_]{1,40}$/', $previewTemplate) && is_file(APP_ROOT . '/templates/' . $previewTemplate . '/layout.php')) {
-    $templateCode = $previewTemplate;
+// Koperasi aktif diselesaikan di pelayan (StoreSchool). Slug tidak sah → halaman dipapar dengan ralat "Sekolah tidak dijumpai"
+$cooperative = $schoolSlug !== '' ? StoreSchool::findBySlug($schoolSlug) : null;
+if ($schoolSlug !== '' && $cooperative === null) {
+    http_response_code(404);
 }
+
+// Pratonton ?template=kod: hanya owner, atau vendor pemilik koperasi ini (sesi panel masing-masing)
+$previewTemplate = $_GET['template'] ?? '';
+if (!is_string($previewTemplate) || $previewTemplate === '') {
+    $previewTemplate = '';
+} elseif (!canPreviewTemplate($cooperative)) {
+    $previewTemplate = '';
+}
+
+// Sesi ibu bapa (KOPSTORE) — dimulakan SELEPAS semakan sesi panel supaya token CSRF dalam <body data-csrf> milik store
+CustomerAuth::start();
+
+$templateCode = (new ResolveStoreTemplateJob($cooperative, $previewTemplate))->run();
 $templateDir = APP_ROOT . '/templates/' . $templateCode;
 $manifest = json_decode(file_get_contents($templateDir . '/manifest.json'), true);
 
 $storePage = $_GET['page'] ?? 'home';
-$pageFile = $templateDir . '/pages/' . $storePage . '.php';
+$pageFile = is_string($storePage) ? $templateDir . '/pages/' . $storePage . '.php' : '';
 if (!in_array($storePage, $manifest['pages'], true) || !is_file($pageFile)) {
     $storePage = 'home';
 }
@@ -37,3 +44,13 @@ if ($schoolSlug === '' && !in_array($storePage, $pagesWithoutSchool, true)) {
 }
 
 require $templateDir . '/layout.php';
+
+// Sesi panel dibaca hanya jika cookie wujud (tiada cookie sesi baharu untuk pelawat biasa)
+function canPreviewTemplate($cooperative)
+{
+    if (!empty($_COOKIE[OwnerAuth::SESSION_NAME]) && OwnerAuth::user() !== null) {
+        return true;
+    }
+    return $cooperative !== null && !empty($_COOKIE[VendorAuth::SESSION_NAME])
+        && VendorAuth::vendorId() === (int) $cooperative['vendor_id'];
+}

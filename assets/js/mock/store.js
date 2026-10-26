@@ -1,30 +1,22 @@
-// Data mock store ibu bapa (U5). Bentuk objek = kontrak API (PELAN 18.12).
-// Bergantung pada mock/vendor.js (katalog & stok), vendor-orders.js (ibu bapa, anak, kit, pesanan),
-// vendor-finance.js (gateway, promosi, tetapan), vendor-addons.js (modul add-on) dan vendor/pos-cart.js (posTotals) — "pangkalan data" yang sama,
-// jadi pesanan dari store terus muncul dalam panel vendor (tab yang sama).
+// Data mock store ibu bapa — BAKI peralihan B6 → B7/B8. Bentuk objek = kontrak API (PELAN 18.12).
+// Sejak B6 sekolah, anak, katalog, produk, kit, troli, berita & jualan murah ialah laluan SEBENAR (api/v1/store/).
+// Yang masih mock di sini: checkout (B7), pesanan saya (B7) dan simulasi bayaran (B8).
+// Bergantung pada vendor.js / vendor-orders.js / vendor-finance.js / vendor-addons.js / vendor/pos-cart.js — pesanan mock
+// terus muncul dalam panel vendor (tab yang sama).
 //
-// Keselamatan (sama seperti Peringkat 2):
-// - Koperasi diselesaikan dari `slug` sahaja; tiada vendor_id / cooperative_id dari input.
-// - customer_id datang dari "sesi" (MockStore.session) — tidak pernah dari parameter.
-// - Anak, troli & pesanan ditapis customer_id sesi + koperasi slug. Milik orang lain → "tidak dijumpai".
-// - Harga, diskaun, stok dikira semula di sini; nilai harga dari pelayar diabaikan.
+// Jambatan peralihan (dibuang dalam B7):
+// - Ibu bapa: sesi mock mengikut ibu bapa SEBENAR (dipadankan ikut e-mel) supaya pesanan mock ditapis customer_id sesi.
+// - Troli: halaman checkout memuat troli SEBENAR (store/cart/get) sekali sebelum jawapan mock pertama; checkout mock
+//   mengira promosi, cukai, slot & kaedah bayaran atas baris itu, kemudian mengosongkan troli sebenar (store/cart/clear).
 
 var MockStore = {
     session: { customer_id: null },
-    carts: [],
-    cartSeq: 0
+    liveCart: null
 };
-
-// Modul add-on yang mempengaruhi store. Data modul dalam mock/vendor-addons.js (MockAddons) — ditulis oleh panel vendor (U6)
-var STORE_MODULES = ['news', 'clearance', 'calendar', 'school_opening'];
 
 // ---------- Pembantu: konteks sekolah & sesi ----------
 
-function storeLang() {
-    return document.documentElement.lang || 'ms';
-}
-
-// Slug → koperasi aktif (Peringkat 2: diselesaikan dari URL /{slug}/ di pelayan)
+// Slug → koperasi mock aktif (sekolah yang tiada dalam mock → "Sekolah tidak dijumpai" sehingga B7)
 function storeCoop(params) {
     var slug = String((params && params.slug) || '');
     return MockVendor.cooperatives.filter(function (coop) {
@@ -59,212 +51,52 @@ function storeRows(rows, coop) {
     });
 }
 
-function storeModules(coop) {
-    return (MockVendor.activeModules[coop.id] || []).filter(function (code) {
-        return STORE_MODULES.indexOf(code) !== -1;
-    });
-}
-
-function storeChildren(customer, coop) {
-    return MockOrders.children.filter(function (child) {
-        return child.customer_id === customer.id && child.is_active !== false && (!coop || child.cooperative_id === coop.id);
-    });
-}
-
-function storeFindChild(customer, coop, childId) {
-    return storeChildren(customer, coop).filter(function (child) {
-        return child.id === Number(childId);
-    })[0] || null;
-}
-
-function storeChildPublic(child) {
-    var coop = Mock.findById(MockVendor.cooperatives, child.cooperative_id);
-    var next = storeNextGrade(child, coop);
-    return { id: child.id, full_name: child.full_name, school_slug: coop.slug, school_name: coop.school_name, grade_level_code: child.grade_level_code,
-        class_name: child.class_name, school_year: child.school_year, promote_to: next };
-}
-
-// Cadangan naik darjah untuk musim pre-order (Okt–Dis) atau tahun lepas
-function storeNextGrade(child, coop) {
-    var today = mockToday();
-    var year = Number(today.slice(0, 4));
-    var month = Number(today.slice(5, 7));
-    var due = child.school_year < year || (child.school_year === year && month >= 10);
-    var grades = mockGradesFor(coop.school_type);
-    var index = grades.indexOf(child.grade_level_code);
-    if (!due || index === -1 || index === grades.length - 1) {
-        return null;
-    }
-    return { grade_level_code: grades[index + 1], school_year: child.school_year + 1 };
-}
-
-
-// ---------- Pembantu: produk, harga & stok ----------
-
-function storeProduct(coop, id) {
-    return storeRows(MockVendor.products, coop).filter(function (product) {
-        return product.id === Number(id) && product.is_active;
-    })[0] || null;
-}
-
-function storeDisplayName(product) {
-    var translation = product.translations && product.translations[storeLang()];
-    return translation && translation.name ? translation.name : product.name;
-}
-
-function storeAvailable(coop, productId, variantId) {
-    var level = storeRows(MockVendor.stock, coop).filter(function (row) {
-        return row.product_id === Number(productId) && row.variant_id === Number(variantId || 0);
-    })[0];
-    return level ? Math.max(0, level.qty_on_hand - level.qty_reserved) : 0;
-}
-
 function storeStockLevel(coop, productId, variantId) {
     return storeRows(MockVendor.stock, coop).filter(function (row) {
         return row.product_id === Number(productId) && row.variant_id === Number(variantId || 0);
     })[0] || null;
 }
 
-function storeActiveVariants(product) {
-    return product.variants.filter(function (variant) { return variant.is_active; });
-}
-
-// Jualan murah aktif (modul clearance) untuk produk + varian ini
-function storeClearanceItem(coop, product, variantId) {
-    if (storeModules(coop).indexOf('clearance') === -1) {
-        return null;
+// Konteks biasa untuk laluan yang perlu sekolah + log masuk
+function storeContext(params) {
+    var coop = storeCoop(params);
+    if (!coop) {
+        return { error: storeSchoolError() };
     }
-    var now = Mock.now();
-    var sales = storeRows(MockAddons.clearanceSales, coop).filter(function (sale) {
-        return sale.is_active && sale.starts_at <= now && sale.ends_at >= now;
-    }).map(function (sale) { return sale.id; });
-    return MockAddons.clearanceItems.filter(function (item) {
-        return item.vendor_id === coop.vendor_id && sales.indexOf(item.clearance_sale_id) !== -1 && item.product_id === product.id
-            && (item.variant_id === null || item.variant_id === Number(variantId || 0));
-    })[0] || null;
-}
-
-// Harga seunit di pelayan: harga jualan murah jika ada, jika tidak harga + beza varian
-function storeUnitPrice(coop, product, variant) {
-    var regular = posUnitPrice(product, variant);
-    var clearance = storeClearanceItem(coop, product, variant ? variant.id : 0);
-    return { price: clearance ? Math.min(regular, clearance.sale_price) : regular, regular: regular,
-        clearance_item_id: clearance ? clearance.id : null, qty_limit: clearance ? clearance.qty_limit : null };
-}
-
-// Had beli setiap pesanan (produk atau jualan murah)
-function storeMaxQty(product, pricing) {
-    var limits = [product.max_per_order, pricing.qty_limit].filter(function (n) { return n; });
-    return limits.length ? Math.min.apply(null, limits) : null;
-}
-
-function storeProductCard(coop, product) {
-    var variants = storeActiveVariants(product);
-    var prices = (product.has_variants ? variants : [null]).map(function (variant) {
-        return storeUnitPrice(coop, product, variant);
-    });
-    var lowest = prices.reduce(function (min, row) { return !min || row.price < min.price ? row : min; }, null);
-    var available = product.has_variants
-        ? variants.reduce(function (sum, variant) { return sum + storeAvailable(coop, product.id, variant.id); }, 0)
-        : storeAvailable(coop, product.id, 0);
-    return { id: product.id, name: storeDisplayName(product), category_id: product.category_id, category_name: mockCategoryName(product.category_id),
-        price: lowest.price, regular_price: lowest.regular, price_from: product.has_variants && prices.some(function (row) { return row.price !== lowest.price; }),
-        on_sale: prices.some(function (row) { return row.clearance_item_id; }), unit: product.unit, image_url: product.image_url,
-        has_variants: product.has_variants, available: available, grade_levels: product.grade_levels };
-}
-
-function storeProductDetail(coop, product) {
-    var data = storeProductCard(coop, product);
-    var basePricing = storeUnitPrice(coop, product, null);
-    data.description = (product.translations[storeLang()] || {}).description || product.description;
-    data.sku = product.sku;
-    data.max_per_order = storeMaxQty(product, basePricing);
-    data.variants = storeActiveVariants(product).map(function (variant) {
-        var pricing = storeUnitPrice(coop, product, variant);
-        return { id: variant.id, label: variant.label, price: pricing.price, regular_price: pricing.regular,
-            available: storeAvailable(coop, product.id, variant.id), max_per_order: storeMaxQty(product, pricing) };
-    });
-    return data;
-}
-
-// ---------- Troli ----------
-
-function storeCart(customer, coop, create) {
-    var cart = MockStore.carts.filter(function (row) {
-        return row.customer_id === customer.id && row.cooperative_id === coop.id;
-    })[0] || null;
-    if (!cart && create) {
-        cart = { id: Mock.nextId(MockStore.carts), customer_id: customer.id, cooperative_id: coop.id, vendor_id: coop.vendor_id, items: [], updated_at: Mock.now() };
-        MockStore.carts.push(cart);
+    var customer = storeCustomer();
+    if (!customer) {
+        return { error: storeAuthFail() };
     }
-    return cart;
+    return { coop: coop, customer: customer };
 }
 
-function storeCartCount(customer, coop) {
-    var cart = customer && coop ? storeCart(customer, coop, false) : null;
-    return cart ? cart.items.reduce(function (sum, item) { return sum + item.qty; }, 0) : 0;
-}
+// ---------- Jambatan troli sebenar (B6 → B7) ----------
 
-// Kira semula setiap baris troli: harga semasa, stok, had beli. Baris bermasalah ditanda `problem`
-function storePriceCart(customer, coop, cart) {
-    var needed = {};
-    var lines = (cart ? cart.items : []).map(function (item) {
-        var product = storeProduct(coop, item.product_id);
-        var child = storeFindChild(customer, coop, item.child_id);
-        var variant = product && item.variant_id ? mockFindVariant(product, item.variant_id) : null;
-        var line = { id: item.id, product_id: item.product_id, variant_id: item.variant_id || 0, child_id: item.child_id, qty: item.qty,
-            source: item.source, school_kit_id: item.school_kit_id || null, product: product, variant: variant, child: child, problem: null };
-        if (!product || !child || (product.has_variants && (!variant || !variant.is_active))) {
-            line.problem = 'unavailable';
-            line.unit_price = 0;
-            return line;
-        }
-        var pricing = storeUnitPrice(coop, product, variant);
-        var key = product.id + '#' + (variant ? variant.id : 0);
-        needed[key] = (needed[key] || 0) + item.qty;
-        line.key = key;
-        line.unit_price = pricing.price;
-        line.regular_price = pricing.regular;
-        line.clearance_item_id = pricing.clearance_item_id;
-        line.max = storeMaxQty(product, pricing);
-        line.available = storeAvailable(coop, product.id, variant ? variant.id : 0);
-        return line;
-    });
-    lines.forEach(function (line) {
-        if (line.problem) {
-            return;
-        }
-        if (needed[line.key] > line.available) {
-            line.problem = 'stock';
-        } else if (line.max && needed[line.key] > line.max) {
-            line.problem = 'max';
-        }
+// Baris sah dari CartQuote sebenar, dengan maklumat anak dari kumpulannya
+function storeLiveLines() {
+    var lines = [];
+    ((MockStore.liveCart && MockStore.liveCart.groups) || []).forEach(function (group) {
+        group.items.forEach(function (item) {
+            if (!item.problem) {
+                lines.push(Object.assign({}, item, { child: { id: group.child_id, full_name: group.child_name,
+                    grade_level_code: group.grade_level_code, class_name: group.class_name } }));
+            }
+        });
     });
     return lines;
 }
 
-function storeLinePublic(line) {
-    return { id: line.id, product_id: line.product_id, variant_id: line.variant_id, name: line.product ? storeDisplayName(line.product) : T('store.cart.removed_product'),
-        variant_label: line.variant ? line.variant.label : null, image_url: line.product ? line.product.image_url : null,
-        unit_price: line.unit_price, regular_price: line.regular_price || line.unit_price, qty: line.qty, line_total: line.unit_price * line.qty,
-        source: line.source, school_kit_id: line.school_kit_id, available: line.available || 0, max: line.max || null, problem: line.problem };
-}
-
-// Kumpul baris ikut anak (PELAN 5.4: setiap item ditanda untuk anak mana)
-function storeGroupLines(lines) {
-    var groups = [];
-    lines.forEach(function (line) {
-        var group = groups.filter(function (row) { return row.child_id === line.child_id; })[0];
-        if (!group) {
-            group = { child_id: line.child_id, child_name: line.child ? line.child.full_name : '', grade_level_code: line.child ? line.child.grade_level_code : '',
-                class_name: line.child ? line.child.class_name : '', items: [], subtotal: 0 };
-            groups.push(group);
-        }
-        var row = storeLinePublic(line);
-        group.items.push(row);
-        group.subtotal += row.line_total;
+// Selepas pesanan mock dicipta: kosongkan troli sebenar (keepalive — halaman terus bertukar ke order-success)
+function storeClearLiveCart() {
+    var slug = typeof Store !== 'undefined' ? Store.slug : '';
+    MockStore.liveCart = null;
+    fetch(Api.url('store/cart/clear'), {
+        method: 'POST', credentials: 'same-origin', keepalive: true,
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-CSRF-Token': document.body.getAttribute('data-csrf') || '' },
+        body: JSON.stringify({ slug: slug })
+    }).catch(function () {
+        // abaikan — troli boleh dikosongkan sendiri oleh ibu bapa
     });
-    return groups;
 }
 
 // Gateway aktif koperasi (milik vendor koperasi itu)
@@ -278,12 +110,26 @@ function storeActivePromotions(coop) {
     });
 }
 
-// Ringkasan troli + diskaun + cukai (sama seperti POS: satu promosi setiap pesanan, cukai selepas diskaun)
+// Slot ambil untuk troli ini (darjah anak-anak dalam troli)
+function storeSlotsFor(coop, lines) {
+    var grades = [];
+    lines.forEach(function (line) {
+        if (grades.indexOf(line.child.grade_level_code) === -1) {
+            grades.push(line.child.grade_level_code);
+        }
+    });
+    return addonSlotsFor(coop, grades).map(addonSlotRow);
+}
+
+// Ringkasan checkout atas troli sebenar + promosi, cukai, slot & kaedah bayaran mock (satu promosi setiap pesanan,
+// cukai selepas diskaun — sama seperti POS). null = troli sebenar belum dimuat
 function storeQuote(customer, coop, couponCode) {
-    var cart = storeCart(customer, coop, false);
-    var lines = storePriceCart(customer, coop, cart);
-    var valid = lines.filter(function (line) { return !line.problem; });
-    var subtotal = valid.reduce(function (sum, line) { return sum + line.unit_price * line.qty; }, 0);
+    if (!MockStore.liveCart) {
+        return null;
+    }
+    var live = MockStore.liveCart;
+    var lines = storeLiveLines();
+    var subtotal = lines.reduce(function (sum, line) { return sum + line.unit_price * line.qty; }, 0);
     var active = storeActivePromotions(coop);
     var code = String(couponCode || '').trim().toUpperCase();
     var promotion = null;
@@ -301,9 +147,9 @@ function storeQuote(customer, coop, couponCode) {
         promotion = posBestAutomatic(active, subtotal);
     }
     var taxRate = MockFinance.settings[coop.id].tax_rate || 0;
-    var totals = posTotals(valid, { promotion: promotion, taxRate: taxRate });
+    var totals = posTotals(lines, { promotion: promotion, taxRate: taxRate });
     var settings = MockOrders.pickupSettings[coop.id];
-    var slots = storeSlotsFor(coop, valid);
+    var slots = storeSlotsFor(coop, lines);
     var blocking = addonBlockingEvent(coop, mockToday());
     var gateway = storeGateway(coop);
     var driver = gateway ? mockDriver(gateway.gateway_code) : null;
@@ -317,8 +163,7 @@ function storeQuote(customer, coop, couponCode) {
     return {
         lines: lines, promotion: promotion, coupon_error: couponError, tax_rate: taxRate,
         data: {
-            groups: storeGroupLines(lines), item_count: valid.reduce(function (sum, line) { return sum + line.qty; }, 0),
-            has_problem: lines.some(function (line) { return line.problem; }),
+            groups: live.groups, item_count: live.item_count, has_problem: live.has_problem,
             subtotal: totals.subtotal, discount: totals.discount, promotion_name: promotion ? promotion.name : null, promotion_code: promotion ? promotion.code : null,
             coupon_code: code, coupon_error: couponError, tax_rate: taxRate, tax: totals.tax, total: totals.total,
             payment_methods: methods, gateway_name: driver ? driver.name : null,
@@ -332,114 +177,21 @@ function storeQuote(customer, coop, couponCode) {
     };
 }
 
-// Konteks biasa untuk laluan yang perlu sekolah + log masuk
-function storeContext(params) {
-    var coop = storeCoop(params);
-    if (!coop) {
-        return { error: storeSchoolError() };
-    }
-    var customer = storeCustomer();
-    if (!customer) {
-        return { error: storeAuthFail() };
-    }
-    return { coop: coop, customer: customer };
-}
-
-// ---------- Sekolah ----------
-
-function storeSchoolPublic(coop) {
-    return { slug: coop.slug, school_name: coop.school_name, school_type: coop.school_type, state: coop.state, district: coop.district };
-}
-
-Mock.register('store/schools/list', function (params) {
-    var rows = MockVendor.cooperatives.filter(function (coop) {
-        return coop.status === 'active' && (!params.state || coop.state === params.state);
-    }).map(storeSchoolPublic).sort(function (a, b) { return a.school_name < b.school_name ? -1 : 1; });
-    return Mock.ok(Mock.paginate(rows, params, ['school_name', 'district', 'state']));
-});
-
-Mock.register('store/school', function (params) {
-    var coop = storeCoop(params);
-    if (!coop) {
-        return storeSchoolError();
-    }
-    var data = storeSchoolPublic(coop);
-    data.address = coop.address;
-    data.phone = coop.phone;
-    data.logo_url = coop.logo_url;
-    data.default_language = coop.default_language;
-    data.opening_hours = coop.opening_hours;
-    data.grades = mockGradesFor(coop.school_type);
-    data.modules = storeModules(coop);
-    data.payment_methods = (coop.accept_cash ? ['cash'] : []).concat(coop.accept_online ? ['online'] : []);
-    data.notices = storeNotices(coop);
-    return Mock.ok(data);
-});
-
-// Banner store: koperasi tutup (modul calendar) & musim pre-order (modul school_opening)
-function storeNotices(coop) {
-    var closure = addonUpcomingClosure(coop);
-    var season = addonOpenSeason(coop);
-    var today = mockToday();
-    return {
-        closure: closure ? { title: closure.title, starts_on: closure.starts_on, ends_on: closure.ends_on, is_today: closure.starts_on <= today,
-            reopens_on: addonNextDay(closure.ends_on) } : null,
-        preorder: season ? { school_year: season.school_year, closes_at: season.closes_at, pickup_starts_on: season.pickup_starts_on, note: season.note,
-            has_slots: addonSeasonSlots(season).length > 0 } : null
-    };
-}
-
-// Slot ambil untuk troli ini (darjah anak-anak dalam troli)
-function storeSlotsFor(coop, lines) {
-    var grades = [];
-    lines.forEach(function (line) {
-        if (line.child && grades.indexOf(line.child.grade_level_code) === -1) {
-            grades.push(line.child.grade_level_code);
-        }
+// Pilihan tapis anak di "Pesanan saya": anak yang ada dalam pesanan (salinan nama)
+function storeOrderChildren(orders) {
+    var children = [];
+    orders.forEach(function (order) {
+        order.items.forEach(function (item) {
+            if (!children.some(function (child) { return child.id === item.child_id; })) {
+                children.push({ id: item.child_id, full_name: item.child_name });
+            }
+        });
     });
-    return addonSlotsFor(coop, grades).map(addonSlotRow);
+    return children;
 }
 
-Mock.register('store/classes', function (params) {
-    var coop = storeCoop(params);
-    if (!coop) {
-        return storeSchoolError();
-    }
-    var rows = storeRows(MockVendor.classes, coop).filter(function (row) {
-        return !params.grade || row.grade_level_code === params.grade;
-    }).sort(function (a, b) { return a.sort_order - b.sort_order; });
-    return Mock.ok(rows.map(function (row) { return { grade_level_code: row.grade_level_code, class_name: row.class_name }; }));
-});
+// ---------- Akaun: laluan sebenar sejak B2 — sesi mock mengikut ibu bapa sebenar (untuk pesanan mock) ----------
 
-// store/session ialah laluan sebenar sejak B2 (ibu bapa dari sesi pelayan). Sementara troli & anak masih mock
-// (sehingga B6), bilangan troli & sekolah anak-anak dalam jawapan diganti dengan nilai mock — lihat storeAdoptSession
-function storeMockSessionExtras(params) {
-    var customer = storeCustomer();
-    var coop = storeCoop(params);
-    if (!customer) {
-        return { cart_count: 0, schools: [] };
-    }
-    var schools = [];
-    storeChildren(customer, null).forEach(function (child) {
-        var school = Mock.findById(MockVendor.cooperatives, child.cooperative_id);
-        if (school.status === 'active' && !schools.some(function (row) { return row.slug === school.slug; })) {
-            schools.push(storeSchoolPublic(school));
-        }
-    });
-    return { cart_count: storeCartCount(customer, coop), schools: schools };
-}
-
-// Serasi dengan U1
-Mock.register('store/cart/summary', function (params) {
-    var customer = storeCustomer();
-    var coop = storeCoop(params);
-    return Mock.ok({ item_count: storeCartCount(customer, coop) });
-});
-
-// ---------- Akaun & profil: laluan sebenar sejak B2 (api/v1/store/auth|profile) ----------
-
-// Peralihan B2–B6: anak, troli & pesanan masih mock. Selepas log masuk / daftar SEBENAR, sesi mock mengikut
-// ibu bapa yang sama (dipadankan ikut e-mel; dicipta dalam mock jika belum ada). Dibuang bersama mock dalam B6.
 function storeAdoptCustomer(res) {
     if (!res.ok || !res.data.customer) {
         return;
@@ -464,7 +216,7 @@ function storeForgetCustomer(res) {
     }
 }
 
-// Jawapan store/session sebenar: sesi mock ikut ibu bapa sebenar; troli & sekolah anak dari mock (sehingga B6)
+// Jawapan store/session sebenar: sesi mock ikut ibu bapa sebenar (troli & sekolah anak sudah sebenar sejak B6)
 function storeAdoptSession(res) {
     if (!res.ok) {
         return;
@@ -474,8 +226,6 @@ function storeAdoptSession(res) {
     } else {
         MockStore.session.customer_id = null;
     }
-    var slug = new URLSearchParams(window.location.search).get('school') || '';
-    Object.assign(res.data, storeMockSessionExtras({ slug: slug }));
 }
 
 Mock.onLive('store/session', storeAdoptSession);
@@ -483,10 +233,16 @@ Mock.onLive('store/auth/login', storeAdoptCustomer);
 Mock.onLive('store/auth/register', storeAdoptCustomer);
 Mock.onLive('store/auth/logout', storeForgetCustomer);
 Mock.onLive('store/profile/delete', storeForgetCustomer);
-// Setiap halaman: sesi sebenar ialah sumber kebenaran (tab baharu / sesi tamat / log keluar di tab lain)
+// Setiap halaman: sesi sebenar ialah sumber kebenaran; halaman checkout juga memuat troli sebenar
 Mock.beforeFirst(function () {
-    return Api.fetchJson('GET', 'store/session', {}).then(function (res) {
-        storeAdoptSession(res);
+    var slug = typeof Store !== 'undefined' ? Store.slug : '';
+    var requests = [Api.fetchJson('GET', 'store/session', { slug: slug })];
+    if (slug && Store.page === 'checkout') {
+        requests.push(Api.fetchJson('GET', 'store/cart/get', { slug: slug }));
+    }
+    return Promise.all(requests).then(function (results) {
+        storeAdoptSession(results[0]);
+        MockStore.liveCart = results[1] && results[1].ok ? results[1].data : null;
         Mock.saveStores();
     });
 });
@@ -500,358 +256,6 @@ Mock.onLive('store/auth/verify-email', function (res) {
     }
 });
 
-// ---------- Anak ----------
-
-Mock.register('store/children/list', function () {
-    var customer = storeCustomer();
-    if (!customer) {
-        return storeAuthFail();
-    }
-    return Mock.ok(storeChildren(customer, null).map(storeChildPublic));
-});
-
-Mock.register('store/children/save', function (body) {
-    var customer = storeCustomer();
-    if (!customer) {
-        return storeAuthFail();
-    }
-    var errors = Mock.requireFields(body, ['full_name', 'school_slug', 'grade_level_code', 'class_name', 'school_year']);
-    var coop = storeCoop({ slug: body.school_slug });
-    if (body.school_slug && !coop) {
-        errors.school_slug = T('store.school_not_found');
-    }
-    if (coop && mockGradesFor(coop.school_type).indexOf(body.grade_level_code) === -1) {
-        errors.grade_level_code = T('error.invalid');
-    }
-    var year = Number(mockToday().slice(0, 4));
-    if (body.school_year && [year, year + 1].indexOf(Number(body.school_year)) === -1) {
-        errors.school_year = T('error.invalid');
-    }
-    if (Mock.hasErrors(errors)) {
-        return Mock.fail(T('error.check_form'), errors);
-    }
-    var child = null;
-    if (body.id) {
-        child = storeFindChild(customer, null, body.id);
-        if (!child) {
-            return Mock.fail(T('error.not_found'));
-        }
-    } else {
-        child = { id: Mock.nextId(MockOrders.children), customer_id: customer.id, is_active: true };
-        MockOrders.children.push(child);
-    }
-    var classRow = storeRows(MockVendor.classes, coop).filter(function (row) {
-        return row.grade_level_code === body.grade_level_code && row.class_name.toLowerCase() === String(body.class_name).trim().toLowerCase();
-    })[0];
-    child.cooperative_id = coop.id;
-    child.vendor_id = coop.vendor_id;
-    child.full_name = String(body.full_name).trim();
-    child.grade_level_code = body.grade_level_code;
-    child.school_class_id = classRow ? classRow.id : null;
-    child.class_name = classRow ? classRow.class_name : String(body.class_name).trim();
-    child.school_year = Number(body.school_year);
-    return Mock.ok(storeChildPublic(child));
-});
-
-Mock.register('store/children/remove', function (body) {
-    var customer = storeCustomer();
-    if (!customer) {
-        return storeAuthFail();
-    }
-    var child = storeFindChild(customer, null, body.id);
-    if (!child) {
-        return Mock.fail(T('error.not_found'));
-    }
-    child.is_active = false;
-    MockStore.carts.forEach(function (cart) {
-        if (cart.customer_id === customer.id) {
-            cart.items = cart.items.filter(function (item) { return item.child_id !== child.id; });
-        }
-    });
-    return Mock.ok({ id: child.id });
-});
-
-Mock.register('store/children/promote', function (body) {
-    var customer = storeCustomer();
-    if (!customer) {
-        return storeAuthFail();
-    }
-    var child = storeFindChild(customer, null, body.id);
-    if (!child) {
-        return Mock.fail(T('error.not_found'));
-    }
-    var next = storeNextGrade(child, Mock.findById(MockVendor.cooperatives, child.cooperative_id));
-    if (!next) {
-        return Mock.fail(T('store.children.promote_unavailable'));
-    }
-    child.grade_level_code = next.grade_level_code;
-    child.school_year = next.school_year;
-    child.school_class_id = null;
-    child.class_name = String(body.class_name || '').trim() || child.class_name;
-    return Mock.ok(storeChildPublic(child));
-});
-
-// ---------- Katalog & produk ----------
-
-Mock.register('store/catalog', function (params) {
-    var coop = storeCoop(params);
-    if (!coop) {
-        return storeSchoolError();
-    }
-    var q = String(params.q || '').trim().toLowerCase();
-    var rows = storeRows(MockVendor.products, coop).filter(function (product) {
-        var category = Mock.findById(MockVendor.categories, product.category_id);
-        return product.is_active && category && category.is_active
-            && (!params.category_id || product.category_id === Number(params.category_id))
-            && (!params.grade || product.grade_levels.length === 0 || product.grade_levels.indexOf(params.grade) !== -1)
-            && (!q || [product.name, storeDisplayName(product), product.sku].some(function (text) { return text.toLowerCase().indexOf(q) !== -1; }));
-    }).sort(function (a, b) { return a.sort_order - b.sort_order; }).map(function (product) {
-        return storeProductCard(coop, product);
-    });
-    var data = Mock.paginate(rows, { page: params.page, per_page: params.per_page || 24 }, []);
-    data.categories = storeRows(MockVendor.categories, coop).filter(function (row) { return row.is_active; })
-        .sort(function (a, b) { return a.sort_order - b.sort_order; }).map(function (row) { return { id: row.id, name: row.name }; });
-    return Mock.ok(data);
-});
-
-Mock.register('store/product', function (params) {
-    var coop = storeCoop(params);
-    if (!coop) {
-        return storeSchoolError();
-    }
-    var product = storeProduct(coop, params.id);
-    if (!product) {
-        return Mock.fail(T('error.not_found'));
-    }
-    return Mock.ok(storeProductDetail(coop, product));
-});
-
-// ---------- Kit sekolah ----------
-
-function storePublishedKit(coop, child) {
-    return storeRows(MockOrders.kits, coop).filter(function (kit) {
-        return kit.is_published && kit.grade_level_code === child.grade_level_code && kit.school_year === child.school_year;
-    })[0] || null;
-}
-
-Mock.register('store/kit', function (params) {
-    var ctx = storeContext(params);
-    if (ctx.error) {
-        return ctx.error;
-    }
-    var children = storeChildren(ctx.customer, ctx.coop).map(storeChildPublic);
-    var child = params.child_id ? storeFindChild(ctx.customer, ctx.coop, params.child_id) : null;
-    if (params.child_id && !child) {
-        return Mock.fail(T('error.not_found'));
-    }
-    if (!child) {
-        return Mock.ok({ children: children, child: null, kit: null });
-    }
-    var kit = storePublishedKit(ctx.coop, child);
-    if (!kit) {
-        return Mock.ok({ children: children, child: storeChildPublic(child), kit: null });
-    }
-    var cart = storeCart(ctx.customer, ctx.coop, false);
-    var cartLines = cart ? cart.items.filter(function (item) { return item.school_kit_id === kit.id && item.child_id === child.id; }) : [];
-    var items = kit.items.slice().sort(function (a, b) { return a.sort_order - b.sort_order; }).map(function (item) {
-        var product = storeProduct(ctx.coop, item.product_id);
-        if (!product) {
-            return null;
-        }
-        var fixed = item.variant_id ? mockFindVariant(product, item.variant_id) : null;
-        var pricing = storeUnitPrice(ctx.coop, product, fixed);
-        var inCart = cartLines.filter(function (line) { return line.school_kit_item_id === item.id; })[0] || null;
-        return {
-            id: item.id, product_id: product.id, name: storeDisplayName(product), image_url: product.image_url, unit: product.unit,
-            variant_id: fixed ? fixed.id : null, variant_label: fixed ? fixed.label : null,
-            choose_variant: product.has_variants && !fixed,
-            variants: product.has_variants && !fixed ? storeActiveVariants(product).map(function (variant) {
-                return { id: variant.id, label: variant.label, price: storeUnitPrice(ctx.coop, product, variant).price, available: storeAvailable(ctx.coop, product.id, variant.id) };
-            }) : [],
-            unit_price: pricing.price, qty: item.qty, is_mandatory: item.is_mandatory, note: item.note,
-            available: product.has_variants && !fixed ? null : storeAvailable(ctx.coop, product.id, fixed ? fixed.id : 0),
-            max_per_order: storeMaxQty(product, pricing),
-            in_cart: inCart ? { qty: inCart.qty, variant_id: inCart.variant_id || null } : null
-        };
-    }).filter(Boolean);
-    return Mock.ok({
-        children: children, child: storeChildPublic(child),
-        kit: { id: kit.id, name: kit.name, note: kit.note, grade_level_code: kit.grade_level_code, school_year: kit.school_year, items: items, in_cart: cartLines.length > 0 }
-    });
-});
-
-// ---------- Troli ----------
-
-Mock.register('store/cart/get', function (params) {
-    var ctx = storeContext(params);
-    if (ctx.error) {
-        return ctx.error;
-    }
-    return Mock.ok(storeQuote(ctx.customer, ctx.coop, '').data);
-});
-
-function storeValidQty(qty) {
-    var n = parseInt(qty, 10);
-    return n >= 1 && n <= 99 ? n : null;
-}
-
-Mock.register('store/cart/add', function (body) {
-    var ctx = storeContext(body);
-    if (ctx.error) {
-        return ctx.error;
-    }
-    var product = storeProduct(ctx.coop, body.product_id);
-    if (!product) {
-        return Mock.fail(T('error.not_found'));
-    }
-    var child = storeFindChild(ctx.customer, ctx.coop, body.child_id);
-    if (!child) {
-        return Mock.fail(T('store.cart.choose_child'), { child_id: T('store.cart.choose_child') });
-    }
-    var variant = body.variant_id ? mockFindVariant(product, body.variant_id) : null;
-    if (product.has_variants && (!variant || !variant.is_active)) {
-        return Mock.fail(T('pos.error.choose_variant', { name: storeDisplayName(product) }), { variant_id: T('error.required') });
-    }
-    var qty = storeValidQty(body.qty);
-    if (!qty) {
-        return Mock.fail(T('error.range', { min: 1, max: 99 }), { qty: T('error.range', { min: 1, max: 99 }) });
-    }
-    var cart = storeCart(ctx.customer, ctx.coop, true);
-    var variantId = variant ? variant.id : 0;
-    var existing = cart.items.filter(function (item) {
-        return item.product_id === product.id && (item.variant_id || 0) === variantId && item.child_id === child.id && item.source === 'ala_carte';
-    })[0];
-    var already = cart.items.filter(function (item) { return item.product_id === product.id && (item.variant_id || 0) === variantId; })
-        .reduce(function (sum, item) { return sum + item.qty; }, 0);
-    var available = storeAvailable(ctx.coop, product.id, variantId);
-    if (already + qty > available) {
-        return Mock.fail(T('pos.error.stock', { name: storeDisplayName(product) + (variant ? ' — ' + variant.label : ''), n: Math.max(0, available - already) }));
-    }
-    var max = storeMaxQty(product, storeUnitPrice(ctx.coop, product, variant));
-    if (max && already + qty > max) {
-        return Mock.fail(T('store.cart.max_per_order', { name: storeDisplayName(product), n: max }));
-    }
-    if (existing) {
-        existing.qty += qty;
-    } else {
-        cart.items.push({ id: ++MockStore.cartSeq, product_id: product.id, variant_id: variantId,
-            child_id: child.id, qty: qty, source: 'ala_carte', school_kit_id: null, school_kit_item_id: null });
-    }
-    cart.updated_at = Mock.now();
-    return Mock.ok({ cart_count: storeCartCount(ctx.customer, ctx.coop), child_name: child.full_name });
-});
-
-// Masukkan kit (item yang ditanda sahaja). Kit yang sama untuk anak yang sama → diganti
-Mock.register('store/cart/add-kit', function (body) {
-    var ctx = storeContext(body);
-    if (ctx.error) {
-        return ctx.error;
-    }
-    var child = storeFindChild(ctx.customer, ctx.coop, body.child_id);
-    if (!child) {
-        return Mock.fail(T('error.not_found'));
-    }
-    var kit = storePublishedKit(ctx.coop, child);
-    if (!kit || kit.id !== Number(body.kit_id)) {
-        return Mock.fail(T('store.kit.not_available'));
-    }
-    var picked = body.items || [];
-    if (picked.length === 0) {
-        return Mock.fail(T('store.kit.nothing_selected'));
-    }
-    var cart = storeCart(ctx.customer, ctx.coop, true);
-    var others = cart.items.filter(function (item) { return !(item.school_kit_id === kit.id && item.child_id === child.id); });
-    var lines = [];
-    var error = null;
-    var errors = {};
-    picked.forEach(function (row) {
-        if (error) {
-            return;
-        }
-        var kitItem = kit.items.filter(function (item) { return item.id === Number(row.kit_item_id); })[0];
-        var product = kitItem ? storeProduct(ctx.coop, kitItem.product_id) : null;
-        var qty = storeValidQty(row.qty);
-        if (!kitItem || !product || !qty) {
-            error = T('error.invalid');
-            return;
-        }
-        var variant = kitItem.variant_id ? mockFindVariant(product, kitItem.variant_id) : (row.variant_id ? mockFindVariant(product, row.variant_id) : null);
-        if (product.has_variants && (!variant || !variant.is_active)) {
-            error = T('pos.error.choose_variant', { name: storeDisplayName(product) });
-            errors['variant_' + kitItem.id] = error;
-            return;
-        }
-        var variantId = variant ? variant.id : 0;
-        var already = others.concat(lines).filter(function (item) { return item.product_id === product.id && (item.variant_id || 0) === variantId; })
-            .reduce(function (sum, item) { return sum + item.qty; }, 0);
-        var available = storeAvailable(ctx.coop, product.id, variantId);
-        if (already + qty > available) {
-            error = T('pos.error.stock', { name: storeDisplayName(product) + (variant ? ' — ' + variant.label : ''), n: Math.max(0, available - already) });
-            errors['qty_' + kitItem.id] = error;
-            return;
-        }
-        lines.push({ product_id: product.id, variant_id: variantId, child_id: child.id, qty: qty, source: 'kit', school_kit_id: kit.id, school_kit_item_id: kitItem.id });
-    });
-    if (error) {
-        return Mock.fail(error, errors);
-    }
-    lines.forEach(function (line) {
-        line.id = ++MockStore.cartSeq;
-    });
-    cart.items = others.concat(lines);
-    cart.updated_at = Mock.now();
-    return Mock.ok({ cart_count: storeCartCount(ctx.customer, ctx.coop), added: lines.length, child_name: child.full_name });
-});
-
-function storeCartItem(ctx, id) {
-    var cart = storeCart(ctx.customer, ctx.coop, false);
-    var item = cart ? cart.items.filter(function (row) { return row.id === Number(id); })[0] : null;
-    return item ? { cart: cart, item: item } : null;
-}
-
-Mock.register('store/cart/update', function (body) {
-    var ctx = storeContext(body);
-    if (ctx.error) {
-        return ctx.error;
-    }
-    var found = storeCartItem(ctx, body.id);
-    var qty = storeValidQty(body.qty);
-    if (!found) {
-        return Mock.fail(T('error.not_found'));
-    }
-    if (!qty) {
-        return Mock.fail(T('error.range', { min: 1, max: 99 }));
-    }
-    found.item.qty = qty;
-    found.cart.updated_at = Mock.now();
-    return Mock.ok(storeQuote(ctx.customer, ctx.coop, '').data);
-});
-
-Mock.register('store/cart/remove', function (body) {
-    var ctx = storeContext(body);
-    if (ctx.error) {
-        return ctx.error;
-    }
-    var found = storeCartItem(ctx, body.id);
-    if (!found) {
-        return Mock.fail(T('error.not_found'));
-    }
-    found.cart.items = found.cart.items.filter(function (row) { return row.id !== found.item.id; });
-    return Mock.ok(storeQuote(ctx.customer, ctx.coop, '').data);
-});
-
-Mock.register('store/cart/clear', function (body) {
-    var ctx = storeContext(body);
-    if (ctx.error) {
-        return ctx.error;
-    }
-    var cart = storeCart(ctx.customer, ctx.coop, false);
-    if (cart) {
-        cart.items = [];
-    }
-    return Mock.ok(storeQuote(ctx.customer, ctx.coop, '').data);
-});
-
 // ---------- Checkout ----------
 
 Mock.register('store/checkout/quote', function (params) {
@@ -860,6 +264,9 @@ Mock.register('store/checkout/quote', function (params) {
         return ctx.error;
     }
     var quote = storeQuote(ctx.customer, ctx.coop, params.coupon_code);
+    if (!quote) {
+        return Mock.fail(T('error.network'));
+    }
     quote.data.customer_name = ctx.customer.full_name;
     quote.data.email_verified = Boolean(ctx.customer.email_verified);
     return Mock.ok(quote.data);
@@ -903,6 +310,9 @@ Mock.register('store/checkout/place', function (body) {
         return Mock.fail(T('store.checkout.verify_first'));
     }
     var quote = storeQuote(ctx.customer, ctx.coop, body.coupon_code);
+    if (!quote) {
+        return Mock.fail(T('error.network'));
+    }
     var data = quote.data;
     var errors = {};
     if (data.item_count === 0) {
@@ -974,11 +384,13 @@ Mock.register('store/checkout/place', function (body) {
         customer_name: ctx.customer.full_name, customer_phone: ctx.customer.phone, customer_email: ctx.customer.email,
         expires_at: isCash ? storeExpiry(data.cash_expiry_days) : null, paid_at: null, collected_at: null, created_at: now,
         gateway_ref: null,
+        // Baris dari troli SEBENAR (B6) — product_id ialah id DB; stok mock tidak ditahan (live_cart). B7: CheckoutJob sebenar
+        live_cart: true,
         items: lines.map(function (line, index) {
-            return { id: orderId * 100 + index + 1, product_id: line.product.id, variant_id: line.variant ? line.variant.id : 0,
-                product_name: line.product.name, variant_label: line.variant ? line.variant.label : null, sku: line.variant ? line.variant.sku : line.product.sku,
+            return { id: orderId * 100 + index + 1, product_id: line.product_id, variant_id: line.variant_id,
+                product_name: line.name, variant_label: line.variant_label, sku: null,
                 unit_price: line.unit_price, qty: line.qty, line_total: line.unit_price * line.qty, source: line.source,
-                school_kit_id: line.school_kit_id, clearance_item_id: line.clearance_item_id || null,
+                school_kit_id: line.school_kit_id, clearance_item_id: null,
                 child_id: line.child.id, child_name: line.child.full_name, grade_level_code: line.child.grade_level_code, class_name: line.child.class_name,
                 collected_qty: 0, cancelled_qty: 0, returned_qty: 0 };
         }),
@@ -986,17 +398,16 @@ Mock.register('store/checkout/place', function (body) {
     };
     // Murid sendiri: nama anak (seorang) atau senarai nama anak
     if (body.pickup_by_type === 'student') {
-        order.pickup_by_name = storeGroupLines(lines).map(function (group) { return group.child_name; }).join(', ');
+        order.pickup_by_name = data.groups.map(function (group) { return group.child_name; }).join(', ');
     }
     MockOrders.orders.push(order);
-    storeReserve(ctx.coop, order, 'reserve');
     if (slot) {
         slot.booked++;
     }
     if (quote.promotion) {
         quote.promotion.used_count++;
     }
-    storeCart(ctx.customer, ctx.coop, false).items = [];
+    storeClearLiveCart();
     // Peringkat 2: e-mel amaran kepada vendor + e-mel kepada ibu bapa (no. pendek, QR, slip) melalui email_queue
 
     var payment = null;
@@ -1113,7 +524,7 @@ Mock.register('store/orders/list', function (params) {
     }).sort(function (a, b) { return a.created_at < b.created_at ? 1 : -1; }).map(storeOrderSummary);
     var data = Mock.paginate(rows, params, []);
     data.years = years.sort().reverse();
-    data.children = storeChildren(ctx.customer, ctx.coop).map(function (child) { return { id: child.id, full_name: child.full_name }; });
+    data.children = storeOrderChildren(mine);
     data.ready_count = mine.filter(function (order) { return ['ready', 'partially_collected'].indexOf(order.status) !== -1; }).length;
     return Mock.ok(data);
 });
@@ -1157,7 +568,9 @@ Mock.register('store/orders/cancel', function (body) {
     if (['pending_payment', 'unpaid_cash'].indexOf(order.status) === -1) {
         return Mock.fail(T('store.order.cannot_cancel'));
     }
-    storeReserve(ctx.coop, order, 'release');
+    if (!order.live_cart) {
+        storeReserve(ctx.coop, order, 'release');
+    }
     addonReleaseSlot(order);
     order.logs.push({ from_status: order.status, to_status: 'cancelled', actor: 'customer', actor_name: ctx.customer.full_name, note: T('store.order.cancelled_by_parent'), created_at: Mock.now() });
     order.status = 'cancelled';
@@ -1166,53 +579,5 @@ Mock.register('store/orders/cancel', function (body) {
     return Mock.ok(storeOrderDetail(ctx, order));
 });
 
-// ---------- Modul add-on: berita & jualan murah ----------
-
-Mock.register('store/news/list', function (params) {
-    var coop = storeCoop(params);
-    if (!coop) {
-        return storeSchoolError();
-    }
-    if (storeModules(coop).indexOf('news') === -1) {
-        return Mock.fail(T('store.module_unavailable'));
-    }
-    var rows = storeRows(MockAddons.news, coop).filter(function (post) {
-        return post.is_active && post.published_at <= Mock.now();
-    }).sort(function (a, b) { return a.published_at < b.published_at ? 1 : -1; }).map(function (post) {
-        return { id: post.id, title: post.title, body: post.body, image_url: post.image_url, published_at: post.published_at };
-    });
-    return Mock.ok(Mock.paginate(rows, params, []));
-});
-
-Mock.register('store/clearance/list', function (params) {
-    var coop = storeCoop(params);
-    if (!coop) {
-        return storeSchoolError();
-    }
-    if (storeModules(coop).indexOf('clearance') === -1) {
-        return Mock.fail(T('store.module_unavailable'));
-    }
-    var now = Mock.now();
-    var sales = storeRows(MockAddons.clearanceSales, coop).filter(function (sale) {
-        return sale.is_active && sale.starts_at <= now && sale.ends_at >= now;
-    });
-    return Mock.ok(sales.map(function (sale) {
-        return { id: sale.id, name: sale.name, ends_at: sale.ends_at,
-            items: MockAddons.clearanceItems.filter(function (item) { return item.clearance_sale_id === sale.id && item.vendor_id === coop.vendor_id; })
-                .map(function (item) {
-                    var product = storeProduct(coop, item.product_id);
-                    if (!product) {
-                        return null;
-                    }
-                    var variant = item.variant_id ? mockFindVariant(product, item.variant_id) : null;
-                    var regular = posUnitPrice(product, variant);
-                    return { product_id: product.id, name: storeDisplayName(product), variant_label: variant ? variant.label : null, image_url: product.image_url,
-                        regular_price: regular, sale_price: Math.min(regular, item.sale_price), qty_limit: item.qty_limit,
-                        available: product.has_variants && !variant ? null : storeAvailable(coop, product.id, variant ? variant.id : 0) };
-                }).filter(Boolean)
-        };
-    }));
-});
-
-// Kekalkan sesi, troli & token antara halaman (sessionStorage) — Peringkat 2: sesi PHP & jadual carts
-Mock.persist('store', MockStore, ['session', 'carts', 'cartSeq']);
+// Kekalkan sesi mock antara halaman (sessionStorage) — B7: sesi PHP sahaja
+Mock.persist('store', MockStore, ['session']);

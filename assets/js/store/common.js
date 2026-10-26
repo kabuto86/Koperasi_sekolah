@@ -8,6 +8,8 @@ var Store = {
     slug: storeContextEl.getAttribute('data-school-slug'),
     page: storeContextEl.getAttribute('data-page'),
     baseUrl: storeContextEl.getAttribute('data-store-url'),
+    // URL cantik /{slug}/{halaman} bila config pretty_store_urls aktif (kosong = ?school=…&page=…)
+    prettyUrl: storeContextEl.getAttribute('data-pretty-url'),
     school: null,
     customer: null,
     session: null,
@@ -27,10 +29,13 @@ document.addEventListener('submit', function (event) {
 function storeUrl(page, params, slug) {
     var query = new URLSearchParams();
     var school = slug === undefined ? Store.slug : slug;
-    if (school) {
+    var path = Store.baseUrl;
+    if (school && Store.prettyUrl) {
+        path = Store.prettyUrl + encodeURIComponent(school) + '/' + (page && page !== 'home' ? encodeURIComponent(page) : '');
+    } else if (school) {
         query.set('school', school);
     }
-    if (page && page !== 'home') {
+    if (page && page !== 'home' && !(school && Store.prettyUrl)) {
         query.set('page', page);
     }
     Object.keys(params || {}).forEach(function (key) {
@@ -39,7 +44,7 @@ function storeUrl(page, params, slug) {
         }
     });
     var text = query.toString();
-    return Store.baseUrl + (text ? '?' + text : '');
+    return path + (text ? '?' + text : '');
 }
 
 function storeGo(page, params, slug) {

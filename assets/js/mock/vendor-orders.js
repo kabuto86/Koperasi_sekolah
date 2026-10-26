@@ -1,4 +1,4 @@
-// Data mock vendor bahagian 2 (U3b): kit sekolah, pesanan, serah barang, ibu bapa & murid.
+// Data mock vendor bahagian 2 (U3b): pesanan, serah barang, ibu bapa & murid.
 // Bergantung pada mock/vendor.js (MockVendor, mockRequireCoop, mockCoopRows, mockFindProduct …).
 
 var MockOrders = {
@@ -58,38 +58,9 @@ var MockOrders = {
         3: { methods: ['A', 'B', 'C'], code_required_above: 0 }
     },
 
-    kits: [],
     orders: [],
     pickups: []
 };
-
-// ---------- Data contoh: kit sekolah ----------
-// Sejak B5 laluan vendor/kits/* sebenar (DB). Data ini kekal untuk mock store/kit (B6) sahaja.
-(function seedKits() {
-    // [koperasi, darjah, tahun, terbit?, [[produk, varian|null, kuantiti, wajib, nota]]]
-    var rows = [
-        [1, 'D1', 2026, true, [[1, null, 5, true, ''], [3, null, 3, true, ''], [6, null, 1, true, ''], [7, null, 2, false, ''], [9, null, 1, false, ''],
-            [11, null, 2, true, 'Pilih saiz anak'], [12, null, 2, false, 'Lelaki'], [13, null, 2, false, 'Perempuan'], [15, null, 1, true, ''], [16, null, 1, false, '']]],
-        [1, 'D2', 2026, true, [[1, null, 6, true, ''], [3, null, 3, true, ''], [6, null, 1, true, ''], [7, null, 2, false, ''], [11, null, 2, true, ''], [15, null, 1, true, '']]],
-        [1, 'D3', 2026, true, [[1, null, 6, true, ''], [2, null, 2, true, ''], [3, null, 2, true, ''], [6, null, 1, true, ''], [8, null, 1, false, ''], [11, null, 2, true, '']]],
-        [1, 'D4', 2026, true, [[1, null, 4, true, ''], [2, null, 4, true, ''], [4, null, 1, true, 'Edisi KSSR semakan'], [5, null, 1, true, ''], [6, null, 1, true, ''],
-            [8, null, 1, false, ''], [10, null, 1, false, ''], [14, null, 1, true, 'Mula Darjah 4'], [11, null, 2, true, '']]],
-        [1, 'D5', 2026, false, [[1, null, 4, true, ''], [2, null, 4, true, ''], [6, null, 1, true, ''], [14, null, 1, true, '']]],
-        [1, 'D6', 2026, true, [[1, null, 4, true, ''], [2, null, 4, true, ''], [6, null, 1, true, ''], [14, null, 1, true, ''], [17, null, 1, false, '']]],
-        [1, 'D1', 2027, false, [[1, null, 5, true, ''], [3, null, 3, true, ''], [6, null, 1, true, ''], [11, null, 2, true, 'Pilih saiz anak']]],
-        [2, 'D1', 2026, true, [[19, null, 1, true, ''], [20, null, 2, true, ''], [21, null, 6, true, ''], [22, null, 2, true, '']]],
-        [3, 'T1', 2026, true, [[23, null, 2, true, ''], [24, null, 1, true, '']]]
-    ];
-    rows.forEach(function (row, index) {
-        MockOrders.kits.push({
-            id: index + 1, vendor_id: row[0] === 3 ? 2 : 1, cooperative_id: row[0], grade_level_code: row[1], school_year: row[2],
-            name: '', note: row[2] === 2027 ? 'Senarai sementara — menunggu pengesahan guru besar.' : '', is_published: row[3],
-            items: row[4].map(function (item, itemIndex) {
-                return { id: index * 100 + itemIndex + 1, product_id: item[0], variant_id: item[1], qty: item[2], is_mandatory: item[3], note: item[4], sort_order: itemIndex + 1 };
-            })
-        });
-    });
-})();
 
 // ---------- Data contoh: pesanan ----------
 (function seedOrders() {
@@ -695,4 +666,4 @@ MockOrders.children.forEach(function (child) {
     child.is_active = true;
 });
 
-Mock.persist('vendor-orders', MockOrders, ['kits', 'orders', 'pickups', 'customerNotes', 'customers', 'children']);
+Mock.persist('vendor-orders', MockOrders, ['orders', 'pickups', 'customerNotes', 'customers', 'children']);
