@@ -38,7 +38,7 @@ Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 |---|---|---|---|---|---|
 | B1 | Skema, seed, core | ✅ | 26 Okt 2026 | `8479340` | 75 jadual, seed 2 vendor/3 koperasi/2 ibu bapa, 6 kelas core baharu, `ValidateCooperativeJob`, `tools/verify-b1.php` 42/42 lulus |
 | B2 | Auth owner, vendor, ibu bapa + 2FA + throttle | ✅ | 26 Okt 2026 | `847ea89` | 38 endpoint `api/v1/`, 39 job, 13 kelas core baharu, sesi sebenar semua panel & store, `tools/verify-b2.php` 94/94 lulus |
-| B3 | Owner: pelan, harga koperasi, modul, template, vendor | ✅ | 26 Okt 2026 | (lihat git log) | 32 endpoint owner, 33 job + 3 pembantu, `CalculateCoopPriceJob`, owner_staff 403 di pelayan, `tools/verify-b3.php` 101/101 lulus |
+| B3 | Owner: pelan, harga koperasi, modul, template, vendor | ✅ | 26 Okt 2026 | `764f4c7` | 32 endpoint owner, 33 job + 3 pembantu, `CalculateCoopPriceJob`, owner_staff 403 di pelayan, `tools/verify-b3.php` 101/101 lulus |
 | B4 | Vendor: koperasi, produk, kategori, varian, inventori, pembekal | ⬜ | | | |
 | B5 | Kit keperluan sekolah | ⬜ | | | |
 | B6 | Store ibu bapa: daftar, anak, katalog, kit, troli | ⬜ | | | |
