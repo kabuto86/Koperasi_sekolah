@@ -828,6 +828,7 @@ return [
     'kit.unpublished_toast'          => 'பொதி வரைவாக மாற்றப்பட்டது.',
     'kit.delete_confirm'             => 'இந்த வரைவுப் பொதியை நீக்கவா?',
     'kit.delete_published'           => 'வெளியிடப்பட்டதை நீக்க முடியாது.',
+    'kit.delete_has_orders'          => 'இந்தக் கிட் ஏற்கனவே ஆர்டர்களில் உள்ளது; நீக்க முடியாது. வரைவாக வைக்கவும்.',
     // Pesanan
     'order.order'                    => 'ஆர்டர்',
     'order.detail_title'             => 'ஆர்டர் விவரங்கள்',
@@ -1257,6 +1258,10 @@ return [
     'activity.action.stock_adjust'         => 'இருப்பைச் சரிசெய்தார்',
     'activity.action.po_receive'           => 'PO பொருட்களைப் பெற்றார்',
     'activity.action.kit_publish'          => 'பள்ளி கிட்டை வெளியிட்டார்',
+    'activity.action.kit_save'             => 'பள்ளி கிட்டைச் சேமித்தார்',
+    'activity.action.kit_unpublish'        => 'பள்ளி கிட்டின் வெளியீட்டை மீட்டார்',
+    'activity.action.kit_delete'           => 'பள்ளி கிட்டை நீக்கினார்',
+    'activity.action.kit_copy'             => 'கடந்த ஆண்டு கிட்களை நகலெடுத்தார்',
     'activity.action.promotion_save'       => 'சலுகையைச் சேமித்தார்',
     'activity.action.promotion_delete'     => 'சலுகையை நீக்கினார்',
     'activity.action.staff_save'           => 'பணியாளரைச் சேமித்தார்',

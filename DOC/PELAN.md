@@ -764,7 +764,8 @@ Dalam mock: `Mock.paginate(rows, params, ['medan_carian', ...])`.
   `mock/store.js` menyelaraskan `MockStore.session` dengan ibu bapa sebenar (dipadankan ikut e-mel) dan mengisi `cart_count` / `schools`
   `store/session` dari troli & anak mock sehingga B6. **Sejak B4** laluan koperasi, kelas, kategori, produk, inventori, pembekal, PO,
   stock take, papan pemuka, `templates/options` & `modules/active` sebenar; `mock/vendor.js` hanya menyimpan data contoh (`MockVendor`, `sessionVendorId = 1`)
-  untuk mock modul lain (kit B5, store B6, pesanan B9, POS B10, add-on B13) — id mock tidak sepadan dengan DB.
+  untuk mock modul lain (store B6, pesanan B9, POS B10, add-on B13) — id mock tidak sepadan dengan DB. **Sejak B5** `vendor/kits/*` sebenar;
+  `MockOrders.kits` (`mock/vendor-orders.js`) kekal hanya untuk mock `store/kit` sehingga B6.
   Sejak B3 `mock/owner.js` hanya mengandungi langganan & invois (B12) dan terjemahan (B14); data vendor/pelan di dalamnya hanya untuk
   ringkasan laluan itu (id mock tidak sepadan dengan DB)
 - `vendor_id` dalam mock datang dari `MockVendor.sessionVendorId` (meniru sesi) — tidak pernah dari parameter
@@ -1064,6 +1065,16 @@ KitDetail  = KitSummary + { items: [{ id, product_id, variant_id /* null = ibu b
   — UNIQUE(koperasi, darjah, tahun); `set-published { id, is_published }`; `delete { id }` (draf sahaja)
 - `copy-year { school_year }` → salin kit `school_year − 1` sebagai draf; darjah sedia ada dilangkau; item produk tidak aktif dibuang
   → `{ copied, skipped, removed_items }`
+
+> **B5 (sebenar, `jobs/SchoolKit/`):** semua 7 laluan `vendor/kits/*` menerima `cooperative_id` (`VendorAuth::requireCooperative`) — kit dicari
+> `vendor_id` + `cooperative_id` + `id`. Item hanya produk/varian **aktif** koperasi yang sama; `variant_id` hanya untuk produk bervarian
+> (null = ibu bapa pilih saiz); pasangan produk+varian tidak berulang; kuantiti 1–999; ≤ 100 item. `total_price` / `mandatory_price` = harga
+> semasa (`price + price_delta`) × qty bagi item aktif sahaja (`item_count` = semua item) — tiada harga disimpan dalam kit (PELAN 16.7).
+> Sunting mengekalkan id item yang produk+variannya sama (rujukan `cart_items.school_kit_item_id` untuk B6). `publish` dalam `save` menetapkan
+> status (Simpan draf = draf); terbit memerlukan ≥ 1 item aktif. Tahun boleh disimpan/disalin: tahun semasa −1 hingga +2.
+> `delete` = draf sahaja, ditolak jika kit ada dalam `order_items` (`kit.delete_has_orders`); baris troli kit itu dibuang bersama.
+> Store (B6) WAJIB guna `SchoolKits::findPublished($cooperative, $grade, $year)` — draf tidak pernah dipulangkan.
+> Log aktiviti: `kit_save`, `kit_publish`, `kit_unpublish`, `kit_delete`, `kit_copy`.
 
 **OrderSummary** — `vendor/orders/list` (tapis `q` [no., kod pendek, nama murid/ibu bapa, telefon, token QR], `status` [boleh senarai
 dipisah koma], `grade`, `class_name`, `payment_method`, `date_from`, `date_to`, `pickup_slot_id` (U7); `data.status_counts: { ready: 7, … }`)
@@ -1365,7 +1376,7 @@ vendor) → `booked--`. **Lencana "Jualan murah"** (sedia sejak U5) kini dari `M
 ### 18.14 Indeks laluan API lengkap (U7) — spesifikasi backend
 
 Senarai **semua** laluan yang didaftar dalam `assets/js/mock/*.js` (214 laluan, dijana dari kod mock pada U7; B2 menambah 9 laluan auth
-— jumlah **223**; B3 menambah `owner/plans/options` — **224**; B4 tiada laluan baharu). Lajur Mock `— (B2)` / `— (B3)` / `— (B4)` = sudah sebenar (`api/v1/`), mock dibuang.
+— jumlah **223**; B3 menambah `owner/plans/options` — **224**; B4 & B5 tiada laluan baharu). Lajur Mock `— (B2)` … `— (B5)` = sudah sebenar (`api/v1/`), mock dibuang.
 **B4:** PO, stock take, `templates/options` & `modules/active` disiapkan lebih awal (prompt B4); `vendor/settings/*` ditangguh ke B9 (skrin serah & POS mock masih membaca tetapan mock). Bentuk `data` setiap laluan
 ada dalam 18.4–18.13; jadual ini ialah senarai semak Peringkat 2 — setiap baris mesti menjadi `api/v1/{laluan}.php` (nipis, tiada SQL)
 yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan CSRF, B14).
@@ -1528,13 +1539,13 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 | `vendor/invoices/get` | GET | vendor sesi | B12 | `vendor-finance.js` |
 | `vendor/invoices/list` | GET | vendor sesi | B12 | `vendor-finance.js` |
 | `vendor/invoices/pay` | POST | vendor sesi | B12 | `vendor-finance.js` |
-| `vendor/kits/copy-year` | POST | vendor sesi + koperasi | B5 | `vendor-orders.js` |
-| `vendor/kits/delete` | POST | vendor sesi | B5 | `vendor-orders.js` |
-| `vendor/kits/get` | GET | vendor sesi | B5 | `vendor-orders.js` |
-| `vendor/kits/list` | GET | vendor sesi + koperasi | B5 | `vendor-orders.js` |
-| `vendor/kits/product-options` | GET | vendor sesi + koperasi | B5 | `vendor-orders.js` |
-| `vendor/kits/save` | POST | vendor sesi + koperasi | B5 | `vendor-orders.js` |
-| `vendor/kits/set-published` | POST | vendor sesi | B5 | `vendor-orders.js` |
+| `vendor/kits/copy-year` | POST | vendor sesi + koperasi | B5 | — (B5) |
+| `vendor/kits/delete` | POST | vendor sesi + koperasi | B5 | — (B5) |
+| `vendor/kits/get` | GET | vendor sesi + koperasi | B5 | — (B5) |
+| `vendor/kits/list` | GET | vendor sesi + koperasi | B5 | — (B5) |
+| `vendor/kits/product-options` | GET | vendor sesi + koperasi | B5 | — (B5) |
+| `vendor/kits/save` | POST | vendor sesi + koperasi | B5 | — (B5) |
+| `vendor/kits/set-published` | POST | vendor sesi + koperasi | B5 | — (B5) |
 | `vendor/messaging/get` | GET | koperasi + modul `whatsapp_sms` | B13 | `vendor-addons.js` |
 | `vendor/messaging/log` | GET | koperasi + modul `whatsapp_sms` | B13 | `vendor-addons.js` |
 | `vendor/messaging/save` | POST | koperasi + modul `whatsapp_sms` | B13 | `vendor-addons.js` |

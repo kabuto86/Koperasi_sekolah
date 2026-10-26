@@ -843,6 +843,7 @@ return [
     'kit.unpublished_toast'          => 'Kit dijadikan draf.',
     'kit.delete_confirm'             => 'Padam kit draf ini?',
     'kit.delete_published'           => 'Kit yang diterbitkan tidak boleh dipadam. Tarik balik dahulu.',
+    'kit.delete_has_orders'          => 'Kit ini sudah ada dalam pesanan dan tidak boleh dipadam. Biarkan sebagai draf.',
     // Pesanan
     'order.order'                    => 'Pesanan',
     'order.detail_title'             => 'Butiran pesanan',
@@ -1272,6 +1273,10 @@ return [
     'activity.action.stock_adjust'         => 'Laras stok',
     'activity.action.po_receive'           => 'Terima barang PO',
     'activity.action.kit_publish'          => 'Terbit kit sekolah',
+    'activity.action.kit_save'             => 'Simpan kit sekolah',
+    'activity.action.kit_unpublish'        => 'Tarik balik kit sekolah',
+    'activity.action.kit_delete'           => 'Padam kit sekolah',
+    'activity.action.kit_copy'             => 'Salin kit tahun lepas',
     'activity.action.promotion_save'       => 'Simpan promosi',
     'activity.action.promotion_delete'     => 'Padam promosi',
     'activity.action.staff_save'           => 'Simpan kakitangan',

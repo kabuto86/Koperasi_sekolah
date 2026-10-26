@@ -828,6 +828,7 @@ return [
     'kit.unpublished_toast'          => '套装已改为草稿。',
     'kit.delete_confirm'             => '删除此草稿套装？',
     'kit.delete_published'           => '已发布的套装不能删除，请先取消发布。',
+    'kit.delete_has_orders'          => '此套装已有订单，不能删除。请保留为草稿。',
     // Pesanan
     'order.order'                    => '订单',
     'order.detail_title'             => '订单详情',
@@ -1257,6 +1258,10 @@ return [
     'activity.action.stock_adjust'         => '调整库存',
     'activity.action.po_receive'           => '接收采购单货品',
     'activity.action.kit_publish'          => '发布学校套装',
+    'activity.action.kit_save'             => '保存学校套装',
+    'activity.action.kit_unpublish'        => '取消发布学校套装',
+    'activity.action.kit_delete'           => '删除学校套装',
+    'activity.action.kit_copy'             => '复制去年的套装',
     'activity.action.promotion_save'       => '保存促销',
     'activity.action.promotion_delete'     => '删除促销',
     'activity.action.staff_save'           => '保存职员',
