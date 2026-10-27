@@ -89,4 +89,11 @@ class View
         $url = self::url('store/index.php');
         return $query ? $url . '?' . http_build_query($query) : $url;
     }
+
+    // URL store penuh untuk e-mel (B7: pautan pesanan dalam resit ibu bapa)
+    public static function absoluteStoreUrl($slug, $page = 'home', $params = [])
+    {
+        $relative = substr(self::storeUrl($slug, $page, $params), strlen(self::baseUrl()));
+        return self::absoluteUrl($relative);
+    }
 }

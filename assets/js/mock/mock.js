@@ -1,45 +1,14 @@
 // Pendaftaran laluan mock (Peringkat 1 sahaja — dibuang dalam Peringkat 2).
-// Fail mock/owner.js, vendor.js, store.js mendaftar laluan dengan Mock.register().
+// Fail mock/owner.js, vendor.js, vendor-*.js mendaftar laluan dengan Mock.register().
 
 var Mock = {
     routes: {},
     stores: [],
-    storageVersion: 'v10',
+    storageVersion: 'v11',
 
     // handler(payload, method) mesti memulangkan Mock.ok(...) atau Mock.fail(...)
     register: function (path, handler) {
         Mock.routes[path] = handler;
-    },
-
-    // Peralihan Peringkat 2 (B2+): fn(res) dipanggil selepas laluan SEBENAR (fetch) menjawab,
-    // supaya data mock yang belum disambung boleh ikut sesi sebenar. Contoh: mock/store.js
-    liveHooks: {},
-
-    onLive: function (path, fn) {
-        Mock.liveHooks[path] = fn;
-    },
-
-    afterLive: function (path, res) {
-        if (Mock.liveHooks[path]) {
-            Mock.liveHooks[path](res);
-            Mock.saveStores();
-        }
-    },
-
-    // fn() memulangkan Promise — dijalankan SEKALI sebelum jawapan mock pertama halaman ini
-    // (cth. selaraskan sesi mock dengan sesi sebenar). Api.request menunggu Mock.ready()
-    syncs: [],
-    syncPromise: null,
-
-    beforeFirst: function (fn) {
-        Mock.syncs.push(fn);
-    },
-
-    ready: function () {
-        if (!Mock.syncPromise) {
-            Mock.syncPromise = Promise.all(Mock.syncs.map(function (fn) { return fn(); }));
-        }
-        return Mock.syncPromise;
     },
 
     ok: function (data) {

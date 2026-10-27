@@ -36,6 +36,43 @@ class StockLedger
         return $balance;
     }
 
+    // Tahan stok untuk pesanan (PELAN 16 perkara 4): qty_reserved += $qty, qty_on_hand kekal.
+    // Pergerakan 'reserve' / 'release' direkod dengan qty_change 0 (baki fizikal tidak berubah) + rujukan pesanan.
+    // Pemanggil menyemak baki (qty_on_hand − qty_reserved) dahulu — lihat CheckoutJob
+    public static function reserve($vendorId, $cooperativeId, $productId, $variantId, $qty, $refId, $note = '')
+    {
+        return self::changeReserved($vendorId, $cooperativeId, $productId, $variantId, 'reserve', (int) $qty, $refId, $note);
+    }
+
+    // Lepas tahanan (pesanan dibatal / luput) — tidak pernah di bawah 0
+    public static function release($vendorId, $cooperativeId, $productId, $variantId, $qty, $refId, $note = '')
+    {
+        return self::changeReserved($vendorId, $cooperativeId, $productId, $variantId, 'release', -(int) $qty, $refId, $note);
+    }
+
+    private static function changeReserved($vendorId, $cooperativeId, $productId, $variantId, $type, $change, $refId, $note)
+    {
+        if (!Database::connection()->inTransaction()) {
+            throw new RuntimeException('StockLedger::' . $type . ' mesti dalam transaksi DB.');
+        }
+        $level = self::lock($vendorId, $cooperativeId, $productId, $variantId);
+        $reserved = max(0, (int) $level['qty_reserved'] + $change);
+        Database::execute(
+            "UPDATE stock_levels SET qty_reserved = ? WHERE vendor_id = ? AND cooperative_id = ? AND product_id = ? AND variant_id = ?",
+            [$reserved, (int) $vendorId, (int) $cooperativeId, (int) $productId, (int) $variantId]
+        );
+        Database::insert(
+            "INSERT INTO stock_movements (vendor_id, cooperative_id, product_id, variant_id, type, qty_change, balance_after,
+                                          ref_type, ref_id, vendor_user_id, note)
+             VALUES (?, ?, ?, ?, ?, 0, ?, 'order', ?, NULL, ?)",
+            [
+                (int) $vendorId, (int) $cooperativeId, (int) $productId, (int) $variantId, $type, (int) $level['qty_on_hand'],
+                (int) $refId, mb_substr((string) $note, 0, 255, 'UTF-8') ?: null,
+            ]
+        );
+        return $reserved;
+    }
+
     // Baris stok dikunci untuk transaksi ini; dicipta (baki 0) jika belum wujud
     public static function lock($vendorId, $cooperativeId, $productId, $variantId)
     {

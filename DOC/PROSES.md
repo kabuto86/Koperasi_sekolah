@@ -4,9 +4,9 @@
 > Kemas kini fail ini di HUJUNG setiap session, sebelum commit & push.
 > Reka bentuk: [PELAN.md](PELAN.md) · Prompt kerja: [PROMPT-SESSION.md](PROMPT-SESSION.md)
 
-**Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · **Peringkat 2 berjalan** — skema & core (B1), auth sebenar (B2), panel owner (B3), katalog & inventori vendor (B4), kit sekolah (B5), store ibu bapa: anak, katalog, kit, troli (B6)
-**Session terakhir siap:** B6 — Store ibu bapa: daftar, anak, katalog, kit, troli
-**Session seterusnya:** **B7 — Checkout tunai, pesanan, queue e-mel**
+**Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · **Peringkat 2 berjalan** — skema & core (B1), auth sebenar (B2), panel owner (B3), katalog & inventori vendor (B4), kit sekolah (B5), store ibu bapa: anak, katalog, kit, troli (B6), checkout tunai, pesanan & queue e-mel (B7)
+**Session terakhir siap:** B7 — Checkout tunai, pesanan, queue e-mel
+**Session seterusnya:** **B8 — Payment gateway + webhook**
 
 Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 
@@ -42,7 +42,7 @@ Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 | B4 | Vendor: koperasi, produk, kategori, varian, inventori, pembekal | ✅ | 26 Okt 2026 | `64290c1` | 36 endpoint vendor, 37 job + 7 pembantu, `core/Uploader`, `StockLedger` (stok dalam transaksi), PO & stock take, `tools/verify-b4.php` 118/118 lulus |
 | B5 | Kit keperluan sekolah | ✅ | 26 Okt 2026 | `8ab4bf5` | 7 endpoint `vendor/kits/*`, 7 job + pembantu `SchoolKits` (`findPublished` untuk store), harga kit dari harga semasa, `tools/verify-b5.php` 59/59 lulus |
 | B6 | Store ibu bapa: daftar, anak, katalog, kit, troli | ✅ | 26 Okt 2026 | `47a4acb` | 19 endpoint store, 19 job + 4 pembantu (`StoreSchool`, `StorePricing`, `Children`, `Carts`), template ikut koperasi, URL `/{slug}/`, `tools/verify-b6.php` 85/85 lulus |
-| B7 | Checkout tunai, pesanan, queue e-mel | ⬜ | | | |
+| B7 | Checkout tunai, pesanan, queue e-mel | ✅ | 27 Okt 2026 | (lihat log git) | 6 endpoint store, 7 job + 4 pembantu `jobs/Order/` + `Promotions` + `SendQueuedEmailsJob`, `core/Mailer` (SMTP vanila) · `Money` · `QrCode`, 2 cron, `mock/store.js` dibuang, `tools/verify-b7.php` 92/92 lulus |
 | B8 | Payment gateway + webhook | ⬜ | | | |
 | B9 | Pengurusan pesanan & serah barang | ⬜ | | | |
 | B10 | POS kaunter | ⬜ | | | |
@@ -846,6 +846,63 @@ Tertangguh / peralihan:
 - `store/school.notices.preorder` & slot ambil dari DB (tiada musim dalam seed) — checkout mock masih memakai slot mock (B7/B13)
 - Gambar produk sebenar dipapar jika vendor memuat naik; resit PDF → B9
 - `ui-audit` vendor: `vendor_school-kit` melaporkan kotak semak pratonton `aria-hidden` tanpa label (sedia ada sejak B5, bukan ralat konsol)
+
+### B7 — Checkout tunai, pesanan & queue e-mel (27 Okt 2026)
+
+Dibuat:
+- **Pembantu:** `jobs/Order/CheckoutQuote` (CartQuote + promosi + cukai selepas diskaun + kaedah bayaran + kod 4 digit + slot + tutup tempahan —
+  dikongsi paparan & checkout), `CustomerOrders` (find/require ikut `customer_id` + vendor + koperasi + `online`, summary, StoreOrderDetail,
+  `releaseHolds`, `sortStockKeys`, `logStatus`), `OrderNumbers` (no. pesanan `TM-2610-0001`, kod pendek `A123`, token QR — koperasi dikunci),
+  `OrderEmails` (amaran vendor ke `alert_emails` + resit ibu bapa dengan jadual barang & QR), `jobs/Promotion/Promotions` (satu promosi: kupon /
+  automatik terbaik, sama seperti `pos-cart.js`)
+- **Job (8):** `jobs/Order/` CheckoutJob, GetCheckoutQuoteJob, ListCustomerOrdersJob, GetCustomerOrderJob, CancelOrderJob, PayCustomerOrderJob
+  (B8), ExpireCashOrdersJob · `jobs/Notification/SendQueuedEmailsJob`
+- **API (6 fail, tiada SQL):** `store/checkout/{quote,place}`, `store/orders/{list,get,cancel,pay}`
+- **Core:** `Mailer` (SMTP vanila tanpa Composer: STARTTLS/SSL/none, AUTH LOGIN, header UTF-8 `=?UTF-8?B?`, badan base64, sekat CR/LF; driver
+  `log`), `Money::format()`, `QrCode` (port qrcode.js — mod Byte, tahap M, versi 1–6; jadual HTML `bgcolor` untuk e-mel), `View::absoluteStoreUrl()`
+- **Ubah:** `StockLedger::reserve/release` (qty_reserved, pergerakan `reserve`/`release` qty_change 0 + ref pesanan), `Carts::quoteWithLines`,
+  `StorePricing` (`base_name` untuk snapshot), `QueueEmailJob` (`$htmlVars`), `EmailTemplateCatalog` (`{pickup_qr}`)
+- **Cron:** `cron/send-emails.php` (flock, 50 setiap larian, 5 cubaan → failed; SMTP kosong → kekal pending) · `cron/expire-cash-orders.php`;
+  `cron/.htaccess` & `storage/.htaccess` halang web; `config mail_driver` (`smtp`/`log`) + `mail_log_file`
+- **JS:** `Api.livePrefixes` + `store/checkout/`, `store/orders/`; `mock/store.js` DIBUANG; `Mock.onLive/afterLive/beforeFirst/ready` dibuang;
+  template1 tidak memuat mock; `Mock.storageVersion` → v11; `asset_version` → 8
+- **Seed:** 3 promosi (JIMAT5, automatik 3%, SI10); templat `order_receipt` + `{pickup_qr}` & pautan pesanan · migrasi `002-order-receipt-qr.sql`
+  (tiada perubahan jadual)
+- 4 kunci bahasa baharu × 4 (`email.order_new_vendor.*`, `email.order_receipt.*` — sandaran bila templat DB tiada) — jumlah 1816
+- `tools/verify-b7.php` (92 semakan; pelayan 4 pekerja + `tools/fake-smtp.php`; jadual diubah dipulihkan), `test-helpers.php`: `parallelPost()`,
+  `Browser::postHandle()`, `clearTestLocks()` + `store_checkout:`; `ui-audit.js`: order-success membaca `?order=`
+
+Disahkan (MariaDB 10.11, PHP 8.3, pemasangan baharu schema + seed — `verify-b7` **92 lulus, 0 gagal**; `verify-b6` 85/85; `verify-b5` 59/59;
+`verify-b4` 118/118; `verify-b3` 101/101; `verify-b2` 94/94; `verify-b1` 42/42; `check-ui` OK; `ui-audit` lang=ms store 38 halaman × 2 lebar: 0 isu
+(dengan pesanan sebenar); Playwright 390px: log masuk ibu bapa A → troli → checkout + kupon JIMAT5 (RM 76.00 − RM 5.00) → pesanan TM-2610-0001
+→ halaman berjaya (no. pendek, QR, 2 slip beg) → butiran → batal — 0 ralat konsol):
+- **Serentak (PELAN 16 perkara 3):** dua ibu bapa checkout stok terakhir serentak (curl_multi, 3 pusingan) → tepat satu berjaya, `qty_reserved = qty_on_hand`
+- **Kebocoran ibu bapa A ↔ B:** B baca / batal / bayar pesanan A → 404 & tiada perubahan; senarai B tidak mengandungi pesanan A; A melalui slug
+  koperasi lain → 404; `customer_id`, `vendor_id`, `cooperative_id`, `status`, `total`, `unit_price`, `discount`, `promotion_id` dalam input diabaikan
+- **VENDOR01 ↔ VENDOR02:** kupon SI10 (V02) tidak sah di SK Taman Melati; pesanan SMK Seri Indah → vendor 2, amaran hanya ke e-mel V02; no. `SI-…`/`CH-…`
+- Transaksi: semua percubaan gagal (e-mel belum sah, jumlah berubah, kod salah, wakil tanpa nama, online, kupon salah, troli bermasalah) → tiada
+  pesanan, troli & stok tidak berubah; harga & diskaun dari pelayan; cukai 6% selepas diskaun; kod 4 digit → hash Argon2id, tidak dipulangkan
+- Snapshot: tukar nama/harga produk & naik darjah anak → pesanan kekal; nama Cina disimpan utuh (HEX); slot penuh / darjah lain / tidak dipilih
+  ditolak, slot lepas tidak ditawarkan; tutup tempahan (calendar) → ditolak; batal → tahanan, slot & promosi dilepas (sekali sahaja)
+- Cron: pesanan tunai lewat → `expired` + tahanan dilepas (log `system`); e-mel dihantar melalui SMTP palsu (AUTH LOGIN), subjek UTF-8 dikod,
+  resit mengandungi QR & jadual barang; SMTP gagal → cuba semula, 5 kali → `failed`; QR PHP = qrcode.js (node) untuk 4 teks
+
+Keputusan kecil (dicatat dalam PELAN 9, 10.1, 10.2, 18.3, 18.12, 18.14):
+- B7 = **tunai sahaja**: online ditawarkan bila `accept_online` + gateway koperasi aktif + driver `GatewayFactory` (B8); CheckoutJob sudah
+  menyokong `pending_payment`, `payment` = null sehingga B8
+- Kod 4 digit hanya disimpan bila wajib (cara E / jumlah > had) — `requires_code` pesanan = ada hash
+- Snapshot nama produk = nama asal vendor (bukan terjemahan bahasa ibu bapa) supaya panel vendor & laporan konsisten
+- Batal/luput turut mengurangkan `promotions.used_count` (kupon terhad tidak "hangus"); slot `booked − 1`
+- Kod pendek: huruf tanpa I/O + 3 digit, 4 digit bila sesak; no. pesanan ikut turutan bulanan koperasi (bukan id global)
+- Troli tanpa baris → "Troli anda kosong"; ada baris bermasalah (cth. stok habis kerana pesanan lain) → "betulkan troli"
+- Templat e-mel DB diutamakan; kunci `email.order_*` dalam `lang/*.php` hanya sandaran
+
+Tertangguh / peralihan:
+- Bayaran online, `store/orders/pay`, modal `storeStartPayment` (simulasi) → B8; luput `pending_payment` → B8
+- Panel vendor (pesanan, serah barang, POS) masih mock — pesanan store sebenar belum kelihatan di panel vendor sehingga B9
+- Promosi vendor (`vendor/promotions/*`) masih mock → B10 (seed DB sudah ada promosi untuk store)
+- `order_ready` / `order_collected` e-mel → B9; resit PDF → B9
+- `ui-audit` vendor: `vendor_school-kit` kotak semak pratonton `aria-hidden` tanpa label (sedia ada sejak B5)
 
 ---
 

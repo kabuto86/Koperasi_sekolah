@@ -90,8 +90,14 @@ class Carts
         }
     }
 
-    // CartQuote (PELAN 18.12). Promosi & kupon dikira semasa checkout (B7) — di sini diskaun 0
+    // CartQuote (PELAN 18.12). Promosi & kupon dikira semasa checkout (CheckoutQuote, B7) — di sini diskaun 0
     public static function quote($customerId, array $cooperative)
+    {
+        return self::quoteWithLines($customerId, $cooperative)['quote'];
+    }
+
+    // CartQuote + baris dalaman (produk, varian, harga, anak, baris troli) untuk checkout (B7)
+    public static function quoteWithLines($customerId, array $cooperative)
     {
         $cart = self::find($customerId, $cooperative);
         $items = $cart ? self::items($cart['id']) : [];
@@ -131,7 +137,7 @@ class Carts
         $total = $subtotal + $tax;
         $codeAbove = (int) ($settings['pickup_code_required_above'] ?? 0);
         $methods = explode(',', (string) ($settings['pickup_methods'] ?? 'A,B,C,D'));
-        return [
+        $quote = [
             'groups'              => array_values($groups),
             'item_count'          => $count,
             'has_problem'         => $hasProblem,
@@ -150,6 +156,7 @@ class Carts
             'requires_code'       => in_array('E', $methods, true) || ($codeAbove > 0 && $total > $codeAbove),
             'code_required_above' => $codeAbove,
         ];
+        return ['quote' => $quote, 'lines' => $lines];
     }
 
     // Kira semula setiap baris: produk/varian/anak masih sah, harga semasa, stok & had beli (dijumlahkan merentas troli)
@@ -173,7 +180,8 @@ class Carts
             $valid = $product !== null && $child !== null
                 && ($product['has_variants'] ? $variant !== null : (int) $item['variant_id'] === 0);
             $key = (int) $item['product_id'] . '#' . (int) $item['variant_id'];
-            $line = ['child_id' => (int) $item['child_id'], 'child' => $child, 'key' => $key, 'valid' => $valid];
+            $line = ['child_id' => (int) $item['child_id'], 'child' => $child, 'key' => $key, 'valid' => $valid,
+                'item' => $item, 'product' => $product, 'variant' => $variant];
             $qty = (int) $item['qty'];
             if ($valid) {
                 $price = $pricing->unitPrice($product, $variant);
@@ -181,10 +189,11 @@ class Carts
                 $line['available'] = $pricing->available($product['id'], (int) $item['variant_id']);
                 $line['max'] = StorePricing::maxQty($product, $price);
             } else {
-                $price = ['price' => 0, 'regular' => 0];
+                $price = ['price' => 0, 'regular' => 0, 'clearance_item_id' => null, 'qty_limit' => null];
                 $line['available'] = 0;
                 $line['max'] = null;
             }
+            $line['price'] = $price;
             $line['public'] = [
                 'id'            => (int) $item['id'],
                 'product_id'    => (int) $item['product_id'],

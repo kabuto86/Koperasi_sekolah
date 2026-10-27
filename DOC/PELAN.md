@@ -367,6 +367,7 @@ Nama, harga dan maklumat anak **disalin** (snapshot) ke pesanan dan invois.
 - **`stock_takes`** — id, vendor_id, cooperative_id, status ENUM(open, completed), started_by, started_at, completed_at
 - **`stock_take_items`** — id, vendor_id, stock_take_id, product_id, variant_id, qty_system, qty_counted, variance
 - **`promotions`** — id, vendor_id, cooperative_id, name, code NULL (kupon), type ENUM(percent, fixed), value, min_spend, starts_on, ends_on, max_uses, used_count, is_active
+  > Seed (B7): kupon `JIMAT5` (RM5, min RM50) & automatik 3% (min RM200) di SK Taman Melati; kupon `SI10` di SMK Seri Indah. Panel promosi vendor masih mock (B10).
 
 ### E. Kit keperluan sekolah (2)
 
@@ -419,6 +420,8 @@ Nama, harga dan maklumat anak **disalin** (snapshot) ke pesanan dan invois.
 
 - **`email_queue`** — id, vendor_id NULL, to_email, subject, body_html, template_key, status ENUM(pending, sent, failed), attempts, last_error, created_at, sent_at
   > E-mel dihantar oleh `cron/send-emails.php`, bukan semasa checkout — checkout tidak lambat walaupun SMTP perlahan.
+  > **B7:** maksimum 5 cubaan (`attempts`) → `failed` + `last_error`; SMTP owner belum ditetapkan → baris kekal `pending`. `config mail_driver`
+  > `smtp` (lalai) / `log` (pembangunan → `storage/mail.log`). Templat `order_receipt` kini ada `{pickup_qr}` (migrasi `002-order-receipt-qr.sql`).
 - **`rate_limits`** — bucket_key, hits, window_start · PK(bucket_key)
 
 Jumlah: **69 jadual** (U6: + `messaging_settings`).
@@ -465,12 +468,14 @@ Koperasi_sekolah/
 │                   Database · Request · Response · Validator · Csrf · Lang (+ t(), e()) · ValidationException (B2)
 │                   OwnerAuth · VendorAuth · CustomerAuth · Session · Password · Totp · RateLimit (B2) · ApiTokenAuth
 │                   PhoneNumber · IsoDate · Pagination (B2) · PanelRole (U7, sesi sejak B2)
-│                   Crypto (sodium) · ModuleAccess · Mailer · Uploader (B4) · View · SecurityHeaders
+│                   Crypto (sodium) · ModuleAccess · Uploader (B4) · View · SecurityHeaders
+│                   Mailer (SMTP vanila: tls/ssl/none + AUTH LOGIN, driver log) · Money (sen → "RM 1.50") · QrCode (QR e-mel) — B7
 │                   (PlanLimit = jobs/Billing/PlanLimit.php sejak B4 — membaca DB, jadi bukan dalam core/)
 ├── jobs/           SATU KELAS = SATU KERJA
 │   ├── Auth/ Owner/ Vendor/ Cooperative/ Plan/ Billing/ Module/ Template/
 │   ├── Product/ Inventory/ Supplier/ Promotion/ SchoolKit/
 │   ├── Customer/ Child/ Cart/ Store/ Order/ Pickup/ Payment/ Pos/ Report/   (Store/ = slug → koperasi, harga store, katalog, kit — B6)
+│   │   (Order/ = checkout, pesanan ibu bapa, no. pesanan, e-mel pesanan, luput tunai — B7 · Promotion/ = pilih promosi — B7)
 │   └── News/ Clearance/ Calendar/ SchoolOpening/ Notification/ Language/ Setting/ Announcement/ (B3)
 ├── payments/       GatewayInterface.php · GatewayFactory.php
 │   └── drivers/    ToyyibPayGateway · BillplzGateway · SenangPayGateway · Ipay88Gateway · StripeGateway
@@ -493,17 +498,19 @@ Koperasi_sekolah/
 │   └── template1/  manifest.json · layout.php · partials/ · pages/ · css/ · js/
 ├── modules/        news/ · clearance/ · calendar/ · school_opening/
 ├── lang/           ms.php · en.php · zh.php · ta.php
-├── cron/           send-emails · expire-cash-orders · generate-invoices · suspend-overdue · promote-grades
+├── cron/           send-emails · expire-cash-orders (B7, CLI sahaja, `.htaccess` halang web) · generate-invoices · suspend-overdue · promote-grades
+├── storage/        mail.log (mail_driver log) · fail kunci cron (.gitignore isi, `.htaccess` halang web) — B7
 ├── tools/          check-ui.php (tiada inline CSS + kunci 4 bahasa sama) · generate-secret.php · verify-b1.php · verify-b2.php
 │                   dev-totp.php (kod 2FA ujian) · ui-audit.js (pelayar, log masuk sebenar sejak B2) — CLI sahaja
 │                   verify-b3.php · test-helpers.php (Browser HTTP dikongsi — B3) · verify-b4.php (B4) · verify-b5.php (B5) · verify-b6.php (B6)
+│                   verify-b7.php · fake-smtp.php (pelayan SMTP palsu untuk ujian) — B7
 ├── assets/
 │   ├── lib/        bootstrap/ (5.3.3) · bootstrap-icons/ (1.11.3) · qrcode/ (qrcode-generator 1.4.4, MIT — sejak U2)
 │   ├── css/        app.css · print-label.css · print-slip.css · receipt.css
 │   ├── js/         api.js · lang.js · helpers.js · login.js · vendor-layout.js
 │   │   ├── owner/  satu fail per halaman owner (dashboard.js, vendors.js, …)
 │   │   ├── vendor/ satu fail per halaman vendor (dashboard.js, …) · addon-common.js · addons/{code}.js (U6)
-│   │   └── mock/   mock.js · owner.js · vendor.js · vendor-orders.js · vendor-finance.js · vendor-addons.js · store.js (Peringkat 1 sahaja)
+│   │   └── mock/   mock.js · owner.js · vendor.js · vendor-orders.js · vendor-finance.js · vendor-addons.js (Peringkat 1 sahaja; store.js dibuang B7)
 │   ├── img/
 │   └── fonts/      noto-sans-sc/ · noto-sans-tamil/ (woff2 400 & 700, unicode-range — dimuat bila perlu)
 ├── uploads/        {vendor_id}/{cooperative_id}/… (.gitignore isi, .htaccess halang PHP)
@@ -573,6 +580,18 @@ dikunci dengan `SELECT … FOR UPDATE` pada baris koperasi / vendor. Pembantu B4
 `CustomerAuth::requireLogin()` dahulu (401 `auth_required`), kemudian slug; `CustomerAuth::id()` → constructor job. Harga, stok & had sentiasa melalui
 `StorePricing`; troli melalui `Carts` (`ensure` = INSERT IGNORE + `FOR UPDATE` dalam transaksi, `assertFits`, `quote`); anak melalui `Children`
 (`find` sentiasa `customer_id` + `is_active`, pilihan koperasi). Had kadar: `store_cart:{customer}` 120/minit, `store_child_save:{customer}` 60/10 minit.
+
+**Konvensyen B7 (checkout & pesanan):** sebut harga checkout HANYA melalui `CheckoutQuote::build($customer, $koperasi, $kupon)` (CartQuote dari
+`Carts::quoteWithLines` + `Promotions::choose` + cukai selepas diskaun + kaedah bayaran + kod 4 digit + slot + tutup tempahan) — digunakan oleh
+paparan (`GetCheckoutQuoteJob`) dan `CheckoutJob` (dikira semula dalam transaksi). `CheckoutJob` = SATU transaksi dengan tertib kunci tetap:
+troli (`FOR UPDATE`) → baris troli → baris stok ikut (product_id, variant_id) menaik (`StockLedger::lock`) → slot → promosi → baris koperasi
+(`OrderNumbers::next`). Baki stok disemak semula dengan nilai yang DIKUNCI (stok terakhir: satu pesanan sahaja). Tahan/lepas stok melalui
+`StockLedger::reserve/release` (ubah `qty_reserved`, pergerakan `reserve`/`release` dengan `qty_change 0` + `ref_type order`). Pesanan ibu bapa
+melalui `CustomerOrders` (`find/require` sentiasa `customer_id` + `vendor_id` + `cooperative_id` + `channel online`; `releaseHolds` untuk
+batal/luput; `sortStockKeys` = tertib kunci sama). E-mel pesanan: `OrderEmails::queueNewOrder` dalam transaksi checkout → `email_queue`;
+`QueueEmailJob` menerima `$htmlVars` (serpihan HTML yang dibina pelayan, cth. `{items_table}`, `{pickup_qr}`) yang tidak di-escape. Penghantaran
+HANYA oleh `cron/send-emails.php` (`SendQueuedEmailsJob` + `core/Mailer`, 5 cubaan → `failed`, `flock` elak larian bertindih). Had kadar:
+`store_checkout:{customer}` 20/10 minit. Ujian serentak: `parallelPost()` dalam `tools/test-helpers.php` (pelayan `PHP_CLI_SERVER_WORKERS`).
 
 ### 10.3 Kontrak API
 
@@ -766,7 +785,8 @@ Dalam mock: `Mock.paginate(rows, params, ['medan_carian', ...])`.
 
 - `assets/js/mock/mock.js` — `Mock.register(path, handler)`, `Mock.ok(data)`, `Mock.fail(msg, errors)`,
   `Mock.paginate()`. `Mock.handle()` memulangkan **salinan dalam** supaya halaman tidak mengubah data mock
-- `mock/owner.js`, `mock/vendor.js`, `mock/store.js` — dimuat oleh layout masing-masing
+- `mock/owner.js`, `mock/vendor.js` (+ `vendor-*.js`) — dimuat oleh layout masing-masing. **Sejak B7** store tidak memuat sebarang fail mock
+  (`mock/store.js` dibuang; jambatan `Mock.onLive`, `Mock.afterLive`, `Mock.beforeFirst`, `Mock.ready` juga dibuang dari `mock.js` / `api.js`)
 - `config/app.php` `use_mock => false` (Peringkat 2) → skrip mock tidak dimuat; hanya `Api.request()` ditukar
 - **Peralihan (sejak B2):** `Api.livePrefixes` dalam `api.js` = laluan yang sudah sebenar (`fetch`, POST JSON + `X-CSRF-Token`);
   selebihnya masih mock. Setiap session B **menambah awalan** modulnya dan membuang `Mock.register` laluan itu. Jambatan sementara:
@@ -777,7 +797,8 @@ Dalam mock: `Mock.paginate(rows, params, ['medan_carian', ...])`.
   `Mock.beforeFirst`, checkout mock mengira promosi/cukai/slot atas baris itu (pesanan mock bertanda `live_cart`, stok mock tidak ditahan) dan
   mengosongkan troli sebenar (`store/cart/clear`, `fetch keepalive`). Sekolah yang tiada dalam mock (`smk-seri-indah`) → checkout gagal sehingga B7. **Sejak B4** laluan koperasi, kelas, kategori, produk, inventori, pembekal, PO,
   stock take, papan pemuka, `templates/options` & `modules/active` sebenar; `mock/vendor.js` hanya menyimpan data contoh (`MockVendor`, `sessionVendorId = 1`)
-  untuk mock modul lain (checkout B7, pesanan B9, POS B10, add-on B13) — id mock tidak sepadan dengan DB. **Sejak B5** `vendor/kits/*` sebenar;
+  untuk mock modul lain (pesanan vendor B9, POS B10, add-on B13) — id mock tidak sepadan dengan DB. **Sejak B7** checkout & pesanan ibu bapa
+  sebenar; pesanan store TIDAK lagi muncul dalam panel vendor mock sehingga B9 (`vendor/orders/*` sebenar). **Sejak B5** `vendor/kits/*` sebenar;
   `MockOrders.kits` dibuang dalam B6 (store/kit sebenar).
   Sejak B3 `mock/owner.js` hanya mengandungi langganan & invois (B12) dan terjemahan (B14); data vendor/pelan di dalamnya hanya untuk
   ringkasan laluan itu (id mock tidak sepadan dengan DB)
@@ -1357,6 +1378,24 @@ diskaun automatik terbaik, cukai selepas diskaun. **Slip beg** (cara D): satu se
 > Berita: diterbitkan & `published_at <= NOW()`. Modul tidak aktif → 404 `store.module_unavailable` (JS halaman berita/jualan murah menyemak
 > `Store.school.modules` dahulu). Template: `ResolveStoreTemplateJob` (`cooperatives.template_id` aktif + dilanggan + folder lengkap, jika tidak `template1`).
 
+> **B7 (sebenar — `jobs/Order/`, `jobs/Promotion/`):** `store/checkout/quote|place`, `store/orders/list|get|cancel|pay` dari DB; `mock/store.js`
+> dibuang. Quote = CartQuote + promosi (`promotions` aktif, dalam tarikh, `used_count < max_uses`; kupon tidak beza huruf; kupon salah / bawah
+> minimum → `coupon_error` dan place ditolak `errors.coupon_code`; tanpa kod → automatik terbaik), cukai = round((subtotal − diskaun) × kadar),
+> `requires_code` dikira atas jumlah selepas diskaun, `payment_methods`: tunai jika `accept_cash`; **online hanya jika `accept_online` + gateway
+> koperasi aktif + driver B8 (`GatewayFactory`) wujud** — B7 = tunai sahaja. Slot: musim pre-order dibuka (modul school_opening), slot darjah
+> troli atau semua darjah, **slot yang sudah lepas tidak ditawarkan**, `HH:MM`. `orders_blocked`: acara `blocks_orders` hari ini (modul calendar).
+> Place: e-mel mesti disahkan; troli kosong (tiada baris) → `store.cart.empty`; ada `problem` → `store.checkout.fix_cart`; `expected_total`
+> berbeza → `store.checkout.total_changed`; tunai → `unpaid_cash` + `expires_at` = hari ini + `cash_order_expiry_days` pukul 23:59:59.
+> No. pesanan `{singkatan sekolah}-{YYMM}-{NNNN}` (turutan bulanan koperasi, cth. `TM-2610-0001`, `CH-…`, `SI-…`); kod pendek huruf (tanpa I/O)
+> + 3 digit (jika sesak 4 digit), unik per koperasi; `pickup_qr_token` 32 hex rawak. Pengambil: `student` → nama anak-anak (koma), `parent` →
+> nama ibu bapa, `proxy` → nama wakil (wajib, ≤ 150). Kod 4 digit hanya disimpan bila `requires_code` (hash Argon2id); `requires_code` dalam
+> StoreOrderDetail = ada hash. Snapshot item: nama produk **asal vendor** (bukan terjemahan), varian, SKU (varian → produk), harga, `clearance_item_id`,
+> anak/darjah/kelas. `payment_status`: `paid` (paid_at) · `pending` (pending_payment) · `unpaid` (tunai belum selesai) · `none`. Batal (ibu bapa,
+> `pending_payment`/`unpaid_cash`) & luput (cron) → lepas tahanan stok baki item, `booked − 1`, promosi `used_count − 1`; log nota batal dalam bahasa
+> koperasi. `store/orders/pay`: `pending_payment` sahaja (B8 — B7 memulangkan `store.checkout.method_unavailable`). E-mel: amaran vendor ke
+> `alert_emails` (≤ 5, bahasa koperasi), resit ibu bapa (bahasanya) dengan `{items_table}` + `{pickup_qr}` (QR jadual HTML `bgcolor`, `core/QrCode`
+> = port qrcode.js) + `{order_url}` (URL store penuh).
+
 ### 18.13 Objek modul add-on (U6) — `assets/js/mock/vendor-addons.js`
 
 Data modul (`MockAddons`: `news, clearanceSales, clearanceItems, calendarEvents, seasons, slots, messaging, notifications`) dikongsi panel vendor
@@ -1503,8 +1542,8 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 | `store/cart/summary` | GET | awam + slug | B6 | — (B6) |
 | `store/cart/update` | POST | ibu bapa (sesi) + slug | B6 | — (B6) |
 | `store/catalog` | GET | awam + slug | B6 | — (B6) |
-| `store/checkout/place` | POST | ibu bapa (sesi) + slug | B7 | `store.js` |
-| `store/checkout/quote` | GET | ibu bapa (sesi) + slug | B7 | `store.js` |
+| `store/checkout/place` | POST | ibu bapa (sesi) + slug | B7 | — (B7) |
+| `store/checkout/quote` | GET | ibu bapa (sesi) + slug | B7 | — (B7) |
 | `store/children/list` | GET | ibu bapa (sesi) | B6 | — (B6) |
 | `store/children/promote` | POST | ibu bapa (sesi) | B6 | — (B6) |
 | `store/children/remove` | POST | ibu bapa (sesi) | B6 | — (B6) |
@@ -1513,11 +1552,11 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 | `store/clearance/list` | GET | awam + slug | B6 | — (B6) |
 | `store/kit` | GET | ibu bapa (sesi) + slug | B6 | — (B6) |
 | `store/news/list` | GET | awam + slug | B6 | — (B6) |
-| `store/orders/cancel` | POST | ibu bapa (sesi) + slug | B7 | `store.js` |
-| `store/orders/get` | GET | ibu bapa (sesi) + slug | B7 | `store.js` |
-| `store/orders/list` | GET | ibu bapa (sesi) + slug | B7 | `store.js` |
-| `store/orders/pay` | POST | ibu bapa (sesi) + slug | B7 | `store.js` |
-| `store/payment/simulate` | POST | ibu bapa (sesi) + slug | B8 | `store.js` |
+| `store/orders/cancel` | POST | ibu bapa (sesi) + slug | B7 | — (B7) |
+| `store/orders/get` | GET | ibu bapa (sesi) + slug | B7 | — (B7) |
+| `store/orders/list` | GET | ibu bapa (sesi) + slug | B7 | — (B7) |
+| `store/orders/pay` | POST | ibu bapa (sesi) + slug | B7 | — (B7) |
+| `store/payment/simulate` | POST | ibu bapa (sesi) + slug | B8 | — (tiada mock sejak B7; diganti redirect gateway B8) |
 | `store/product` | GET | awam + slug | B6 | — (B6) |
 | `store/profile/delete` | POST | ibu bapa (sesi) | B2 | — (B2) |
 | `store/profile/get` | GET | ibu bapa (sesi) | B2 | — (B2) |

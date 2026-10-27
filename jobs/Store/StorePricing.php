@@ -59,6 +59,7 @@ class StorePricing
             'category_id'   => $row['category_id'] === null ? null : (int) $row['category_id'],
             'category_name' => (string) $row['category_name'],
             'name'          => $row['tr_name'] !== null && $row['tr_name'] !== '' ? $row['tr_name'] : $row['name'],
+            'base_name'     => $row['name'],
             'description'   => $row['tr_description'] !== null && $row['tr_description'] !== '' ? $row['tr_description'] : (string) $row['description'],
             'sku'           => (string) $row['sku'],
             'price'         => (int) $row['price'],

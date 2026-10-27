@@ -1878,4 +1878,8 @@ return [
     'email.staff_invite.body'            => 'Hello {name},' . "\n\n" . 'You have been added as a staff member. Click the link below to set your password. The link is valid for 7 days.',
     'email.test_email.subject'          => '{app_name} test email',
     'email.test_email.body'             => 'Hello,' . "\n\n" . 'This is a test email from {name}. If you received it, the SMTP settings work.',
+    'email.order_new_vendor.subject'      => 'New order {order_no} — {school_name}',
+    'email.order_new_vendor.body'         => 'New order {order_no} from {customer_name}.' . "\n" . 'Total: {total}' . "\n" . 'View order: {order_url}',
+    'email.order_receipt.subject'         => 'Receipt for order {order_no}',
+    'email.order_receipt.body'            => 'Thank you {customer_name}.' . "\n\n" . '{items_table}' . 'Total: {total}' . "\n" . 'Pickup code: {pickup_code}' . "\n" . '{pickup_qr}' . "\n" . 'View order: {order_url}',
 ];

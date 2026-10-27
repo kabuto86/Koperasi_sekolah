@@ -45,6 +45,5 @@ require __DIR__ . '/partials/bottom-nav.php';
 
 View::partial('partials/ui-shell.php');
 View::partial('partials/scripts.php', [
-    'mockFiles'   => ['vendor.js', 'vendor-orders.js', 'vendor-finance.js', 'vendor-addons.js', 'store.js'],
     'pageScripts' => $pageScripts,
 ]);

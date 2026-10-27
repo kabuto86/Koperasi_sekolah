@@ -1878,4 +1878,8 @@ return [
     'email.staff_invite.body'            => '{name} 您好，' . "\n\n" . '您已被添加为职员。请点击下方链接设置密码。链接有效期为 7 天。',
     'email.test_email.subject'          => '{app_name} 测试邮件',
     'email.test_email.body'             => '您好，' . "\n\n" . '这是来自 {name} 的测试邮件。如果您收到此邮件，说明 SMTP 设置正常。',
+    'email.order_new_vendor.subject'      => '新订单 {order_no} — {school_name}',
+    'email.order_new_vendor.body'         => '来自 {customer_name} 的新订单 {order_no}。' . "\n" . '总额：{total}' . "\n" . '查看订单：{order_url}',
+    'email.order_receipt.subject'         => '订单 {order_no} 收据',
+    'email.order_receipt.body'            => '谢谢 {customer_name}。' . "\n\n" . '{items_table}' . '总额：{total}' . "\n" . '取货码：{pickup_code}' . "\n" . '{pickup_qr}' . "\n" . '查看订单：{order_url}',
 ];

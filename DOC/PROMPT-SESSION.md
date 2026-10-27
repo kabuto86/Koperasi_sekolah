@@ -49,7 +49,7 @@ Setiap prompt di bawah bermula dengan "Ikut peraturan umum". Maksudnya:
    Sejak B1: skema sebenar = `database/schema.sql` (75 jadual, PELAN 9 J); lajur baharu → fail `database/migrations/NNN-nama.sql`
    **dan** kemas kini `schema.sql` + PELAN 9. Konvensyen job & core dalam PELAN 10.2 (constructor menerima id dari sesi + input, `run()`,
    `Database::fetchOne/fetchAll/execute/insert`, `Response::ok/fail/notFound`). Data demo & akaun: kepala `database/seed.sql`.
-   Semakan asas sebelum commit: `php tools/verify-b1.php` + `verify-b2.php` + `verify-b3.php` + `verify-b4.php` + `verify-b5.php` + `verify-b6.php` (mesti 0 gagal) + `php tools/check-ui.php`; tambah skrip semakan
+   Semakan asas sebelum commit: `php tools/verify-b1.php` + `verify-b2.php` + `verify-b3.php` + `verify-b4.php` + `verify-b5.php` + `verify-b6.php` + `verify-b7.php` (mesti 0 gagal) + `php tools/check-ui.php`; tambah skrip semakan
    session sendiri `tools/verify-bN.php` dengan ujian kebocoran VENDOR01↔VENDOR02 dan ibu bapa A↔B (contoh HTTP sebenar: kelas `Browser`
    dalam `tools/test-helpers.php` sejak B3 — pelayan `php -S` sendiri, cookie, CSRF; `require __DIR__ . '/test-helpers.php'`).
    Sejak B4: skop koperasi melalui `VendorAuth::requireCooperative()`; stok HANYA melalui `StockLedger::move()` dalam transaksi DB;
@@ -59,6 +59,11 @@ Setiap prompt di bawah bermula dengan "Ikut peraturan umum". Maksudnya:
    Sejak B6: store menyelesaikan koperasi dengan `StoreSchool::require($slug)` (baris koperasi → job; tiada id dari input); harga/stok/had
    store HANYA melalui `StorePricing`; troli melalui `Carts` (`quote` = CartQuote), anak melalui `Children` — PELAN 10.2 "Konvensyen B6", 18.12 "B6 (sebenar)".
    Ujian HTTP dengan parameter: `$browser->status($laluan, $params)` (`tools/test-helpers.php`).
+   Sejak B7: pesanan ibu bapa melalui `CustomerOrders` (`jobs/Order/`); sebut harga checkout HANYA `CheckoutQuote::build()`; tahan/lepas stok
+   `StockLedger::reserve/release`; no. pesanan & kod pendek `OrderNumbers::next()` (dalam transaksi); e-mel melalui `QueueEmailJob` (+ `$htmlVars`)
+   → `email_queue` → `cron/send-emails.php` (`core/Mailer`); wang dalam teks `Money::format()`; QR untuk e-mel `QrCode::emailTable()` — PELAN 10.2
+   "Konvensyen B7", 18.12 "B7 (sebenar)". Ujian serentak: `parallelPost()` (`tools/test-helpers.php`); SMTP ujian: `tools/fake-smtp.php`.
+   Store tidak memuat mock lagi (sejak B7).
    Sejak B2: endpoint ikut konvensyen PELAN 10.2 (`Request::requireMethod` → `XAuth::requireRole/requireLogin` → `Csrf::verifyRequest` →
    job yang melempar `ValidationException`). Bila modul siap: **tambah awalan laluan ke `Api.livePrefixes`** (`assets/js/api.js`), buang
    `Mock.register` laluan itu, dan tanda `— (Bn)` dalam PELAN 18.14. Halaman panel sudah dilindungi sesi (`requirePage`); akaun demo:
@@ -372,7 +377,7 @@ sementara dalam `mock/store.js` (`storeAdoptCustomer`, `storeAdoptSession`, `Moc
 > `?template=` hanya owner / vendor pemilik; URL cantik `/{slug}/` (`.htaccess` + `config pretty_store_urls`); `tools/verify-b6.php`.
 > Jambatan sesi ibu bapa mock DIKEKALKAN untuk pesanan mock (B7) + jambatan troli sebenar → checkout mock (lihat B7).
 
-## B7 — Checkout tunai, pesanan & e-mel
+## B7 — Checkout tunai, pesanan & e-mel ✅ (27 Okt 2026 — lihat PROSES.md)
 
 ```
 Ikut peraturan umum. Session: B7. Prasyarat: B6 ✅.
@@ -388,6 +393,11 @@ Sejak B6: troli & harga sebenar — CheckoutJob guna `Carts::quote()` / `StorePr
 (satu setiap pesanan, kupon / automatik terbaik, cukai selepas diskaun) dan slot ambil. Bila checkout & pesanan sebenar: buang baki
 `mock/store.js` (jambatan `MockStore.liveCart`, `storeClearLiveCart`, `storeAdoptCustomer/Session`, `Mock.onLive`, `Mock.beforeFirst`).
 ```
+> Hasil B7: 6 laluan store sebenar (`checkout/quote|place`, `orders/list|get|cancel|pay`); `jobs/Order/` (CheckoutJob, GetCheckoutQuoteJob,
+> ListCustomerOrdersJob, GetCustomerOrderJob, CancelOrderJob, PayCustomerOrderJob, ExpireCashOrdersJob + pembantu CheckoutQuote, CustomerOrders,
+> OrderNumbers, OrderEmails), `jobs/Promotion/Promotions`, `SendQueuedEmailsJob`; `core/Mailer`, `Money`, `QrCode`; `cron/send-emails.php` &
+> `expire-cash-orders.php`; `mock/store.js` + jambatan mock dibuang; seed promosi; migrasi `002-order-receipt-qr.sql`; `tools/verify-b7.php`.
+> Online masih tertutup (perlu driver B8) — `store/orders/pay` & `storeStartPayment` menunggu B8.
 
 ## B8 — Payment gateway
 
@@ -400,6 +410,11 @@ kredensial), StartOnlinePaymentJob, HandleGatewayCallbackJob (tandatangan + sema
 amaun + idempotent), api/v1/webhooks/*.php, webhook_logs.
 Sahkan dengan sandbox: redirect palsu "berjaya" tanpa callback → pesanan kekal pending;
 callback berganda → satu payments sahaja.
+Sejak B7: CheckoutJob sudah mencipta pesanan `pending_payment` bila `payment_method = online` — online hanya ditawarkan bila `accept_online` +
+gateway koperasi aktif + kelas `GatewayFactory` wujud (CheckoutQuote::paymentMethods). Isi `payment` dalam jawapan place (`{ reference, gateway_name,
+amount, mode, redirect_url }`) dan `PayCustomerOrderJob` (kini memulangkan method_unavailable). Ganti modal simulasi `storeStartPayment`
+(`store/payment/simulate`, tiada mock sejak B7) dengan redirect gateway. Tentukan luput `pending_payment` (expires_at) + cron.
+Laluan vendor/gateways/* sebenar di sini.
 ```
 
 ## B9 — Pengurusan pesanan & serah barang
@@ -413,7 +428,9 @@ VerifyPickupCodeJob (cara E, had cubaan), HandoverOrderJob (DB transaction: orde
 collected_qty, tolak stok sebenar, lepas tahanan, status, e-mel "telah diambil oleh ...").
 Sahkan: juruwang koperasi lain tidak boleh serah pesanan koperasi ini; kod salah 5 kali → dikunci.
 Juga (dari B4): vendor/settings/get|save sebenar (cooperative_settings + cooperatives.default_language; pickup_methods dibaca skrin serah)
-— gunakan CooperativeSettings (jobs/Cooperative). Stok: tahan/lepas/ambil melalui StockLedger::move() (reserve/release/collect).
+— gunakan CooperativeSettings (jobs/Cooperative). Stok: tahan/lepas sudah ada (B7: StockLedger::reserve/release); ambil = tolak qty_on_hand
+DAN qty_reserved (tambah StockLedger::collect, pergerakan 'collect'). Pesanan store sebenar sejak B7 — panel vendor pesanan/serah barang masih mock
+sehingga session ini. Semak kod 4 digit dengan password_verify(orders.pickup_code_hash). E-mel order_ready / order_collected melalui QueueEmailJob.
 ```
 
 ## B10 — POS kaunter
@@ -427,6 +444,8 @@ bayar serta-merta, tolak stok), ReceivePosCashForOrderJob (bayar tunai pesanan o
 OpenShiftJob, CloseShiftJob, ShiftReportJob, GetReceiptJob, PosPinLoginJob (SUDAH ADA sejak B2 — sambung ke vendor/pos/pin-login),
 PosOnlinePaymentJob (QR gateway + webhook → PAID, tahanan stok). Gantikan PIN demo 1234.
 Sahkan: cashier ditolak untuk endpoint katalog/tetapan (403).
+Sejak B7: promosi guna Promotions::choose() (jobs/Promotion — sama dengan pos-cart.js) dan OrderNumbers::next() untuk no. pesanan POS;
+vendor/promotions/* sebenar di sini (seed sudah ada 3 promosi).
 ```
 
 ## B11 — Laporan, refund, PO & stock take
