@@ -1878,4 +1878,8 @@ return [
     'email.staff_invite.body'            => 'வணக்கம் {name},' . "\n\n" . 'நீங்கள் பணியாளராகச் சேர்க்கப்பட்டுள்ளீர்கள். கடவுச்சொல்லை அமைக்க கீழே உள்ள இணைப்பைக் கிளிக் செய்யவும். இணைப்பு 7 நாட்கள் செல்லுபடியாகும்.',
     'email.test_email.subject'          => '{app_name} சோதனை மின்னஞ்சல்',
     'email.test_email.body'             => 'வணக்கம்,' . "\n\n" . 'இது {name} அனுப்பிய சோதனை மின்னஞ்சல். இதைப் பெற்றால், SMTP அமைப்புகள் செயல்படுகின்றன.',
+    'email.order_new_vendor.subject'      => 'புதிய ஆர்டர் {order_no} — {school_name}',
+    'email.order_new_vendor.body'         => '{customer_name} அவர்களிடமிருந்து புதிய ஆர்டர் {order_no}.' . "\n" . 'மொத்தம்: {total}' . "\n" . 'ஆர்டரைப் பார்க்க: {order_url}',
+    'email.order_receipt.subject'         => 'ஆர்டர் {order_no} ரசீது',
+    'email.order_receipt.body'            => 'நன்றி {customer_name}.' . "\n\n" . '{items_table}' . 'மொத்தம்: {total}' . "\n" . 'பெறும் குறியீடு: {pickup_code}' . "\n" . '{pickup_qr}' . "\n" . 'ஆர்டரைப் பார்க்க: {order_url}',
 ];

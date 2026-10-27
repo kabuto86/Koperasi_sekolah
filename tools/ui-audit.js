@@ -126,9 +126,9 @@ async function auditPage(page, item, lang, width, errors) {
             for (const item0 of pages) {
                 if (onlyFilter && !item0.name.includes(onlyFilter)) continue;
                 const item = Object.assign({}, item0);
-                if (item.name === 'store_school_order-detail' || item.name === 'store_school_order-success') {
-                    item.url += '&id=' + (orderId || 1);
-                }
+                // order-detail membaca ?id=, order-success membaca ?order= (B7: pesanan sebenar dari DB)
+                if (item.name === 'store_school_order-detail') item.url += '&id=' + (orderId || 1);
+                if (item.name === 'store_school_order-success') item.url += '&order=' + (orderId || 1);
                 if (item.name === 'store_school_product') item.url += '&id=1';
                 const r = await auditPage(page, item, lang, width, errors);
                 report.push(Object.assign({ page: item.name, lang, width }, r));

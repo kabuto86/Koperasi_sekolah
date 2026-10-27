@@ -67,9 +67,9 @@ INSERT INTO platform_settings (setting_key, setting_value) VALUES
 INSERT INTO email_templates (template_key, language_code, subject, body_html, created_at) VALUES
 ('order_new_vendor', 'ms', 'Pesanan baharu {order_no} — {school_name}', '<p>Pesanan baharu <strong>{order_no}</strong> daripada {customer_name}.</p>\n<p>Jumlah: {total}</p>\n<p><a href="{order_url}">Lihat pesanan</a></p>', '2026-10-01 10:00:00'),
 ('order_new_vendor', 'en', 'New order {order_no} — {school_name}', '<p>New order <strong>{order_no}</strong> from {customer_name}.</p>\n<p>Total: {total}</p>\n<p><a href="{order_url}">View order</a></p>', '2026-10-01 10:00:00'),
-('order_receipt', 'ms', 'Resit pesanan {order_no}', '<p>Terima kasih {customer_name}.</p>\n{items_table}\n<p>Jumlah: <strong>{total}</strong></p>\n<p>Kod ambil: {pickup_code}</p>', '2026-10-01 10:00:00'),
-('order_receipt', 'en', 'Receipt for order {order_no}', '<p>Thank you {customer_name}.</p>\n{items_table}\n<p>Total: <strong>{total}</strong></p>\n<p>Pickup code: {pickup_code}</p>', '2026-10-01 10:00:00'),
-('order_receipt', 'zh', '订单 {order_no} 收据', '<p>谢谢 {customer_name}。</p>\n{items_table}\n<p>总额：<strong>{total}</strong></p>', '2026-10-02 10:00:00'),
+('order_receipt', 'ms', 'Resit pesanan {order_no}', '<p>Terima kasih {customer_name}.</p>\n{items_table}\n<p>Jumlah: <strong>{total}</strong></p>\n<p>Kod ambil: {pickup_code}</p>\n<p>{pickup_qr}</p>\n<p><a href="{order_url}">Lihat pesanan</a></p>', '2026-10-01 10:00:00'),
+('order_receipt', 'en', 'Receipt for order {order_no}', '<p>Thank you {customer_name}.</p>\n{items_table}\n<p>Total: <strong>{total}</strong></p>\n<p>Pickup code: {pickup_code}</p>\n<p>{pickup_qr}</p>\n<p><a href="{order_url}">View order</a></p>', '2026-10-01 10:00:00'),
+('order_receipt', 'zh', '订单 {order_no} 收据', '<p>谢谢 {customer_name}。</p>\n{items_table}\n<p>总额：<strong>{total}</strong></p>\n<p>取货码：{pickup_code}</p>\n<p>{pickup_qr}</p>\n<p><a href="{order_url}">查看订单</a></p>', '2026-10-02 10:00:00'),
 ('order_ready', 'ms', 'Pesanan {order_no} sedia diambil', '<p>Barang untuk {child_name} ({child_class}) sedia diambil di koperasi {school_name}.</p>\n<p>Waktu operasi: {opening_hours}</p>', '2026-10-01 10:00:00'),
 ('order_ready', 'en', 'Order {order_no} is ready for collection', '<p>Items for {child_name} ({child_class}) are ready at the {school_name} cooperative.</p>', '2026-10-01 10:00:00'),
 ('order_ready', 'zh', '订单 {order_no} 可领取', '<p>{child_name}（{child_class}）的物品已可在 {school_name} 合作社领取。</p>', '2026-10-02 10:00:00'),
@@ -340,6 +340,12 @@ INSERT INTO stock_take_items (vendor_id, stock_take_id, product_id, variant_id, 
 (1, 1, 1, 0, 500, 500, 0),
 (1, 1, 2, 0, 120, 120, 0),
 (1, 1, 3, 0, 300, 300, 0);
+
+-- Promosi (B7 — checkout store): kupon JIMAT5 & diskaun automatik 3% (≥ RM200) di SK Taman Melati; kupon SI10 di SMK Seri Indah
+INSERT INTO promotions (id, vendor_id, cooperative_id, name, code, type, value, min_spend, starts_on, ends_on, max_uses, used_count, is_active) VALUES
+(1, 1, 1, 'Jimat RM5',               'JIMAT5', 'fixed',   500,  5000,  '2026-10-01', '2027-01-31', 200,  0, 1),
+(2, 1, 1, 'Diskaun automatik 3%',    NULL,     'percent', 3,    20000, '2026-01-01', '2027-12-31', NULL, 0, 1),
+(3, 2, 3, 'Promo SMK Seri Indah',    'SI10',   'fixed',   1000, 8000,  '2026-10-01', '2026-12-31', 100,  0, 1);
 
 -- ---------------------------------------------------------------------
 -- E. Kit keperluan sekolah (tahun persekolahan 2027)

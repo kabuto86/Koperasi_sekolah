@@ -1893,4 +1893,8 @@ return [
     'email.staff_invite.body'            => 'Salam {name},' . "\n\n" . 'Anda telah ditambah sebagai kakitangan. Klik pautan di bawah untuk menetapkan kata laluan anda. Pautan sah selama 7 hari.',
     'email.test_email.subject'          => 'Ujian e-mel {app_name}',
     'email.test_email.body'             => 'Salam,' . "\n\n" . 'Ini e-mel ujian daripada {name}. Jika anda menerimanya, tetapan SMTP berfungsi.',
+    'email.order_new_vendor.subject'      => 'Pesanan baharu {order_no} — {school_name}',
+    'email.order_new_vendor.body'         => 'Pesanan baharu {order_no} daripada {customer_name}.' . "\n" . 'Jumlah: {total}' . "\n" . 'Lihat pesanan: {order_url}',
+    'email.order_receipt.subject'         => 'Resit pesanan {order_no}',
+    'email.order_receipt.body'            => 'Terima kasih {customer_name}.' . "\n\n" . '{items_table}' . 'Jumlah: {total}' . "\n" . 'Kod ambil: {pickup_code}' . "\n" . '{pickup_qr}' . "\n" . 'Lihat pesanan: {order_url}',
 ];

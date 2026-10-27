@@ -82,7 +82,23 @@ class Browser
         return null;
     }
 
+    // Pengendali curl untuk POST API (B7: permintaan serentak melalui parallelPost)
+    public function postHandle($route, $body = [])
+    {
+        return $this->handle('POST', 'api/v1/' . $route . '.php', $body, true);
+    }
+
     private function send($method, $path, $body, $withCsrf = true)
+    {
+        $curl = $this->handle($method, $path, $body, $withCsrf);
+        $raw = (string) curl_exec($curl);
+        $status = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        $location = (string) curl_getinfo($curl, CURLINFO_REDIRECT_URL);
+        curl_close($curl);
+        return ['status' => $status, 'location' => $location, 'body' => $raw, 'json' => json_decode($raw, true)];
+    }
+
+    private function handle($method, $path, $body, $withCsrf)
     {
         $curl = curl_init($this->base . '/' . $path);
         $headers = ['Accept: application/json'];
@@ -102,12 +118,33 @@ class Browser
             curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($body));
         }
         curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
-        $raw = (string) curl_exec($curl);
-        $status = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-        $location = (string) curl_getinfo($curl, CURLINFO_REDIRECT_URL);
-        curl_close($curl);
-        return ['status' => $status, 'location' => $location, 'body' => $raw, 'json' => json_decode($raw, true)];
+        return $curl;
     }
+}
+
+// Hantar beberapa POST serentak (curl_multi) — pelayan mesti dimulakan dengan PHP_CLI_SERVER_WORKERS > 1.
+// $requests = [[Browser, laluan, badan], ...] → senarai jawapan JSON ikut tertib yang sama
+function parallelPost(array $requests)
+{
+    $multi = curl_multi_init();
+    $handles = [];
+    foreach ($requests as $request) {
+        $handle = $request[0]->postHandle($request[1], $request[2]);
+        curl_multi_add_handle($multi, $handle);
+        $handles[] = $handle;
+    }
+    do {
+        curl_multi_exec($multi, $running);
+        curl_multi_select($multi, 0.05);
+    } while ($running > 0);
+    $results = [];
+    foreach ($handles as $handle) {
+        $results[] = json_decode((string) curl_multi_getcontent($handle), true);
+        curl_multi_remove_handle($multi, $handle);
+        curl_close($handle);
+    }
+    curl_multi_close($multi);
+    return $results;
 }
 
 function totpNow($secret, $offset = 0)
@@ -152,5 +189,5 @@ function clearTestLocks()
 {
     Database::execute("DELETE FROM login_attempts WHERE ip_address IN ('127.0.0.1', '::1', '0.0.0.0')");
     Database::execute("DELETE FROM rate_limits WHERE bucket_key LIKE '%127.0.0.1%' OR bucket_key LIKE 'forgot:%' OR bucket_key LIKE 'resend_verify:%'"
-        . " OR bucket_key LIKE 'store_cart:%' OR bucket_key LIKE 'store_child_save:%'");
+        . " OR bucket_key LIKE 'store_cart:%' OR bucket_key LIKE 'store_child_save:%' OR bucket_key LIKE 'store_checkout:%'");
 }

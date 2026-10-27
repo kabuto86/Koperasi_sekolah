@@ -2,6 +2,8 @@ config/database.php
 config/secret.key
 uploads/*
 !uploads/.htaccess
+storage/*
+!storage/.htaccess
 .DS_Store
 Thumbs.db
 tools/ui-audit-report.json

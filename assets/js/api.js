@@ -20,7 +20,7 @@ var Api = {
         'vendor/kits/',
         'store/auth/', 'store/profile/', 'store/session',
         'store/schools/', 'store/school', 'store/classes', 'store/children/', 'store/catalog', 'store/product', 'store/kit',
-        'store/cart/', 'store/news/', 'store/clearance/'
+        'store/cart/', 'store/news/', 'store/clearance/', 'store/checkout/', 'store/orders/'
     ],
 
     // Api.get('vendor/cooperatives/list', { page: 1, q: 'melati' })
@@ -44,20 +44,12 @@ var Api = {
 
     request: function (method, path, payload) {
         if (Api.isLive(path)) {
-            return Api.fetchJson(method, path, payload).then(function (res) {
-                // Peralihan B2–B7: mock boleh ikut sesi sebenar (cth. ibu bapa yang log masuk)
-                if (typeof Mock !== 'undefined' && Mock.afterLive) {
-                    Mock.afterLive(path, res);
-                }
-                return res;
-            });
+            return Api.fetchJson(method, path, payload);
         }
-        return Mock.ready().then(function () {
-            return new Promise(function (resolve) {
-                setTimeout(function () {
-                    resolve(Mock.handle(method, path, payload));
-                }, Api.delayMs);
-            });
+        return new Promise(function (resolve) {
+            setTimeout(function () {
+                resolve(Mock.handle(method, path, payload));
+            }, Api.delayMs);
         });
     },
 

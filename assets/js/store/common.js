@@ -240,8 +240,8 @@ function childRadios(container, children, name, selectedId, onChange) {
     });
 }
 
-// Bayaran online: Peringkat 2 → halaman gateway vendor (redirect_url), kembali ke order-success.
-// Peringkat 1 → modal simulasi (Bayar / Batal). Status PAID hanya diputuskan oleh pelayan.
+// Bayaran online: halaman gateway vendor (redirect_url), kembali ke order-success. Status PAID hanya diputuskan oleh pelayan.
+// B7: checkout tunai sahaja (payment = null); modal simulasi di bawah diganti oleh redirect gateway sebenar dalam B8.
 function storeStartPayment(orderId, payment) {
     if (payment.redirect_url) {
         window.location.href = payment.redirect_url;
