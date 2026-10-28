@@ -4,9 +4,9 @@
 > Kemas kini fail ini di HUJUNG setiap session, sebelum commit & push.
 > Reka bentuk: [PELAN.md](PELAN.md) · Prompt kerja: [PROMPT-SESSION.md](PROMPT-SESSION.md)
 
-**Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · **Peringkat 2 berjalan** — skema & core (B1), auth sebenar (B2), panel owner (B3), katalog & inventori vendor (B4), kit sekolah (B5), store ibu bapa: anak, katalog, kit, troli (B6), checkout tunai, pesanan & queue e-mel (B7), payment gateway + webhook (B8), pesanan vendor & serah barang (B9)
-**Session terakhir siap:** B9 — Pengurusan pesanan & serah barang
-**Session seterusnya:** **B10 — POS kaunter**
+**Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · **Peringkat 2 berjalan** — skema & core (B1), auth sebenar (B2), panel owner (B3), katalog & inventori vendor (B4), kit sekolah (B5), store ibu bapa: anak, katalog, kit, troli (B6), checkout tunai, pesanan & queue e-mel (B7), payment gateway + webhook (B8), pesanan vendor & serah barang (B9), POS kaunter & promosi (B10)
+**Session terakhir siap:** B10 — POS kaunter
+**Session seterusnya:** **B11 — Laporan, refund, PO & stock take**
 
 Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 
@@ -45,7 +45,7 @@ Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 | B7 | Checkout tunai, pesanan, queue e-mel | ✅ | 27 Okt 2026 | `2f15ccc` | 6 endpoint store, 7 job + 4 pembantu `jobs/Order/` + `Promotions` + `SendQueuedEmailsJob`, `core/Mailer` (SMTP vanila) · `Money` · `QrCode`, 2 cron, `mock/store.js` dibuang, `tools/verify-b7.php` 92/92 lulus |
 | B8 | Payment gateway + webhook | ✅ | 28 Okt 2026 | `97e3b42` | 5 driver `payments/`, 13 job `jobs/Payment/`, `vendor/payments/*` sebenar, 5 webhook, semakan semula + amaun + idempotent, cron luput online, `tools/verify-b8.php` 95/95 lulus |
 | B9 | Pengurusan pesanan & serah barang | ✅ | 28 Okt 2026 | `cdd17ba` | 16 endpoint vendor (pesanan, serah, ibu bapa, tetapan), pembantu `VendorOrders` + 16 job, `StockLedger::collect`, e-mel sedia/diambil/dibayar, kod 4 digit dikunci + buka oleh pengurus, `tools/verify-b9.php` 106/106 lulus |
-| B10 | POS kaunter | ⬜ | | | |
+| B10 | POS kaunter | ✅ | 28 Okt 2026 | `a3417ed` | 15 endpoint (`vendor/pos/*` 12, `vendor/promotions/*` 3), `core/PosAuth`, 15 job + 3 pembantu `jobs/Pos/`, 3 job promosi, PIN Argon2id sebenar, QR gateway + webhook, `PaymentSettlement` cabang POS, mock POS dibuang, `tools/verify-b10.php` 97/97 lulus |
 | B11 | Laporan, refund, PO, stock take | ⬜ | | | |
 | B12 | Langganan & invois vendor + cron | ⬜ | | | |
 | B13 | Modul add-on | ⬜ | | | |
@@ -507,12 +507,12 @@ Dokumen:
 | Gambar pratonton template sebenar (`preview_image`) | bila template2/3 dibina |
 | E-mel sebenar (pengesahan, reset, pesanan baharu, slip, invois) melalui `email_queue` + cron | B7 |
 | Luput automatik pesanan tunai/online (cron) | B7 |
-| Kaitan promosi dengan pesanan (`orders.promotion_id`, `used_count`) | B7/B10 |
+| ~~Kaitan promosi dengan pesanan (`orders.promotion_id`, `used_count`)~~ (store B7, POS & panel promosi B10) | ✅ B10 |
 | Gateway sebenar (redirect + webhook), QR POS sebenar | B8 |
 | ~~Buka kunci pesanan oleh pengurus (selepas 5 cubaan kod)~~ (`vendor/orders/unlock-code`) | ✅ B9 |
 | Muat turun resit / slip PDF — B9 memutuskan cetak terus dari pelayar (tiada PDF pelayan) | B9 (ditolak) |
-| PIN Argon2id, buka kunci PIN oleh pentadbir | B10 |
-| Refund tunai POS ditolak dari jangkaan tunai laci; refund automatik melalui API gateway | B10/B11/B8 |
+| ~~PIN Argon2id, buka kunci PIN oleh pentadbir~~ (PIN baharu di Kakitangan mengosongkan kiraan) | ✅ B10 |
+| Refund tunai POS ditolak dari jangkaan tunai laci; refund automatik melalui API gateway | B11 |
 | Bayaran invois vendor melalui gateway pemilik + webhook | B12 |
 | Penghantaran WhatsApp/SMS sebenar; mesej automatik "sedia diambil / telah diambil" | B13 |
 | E-mel berita sebenar | B13 |
@@ -1018,6 +1018,66 @@ Tertangguh / peralihan:
 - Refund (`vendor/refunds/*`) masih mock — B11; butang refund di butiran pesanan sebenar membuka halaman refund mock
 - Resit PDF tidak dibina — slip ibu bapa & label beg dicetak terus dari pelayar (CSS cetak)
 - Picking list mengira baris setiap anak setiap pesanan ("2 murid" bila seorang anak ada dua pesanan) — sama seperti mock U3b
+
+### B10 — POS kaunter (28 Okt 2026)
+
+Dibuat:
+- **Core:** `core/PosAuth.php` — juruwang PIN dalam sesi panel (`$_SESSION['pos_user_id'][cooperative_id]`), disemak semula setiap permintaan;
+  `requireCashier` (403 `pos_login_required`), `counterUserId` (juruwang PIN atau pengguna panel — skrin serah)
+- **Job (`jobs/Pos/`, 15 + 3 pembantu):** pembantu `PosCashiers`, `PosShifts` (PosShift + tunai pesanan store), `PosSales` (complete, recheckPayment,
+  receipt); `GetPosSessionJob`, `PosLoginJob` (atas `PosPinLoginJob` B2), `OpenShiftJob`, `CloseShiftJob`, `ShiftReportJob`, `ListShiftSalesJob`,
+  `PosCatalogJob`, `PosCalculateCartJob` (= `pos-cart.js`), `PosCheckoutJob`, `PosOnlinePaymentJob`, `PosPaymentStatusJob`, `CancelPosPaymentJob`,
+  `GetPosReceiptJob` · `jobs/Promotion/` `ListPromotionsJob`, `SavePromotionJob`, `DeletePromotionJob` (+ `Promotions::find/shape/STATE_SQL`)
+- **API (15 fail, tiada SQL):** `vendor/pos/{session,pin-login,lock,catalog,shift-open,shift-summary,shift-close,checkout,payment-status,cancel-payment,
+  sales,receipt}`, `vendor/promotions/{list,save,delete}`
+- **Ubah:** `PaymentSettlement` (pesanan `channel pos` dibayar → `PosSales::complete`, tiada e-mel), `OrderNumbers::nextPos` (`POS-YYMMDD-001`) +
+  kod pendek 3/4/5 digit, `CheckoutQuote::ordersBlocked` awam (banner "koperasi tutup" POS), `ValidateCooperativeJob` (+ address, phone, logo_path),
+  `vendor/handover/receive-cash|collect` merekod juruwang PIN (`PosAuth::counterUserId`), config `pos_payment_expiry_minutes` (15)
+- **JS:** `Api.livePrefixes` + `vendor/pos/`, `vendor/promotions/`; `mock/vendor-pos.js` dibuang; promosi & `MockFinance.settings` dibuang dari
+  `mock/vendor-finance.js`; `pos.js` — juruwang dari `session.cashiers` (PIN dikunci ditanda), promosi dari katalog, baris "Tunai pesanan online";
+  `helpers.js` `hideModal` menunggu animasi buka (jawapan pelayan sebenar lebih pantas daripada animasi → modal tunai tersangkut); `pos-cart.js` komen;
+  `asset_version` → 11
+- **Halaman:** `vendor/pos/index.php` — teks "PIN demo 1234" dibuang
+- 3 kunci bahasa baharu × 4 (`pos.pin_locked_short`, `pos.order_cash`, `pos.online_qr_unsupported`), 1 dibuang (`pos.pin_demo`) — jumlah 1839
+- **DB:** tiada perubahan jadual / seed (PIN demo seed sudah Argon2id sejak B2)
+- `tools/verify-b10.php` (97 semakan; pelayan 4 pekerja + gateway palsu; node untuk semakan `pos-cart.js`; jadual diubah dipulihkan)
+
+Disahkan (MariaDB 10.11, PHP 8.3, pemasangan baharu schema + seed + migrasi — `verify-b10` **97 lulus, 0 gagal**; `verify-b9` 106/106; `verify-b8` 95/95;
+`verify-b7` 92/92; `verify-b6` 85/85; `verify-b5` 59/59; `verify-b4` 118/118; `verify-b3` 101/101; `verify-b2` 94/94; `verify-b1` 42/42; `check-ui` OK;
+`ui-audit` lang=ms `vendor/pos/*` & promosi × 2 lebar: 0 isu; Playwright 1366px: juruwang Kasim → panel → POS → pilih juruwang + PIN → buka syif RM100 →
+imbas `2*9555000000017` + Enter → F2 → RM10 + Enter → resit POS-…-003 baki RM6.40 → tutup syif RM103.60 → beza RM0.00 — 0 ralat konsol):
+- **Juruwang ditolak untuk katalog/tetapan (403):** `products/list|save`, `inventory/list`, `settings/save`, `promotions/list|save`, `staff/list`;
+  POS (`session`, `catalog`) & `settings/get` → 200; laluan POS tanpa PIN → 403 `pos_login_required`
+- **PIN:** salah → baki cubaan; 5 salah → dikunci (423), PIN betul tetap ditolak, senarai menanda "PIN dikunci"; pentadbir tetapkan PIN baharu → dibuka;
+  hash `$argon2id$`; log `pos_login`
+- **Jumlah sama dengan `pos-cart.js`:** `PosCalculateCartJob::totals` vs `posTotals` (node) — pembundaran %, cukai 6.5%, manual > baki
+- **Pelayan mengira semula:** harga pelayar diabaikan; cukai 6% selepas diskaun; kupon JIMAT5 (min RM50) + manual; automatik 3% ≥ RM200; stok, had beli
+  (baris berganda dicantum), varian wajib, produk/varian V02, qty 0, troli kosong, syif bukan milik juruwang → ditolak tanpa apa-apa disimpan
+- **Tunai:** `collected`, `payments` cash `received_by` juruwang, `pos_sale` −qty atas nama juruwang, log pending_payment → collected, `pos_sale`;
+  POS tidak dalam `vendor/orders/list` tetapi dibuka `vendor/orders/get` & muncul dalam `vendor/payments/list`
+- **QR online (gateway palsu):** `pending_payment` + `reserve` + bil; `payment-status` bertanya gateway → paid → release + `pos_sale`, log `system`, tiada
+  e-mel; webhook berganda → satu `pos_sale`; batal → cancelled + tahanan & guna promosi dilepas + bil failed; batal selepas dibayar → diselesaikan;
+  cron luput → expired; iPay88 → `online_qr_unsupported`, jualan dibatal serta-merta; tutup syif ditolak semasa QR pending
+- **Syif:** satu terbuka setiap juruwang; kunci kaunter → syif kekal; jangkaan = permulaan + tunai POS + tunai pesanan store (juruwang PIN di skrin
+  serah); tutup → variance −50, jangkaan dibekukan, juruwang dilog keluar; syif juruwang lain → 404
+- **Serentak:** dua kaunter jual unit terakhir serentak → tepat satu berjaya, stok 0
+- **VENDOR01 ↔ VENDOR02:** session/catalog/pin-login koperasi lain → 404; resit/status/batal/jualan/ringkasan syif V01 melalui koperasi V02 → 404;
+  produk V01 di kaunter V02 → ditolak; no. resit berasingan setiap koperasi; sesi PIN koperasi 3 tidak sah di koperasi 2; promosi koperasi lain → 404
+- **Ibu bapa A ↔ B:** sesi store → laluan POS 401; jualan POS tiada dalam pesanan A atau B; B tidak boleh buka pesanan A
+
+Keputusan kecil (dicatat dalam PELAN 9, 10.2, 11, 18.10, 18.11, 18.14):
+- `vendor/pos/session` + `cashiers` dan `vendor/pos/catalog` + `promotions` — juruwang tidak boleh memanggil `vendor/staff/list` / `vendor/promotions/list`
+- `short_code` POS dijana sama seperti store (bukan `P001` — akan habis); no. resit `POS-YYMMDD-001` dikekalkan
+- `used_count` promosi naik semasa jualan dibuat (sama seperti store) dan dilepas bila QR dibatal/luput
+- QR luput 15 minit (`pos_payment_expiry_minutes`) melalui cron B8; semakan gateway dari kaunter maks sekali / 10 saat setiap jualan
+- Bil gagal dicipta → jualan QR dibatal serta-merta (juruwang boleh terima tunai)
+- Tunai pesanan store di kaunter masuk jangkaan laci syif juruwang PIN yang menerimanya
+- Tiada `FindByBarcodeJob` / `ReceivePosCashForOrderJob` — padanan barcode di pelayar; tunai pesanan online = `ReceiveCashPaymentJob` (B9)
+
+Tertangguh / peralihan:
+- Refund jualan POS & refund tunai ditolak dari jangkaan laci → B11 (`vendor/refunds/*` masih mock; `MockOrders` & `MockFinance.gateways` kekal)
+- QR kaunter untuk gateway borang POST (iPay88) — perlu halaman bayaran awam tanpa sesi ibu bapa (kemudian)
+- Laporan Z dicetak dari pelayar (CSS cetak) — tiada PDF
 
 ---
 

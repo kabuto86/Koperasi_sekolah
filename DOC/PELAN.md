@@ -369,7 +369,7 @@ Nama, harga dan maklumat anak **disalin** (snapshot) ke pesanan dan invois.
 - **`stock_takes`** — id, vendor_id, cooperative_id, status ENUM(open, completed), started_by, started_at, completed_at
 - **`stock_take_items`** — id, vendor_id, stock_take_id, product_id, variant_id, qty_system, qty_counted, variance
 - **`promotions`** — id, vendor_id, cooperative_id, name, code NULL (kupon), type ENUM(percent, fixed), value, min_spend, starts_on, ends_on, max_uses, used_count, is_active
-  > Seed (B7): kupon `JIMAT5` (RM5, min RM50) & automatik 3% (min RM200) di SK Taman Melati; kupon `SI10` di SMK Seri Indah. Panel promosi vendor masih mock (B10).
+  > Seed (B7): kupon `JIMAT5` (RM5, min RM50) & automatik 3% (min RM200) di SK Taman Melati; kupon `SI10` di SMK Seri Indah. Panel promosi vendor sebenar sejak B10 (`vendor/promotions/*`, `jobs/Promotion/`).
 
 ### E. Kit keperluan sekolah (2)
 
@@ -403,6 +403,8 @@ Nama, harga dan maklumat anak **disalin** (snapshot) ke pesanan dan invois.
   > Butiran barang: **`refund_items`** — id, vendor_id, refund_id, order_item_id, qty, cancelled_qty (U3c)
 - **`pos_shifts`** — id, vendor_id, cooperative_id, vendor_user_id, opened_at, opening_cash, closed_at, closing_cash, expected_cash, variance, note, status ENUM(open, closed)
   > U4: satu syif terbuka setiap juruwang setiap koperasi. Jangkaan tunai = tunai permulaan + jualan tunai POS syif itu
+  > B10: + tunai pesanan store yang diterima juruwang yang sama di koperasi itu sepanjang syif (`payments.received_by`, skrin serah) —
+  > PosShift `order_cash_count`, `order_cash_total`. `expected_cash` dibekukan semasa tutup. Refund tunai belum ditolak (B11)
 - **`webhook_logs`** — id, gateway_code, cooperative_id NULL, payload, signature_valid, processed, result (B8, migrasi `003-webhook-result.sql`), created_at
   > **B8:** `payments.raw_payload` = JSON `{ reference, redirect_url, form, verified }` (rujukan kami `{order_no}-{n}`, pautan / borang gateway,
   > jawapan semakan semula). `gateway_ref` = id bil di gateway (BillCode ToyyibPay, id Billplz, id sesi Stripe; SenangPay & iPay88 = rujukan kami).
@@ -622,6 +624,18 @@ pesanan store = baris `payments` (cash) oleh `ReceiveCashPaymentJob` — `paid_a
 `VerifyPickupCodeJob` (`password_verify`, cubaan disimpan walaupun serahan gagal). E-mel pesanan ibu bapa: `OrderEmails::queueReady`,
 `queueCollected`, `queuePaid` (dari `PaymentSettlement` bila `paid`) — penerima = `orders.customer_email` + bahasa akaun ibu bapa.
 
+**Konvensyen B10 (POS kaunter):** juruwang PIN dalam sesi panel (`core/PosAuth`: `$_SESSION['pos_user_id'][cooperative_id]`, disemak semula
+setiap permintaan melalui `PosCashiers::find` — vendor sesi, aktif, PIN, akses koperasi). Laluan POS selain `session`, `pin-login`, `lock`,
+`catalog` memanggil `PosAuth::requireCashier($koperasi)` (403 `pos_login_required`) dan menghantar juruwang itu kepada job (`jobs/Pos/`).
+Jualan POS HANYA melalui `PosCheckoutJob` — SATU transaksi, tertib kunci: syif (FOR UPDATE) → stok ikut (produk, varian) menaik → promosi →
+baris koperasi (`OrderNumbers::nextPos`). Harga/stok/had/promosi/cukai HANYA oleh `PosCalculateCartJob` (sama dengan `pos-cart.js`;
+`PosCalculateCartJob::totals` = `posTotals`; promosi = `Promotions::choose`). Bayaran diterima = `PosSales::complete` (online: `release`
+dahulu; `StockLedger::move('pos_sale')` atas nama juruwang jualan; `collected`; log `pos_sale`). QR online: bil oleh `PosOnlinePaymentJob`
+selepas commit (gateway gagal → jualan dibatal serta-merta); `paid` HANYA oleh `PaymentSettlement` (cabang `channel = 'pos'` → `PosSales::complete`,
+tiada e-mel); semakan semula dari kaunter `PosSales::recheckPayment` (had `pos_payment_check:{order}` 1/10 saat). Luput QR =
+`pos_payment_expiry_minutes` (15) melalui cron B8 yang sama. Tunai / serah di skrin serah merekod `PosAuth::counterUserId` (juruwang PIN jika ada).
+Promosi panel: `Promotions::find/shape/STATE_SQL` (`jobs/Promotion/`). Had kadar: `pos_checkout:{juruwang}` 120/minit.
+
 ### 10.3 Kontrak API
 
 - Format jawapan: `{ "ok": true, "data": ... }` atau `{ "ok": false, "error": "mesej", "errors": { "field": "mesej" } }`
@@ -682,7 +696,9 @@ pesanan store = baris `payments` (cash) oleh `ReceiveCashPaymentJob` — `paid_a
   token 1 jam. Jemputan kakitangan (owner & vendor) = token `invite` 7 hari → `owner|vendor/reset-password.php?token=`
 - Pengesahan e-mel ibu bapa: token 24 jam, pautan `store/index.php?verify_token=` (disahkan oleh `layout.js` sebelum sesi dimuat)
 - Kata laluan minimum: panel 10 aksara, ibu bapa 8. Log keluar = POST + CSRF (`data-panel-logout`)
-- PIN POS: `PosPinLoginJob` (B2) — endpoint `vendor/pos/pin-login` disambung dalam B10
+- PIN POS: `PosPinLoginJob` (B2) — endpoint `vendor/pos/pin-login` disambung dalam B10 (`PosLoginJob` + `core/PosAuth`). PIN demo 1234 hanya
+  dalam seed (hash Argon2id), tiada lagi PIN tetap dalam kod / teks skrin. Dikunci = `pin_failed_attempts ≥ 5`; buka = pentadbir tetapkan PIN baharu
+  di Kakitangan (`SaveVendorStaffJob` mengosongkan kiraan). Had tambahan `pos_pin:{pengguna panel}` 30/10 minit
 
 ## 12. Pelbagai bahasa — ms · en · zh · ta
 
@@ -845,7 +861,7 @@ Dalam mock: `Mock.paginate(rows, params, ['medan_carian', ...])`.
   `Mock.beforeFirst`, checkout mock mengira promosi/cukai/slot atas baris itu (pesanan mock bertanda `live_cart`, stok mock tidak ditahan) dan
   mengosongkan troli sebenar (`store/cart/clear`, `fetch keepalive`). Sekolah yang tiada dalam mock (`smk-seri-indah`) → checkout gagal sehingga B7. **Sejak B4** laluan koperasi, kelas, kategori, produk, inventori, pembekal, PO,
   stock take, papan pemuka, `templates/options` & `modules/active` sebenar; `mock/vendor.js` hanya menyimpan data contoh (`MockVendor`, `sessionVendorId = 1`)
-  untuk mock modul lain (pesanan vendor B9, POS B10, add-on B13) — id mock tidak sepadan dengan DB. **Sejak B7** checkout & pesanan ibu bapa
+  untuk mock modul lain (refund & laporan B11, add-on B13) — id mock tidak sepadan dengan DB. **Sejak B10** POS & promosi sebenar (`mock/vendor-pos.js` dibuang). **Sejak B7** checkout & pesanan ibu bapa
   sebenar; pesanan store TIDAK lagi muncul dalam panel vendor mock sehingga B9 (`vendor/orders/*` sebenar). **Sejak B5** `vendor/kits/*` sebenar;
   `MockOrders.kits` dibuang dalam B6 (store/kit sebenar).
   Sejak B3 `mock/owner.js` hanya mengandungi langganan & invois (B12) dan terjemahan (B14); data vendor/pelan di dalamnya hanya untuk
@@ -1212,7 +1228,7 @@ collected_qty, source: 'ala_carte|kit|pos' }] }]` (item dikumpul ikut anak),
 >   e-mel `order_collected` setiap serahan → log aktiviti `handover_collect`. Serahan serentak: satu sahaja berjaya.
 > - **Ibu bapa** (`ListVendorCustomersJob`): akaun aktif (`deleted_at IS NULL`) yang ada anak aktif di koperasi ini; kiraan/jumlah pesanan tanpa
 >   batal/luput; nota `vendor_customer_notes` (satu setiap vendor, kosong = padam, ≤ 1000 aksara) — `SaveCustomerNoteJob` 404 jika tiada anak di koperasi.
-> - Mock `vendor-orders.js` (`MockOrders`) kekal untuk POS (B10), refund & laporan (B11) mock; laluan B9 dibuang dari mock.
+> - Mock `vendor-orders.js` (`MockOrders`) kekal untuk refund & laporan (B11) mock; laluan B9 dibuang dari mock (POS mock dibuang dalam B10).
 
 **Customer** — `vendor/customers/list { q, grade, class_name }` (hanya ibu bapa yang ada anak di koperasi ini; hanya anak itu)
 ```js
@@ -1273,6 +1289,10 @@ values: { medan_bukan_rahsia }, secrets_set: ['secret_key'] }` — **rahsia tida
   max_uses /* null = tanpa had */, used_count, is_active, state: 'active|scheduled|expired|inactive|used_up' /* dikira pelayan */ }
 ```
 `save` (kod `^[A-Z0-9-]{3,20}$` unik dalam koperasi, huruf besar; % 1–100; tamat ≥ mula) · `delete` (ditolak jika `used_count > 0` — nyahaktif sahaja)
+> **B10 (sebenar — `jobs/Promotion/`):** `ListPromotionsJob`, `SavePromotionJob`, `DeletePromotionJob` — admin + pengurus (juruwang 403).
+> `state` dikira dalam SQL (`Promotions::STATE_SQL`) dan boleh ditapis. Simpan: % 1–100, tetap 1 sen–RM1,000,000, belanja min ≥ 0,
+> had guna kosong/≥ 1, tarikh sah; log `promotion_save` / `promotion_delete`. Padam ditolak bila `used_count > 0` **atau** pesanan merujuknya
+> (guna dilepas semula bila pesanan dibatal/luput). `used_count` naik semasa pesanan dibuat (store & POS) dan turun bila dibatal/luput (`releaseHolds`).
 
 **VendorUser** — `vendor/staff/list` (tapis `q, role, status`; `data.limit: { max /* null = tanpa had */, used }` = kakitangan aktif vs `plans.max_staff`)
 ```js
@@ -1379,6 +1399,18 @@ Laporan syif (Z) dicetak pada kertas yang sama selepas tutup syif.
 **Papan kekunci & pengimbas:** medan imbas difokus semula selepas setiap sentuhan/modal; aksara yang ditaip di luar medan dihantar ke medan imbas;
 Enter = padanan tepat barcode/SKU (varian dahulu) → tambah; `5*kod` = 5 unit; satu hasil carian → tambah; F2 tunai, F4 QR;
 Enter pada resit = jualan baharu. Log aktiviti: `pos_login`, `pos_shift_open`, `pos_shift_close`, `pos_sale` (atas nama juruwang).
+
+> **B10 (sebenar — `jobs/Pos/`, `core/PosAuth.php`):** 12 laluan `vendor/pos/*` dari DB, semua peranan vendor (`ALL_ROLES`) + koperasi disahkan.
+> Perubahan kontrak: `session` kini ada **`cashiers: [{ id, full_name, role, pin_locked }]`** (skrin PIN tidak lagi memanggil `vendor/staff/list`
+> yang pentadbir sahaja); `catalog` kini ada **`promotions: [{ id, name, code, type, value, min_spend }]`** (promosi berjalan — POS tidak lagi
+> memanggil `vendor/promotions/list`); PosShift + `order_cash_count, order_cash_total`. Juruwang tidak sah → 403 `{ pos_login_required: true }`.
+> No. resit `POS-YYMMDD-001` (turutan harian koperasi); `short_code` dijana sama seperti pesanan store (huruf + 3/4/5 digit, unik) — bukan `P001`
+> (P + 3 digit akan habis selepas 1000 jualan). Jualan tunai: baris `payments` cash `received_by` juruwang, terus `collected`. QR: pesanan
+> `pending_payment` + `expires_at` 15 minit + stok `reserve`; `qr_payload` = pautan bayaran bil gateway (pembeli imbas dengan telefon, kembali ke
+> laman store sekolah); gateway borang POST (iPay88) → `pos.online_qr_unsupported` (perlu sesi ibu bapa). `payment-status` membaca DB dan
+> bertanya gateway paling kerap sekali / 10 saat; `cancel-payment` bertanya gateway dahulu — sudah dibayar → jualan diselesaikan, bukan dibatal.
+> Tutup syif ditolak jika ada QR `pending_payment`; juruwang dilog keluar. Imbas barcode dipadan di pelayar dari katalog (tiada `FindByBarcodeJob`).
+> "Bayar tunai pesanan online" di kaunter = `vendor/handover/receive-cash` (B9, `ReceiveCashPaymentJob`) — tiada job kedua.
 
 ### 18.12 Objek store ibu bapa (U5) — `assets/js/mock/store.js`
 
@@ -1540,7 +1572,7 @@ vendor) → `booked--`. **Lencana "Jualan murah"** (sedia sejak U5) kini dari `M
 
 Senarai **semua** laluan yang didaftar dalam `assets/js/mock/*.js` (214 laluan, dijana dari kod mock pada U7; B2 menambah 9 laluan auth
 — jumlah **223**; B3 menambah `owner/plans/options` — **224**; B4, B5 & B6 tiada laluan baharu; B8 menambah `store/orders/check-payment` dan
-membuang `store/payment/simulate` — kekal **224**, + 5 webhook `webhooks/{gateway}` di luar jadual; B9 menambah `vendor/orders/unlock-code` — **225**). Lajur Mock `— (B2)` … `— (B5)` = sudah sebenar (`api/v1/`), mock dibuang.
+membuang `store/payment/simulate` — kekal **224**, + 5 webhook `webhooks/{gateway}` di luar jadual; B9 menambah `vendor/orders/unlock-code` — **225**; B10 tiada laluan baharu — kekal **225**). Lajur Mock `— (B2)` … `— (B5)` = sudah sebenar (`api/v1/`), mock dibuang.
 **B4:** PO, stock take, `templates/options` & `modules/active` disiapkan lebih awal (prompt B4); `vendor/settings/*` ditangguh ke B9 (skrin serah & POS mock masih membaca tetapan mock). Bentuk `data` setiap laluan
 ada dalam 18.4–18.13; jadual ini ialah senarai semak Peringkat 2 — setiap baris mesti menjadi `api/v1/{laluan}.php` (nipis, tiada SQL)
 yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan CSRF, B14).
@@ -1734,26 +1766,26 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 | `vendor/payments/save-methods` | POST | vendor sesi + koperasi (`vendor_admin`) | B8 | — (B8) |
 | `vendor/payments/settings` | GET | vendor sesi + koperasi (`vendor_admin`) | B8 | — (B8) |
 | `vendor/payments/test-gateway` | POST | vendor sesi + koperasi (`vendor_admin`) | B8 | — (B8) |
-| `vendor/pos/cancel-payment` | POST | vendor sesi | B10 | `vendor-pos.js` |
-| `vendor/pos/catalog` | GET | vendor sesi + koperasi | B10 | `vendor-pos.js` |
-| `vendor/pos/checkout` | POST | vendor sesi | B10 | `vendor-pos.js` |
-| `vendor/pos/lock` | POST | vendor sesi + koperasi | B10 | `vendor-pos.js` |
-| `vendor/pos/payment-status` | GET | vendor sesi | B10 | `vendor-pos.js` |
-| `vendor/pos/pin-login` | POST | vendor sesi + koperasi | B10 | `vendor-pos.js` |
-| `vendor/pos/receipt` | GET | vendor sesi | B10 | `vendor-pos.js` |
-| `vendor/pos/sales` | GET | vendor sesi | B10 | `vendor-pos.js` |
-| `vendor/pos/session` | GET | vendor sesi + koperasi | B10 | `vendor-pos.js` |
-| `vendor/pos/shift-close` | POST | vendor sesi | B10 | `vendor-pos.js` |
-| `vendor/pos/shift-open` | POST | vendor sesi | B10 | `vendor-pos.js` |
-| `vendor/pos/shift-summary` | GET | vendor sesi | B10 | `vendor-pos.js` |
+| `vendor/pos/cancel-payment` | POST | vendor sesi + koperasi + juruwang PIN | B10 | — (B10) |
+| `vendor/pos/catalog` | GET | vendor sesi + koperasi | B10 | — (B10) |
+| `vendor/pos/checkout` | POST | vendor sesi + koperasi + juruwang PIN | B10 | — (B10) |
+| `vendor/pos/lock` | POST | vendor sesi + koperasi | B10 | — (B10) |
+| `vendor/pos/payment-status` | GET | vendor sesi + koperasi + juruwang PIN | B10 | — (B10) |
+| `vendor/pos/pin-login` | POST | vendor sesi + koperasi | B10 | — (B10) |
+| `vendor/pos/receipt` | GET | vendor sesi + koperasi + juruwang PIN | B10 | — (B10) |
+| `vendor/pos/sales` | GET | vendor sesi + koperasi + juruwang PIN | B10 | — (B10) |
+| `vendor/pos/session` | GET | vendor sesi + koperasi | B10 | — (B10) |
+| `vendor/pos/shift-close` | POST | vendor sesi + koperasi + juruwang PIN | B10 | — (B10) |
+| `vendor/pos/shift-open` | POST | vendor sesi + koperasi + juruwang PIN | B10 | — (B10) |
+| `vendor/pos/shift-summary` | GET | vendor sesi + koperasi + juruwang PIN | B10 | — (B10) |
 | `vendor/products/get` | GET | vendor sesi | B4 | — (B4) |
 | `vendor/products/list` | GET | vendor sesi + koperasi | B4 | — (B4) |
 | `vendor/products/options` | GET | vendor sesi + koperasi | B4 | — (B4) |
 | `vendor/products/save` | POST | vendor sesi + koperasi | B4 | — (B4) |
 | `vendor/products/set-active` | POST | vendor sesi | B4 | — (B4) |
-| `vendor/promotions/delete` | POST | vendor sesi | B10 | `vendor-finance.js` |
-| `vendor/promotions/list` | GET | vendor sesi + koperasi | B10 | `vendor-finance.js` |
-| `vendor/promotions/save` | POST | vendor sesi + koperasi | B10 | `vendor-finance.js` |
+| `vendor/promotions/delete` | POST | vendor sesi + koperasi (admin + pengurus) | B10 | — (B10) |
+| `vendor/promotions/list` | GET | vendor sesi + koperasi (admin + pengurus) | B10 | — (B10) |
+| `vendor/promotions/save` | POST | vendor sesi + koperasi (admin + pengurus) | B10 | — (B10) |
 | `vendor/purchase-orders/cancel` | POST | vendor sesi | B4 (asal B11) | — (B4) |
 | `vendor/purchase-orders/get` | GET | vendor sesi | B4 (asal B11) | — (B4) |
 | `vendor/purchase-orders/list` | GET | vendor sesi + koperasi | B4 (asal B11) | — (B4) |

@@ -1,8 +1,8 @@
 // Logik troli POS — disalin & diubah suai dari KedaiPOS (kabuto86/pos-system: js/data.js makeLineId, calcUnitPrice,
 // suggestCashAmounts; js/app.js getTotals). Perbezaan: wang dalam SEN (integer), satu varian setiap produk,
 // diskaun = promosi (kupon / automatik) + diskaun manual, cukai dikira selepas diskaun.
-// Juga dipakai oleh mock (Peringkat 1). Peringkat 2: pelayan mengira semula semuanya (PosCheckoutJob) —
-// nilai dari pelayar hanya untuk paparan.
+// Sejak B10 pelayan mengira semula semuanya dengan logik yang sama (jobs/Pos/PosCalculateCartJob + Promotions::choose) —
+// nilai dari pelayar hanya untuk paparan. Ubah kedua-duanya bersama.
 
 // Satu baris troli bagi setiap produk + varian
 function posLineId(productId, variantId) {

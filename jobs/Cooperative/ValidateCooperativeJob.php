@@ -27,7 +27,7 @@ class ValidateCooperativeJob
 
         return Database::fetchOne(
             "SELECT id, vendor_id, slug, school_name, school_code, school_type, state, district,
-                    template_id, default_language, accept_cash, accept_online, status
+                    address, phone, logo_path, template_id, default_language, accept_cash, accept_online, status
                FROM cooperatives
               WHERE vendor_id = ?
                 AND id = ?",

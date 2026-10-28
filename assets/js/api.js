@@ -18,6 +18,7 @@ var Api = {
         'vendor/cooperatives/', 'vendor/templates/', 'vendor/modules/', 'vendor/grades/', 'vendor/classes/', 'vendor/categories/',
         'vendor/products/', 'vendor/inventory/', 'vendor/suppliers/', 'vendor/purchase-orders/', 'vendor/stock-takes/', 'vendor/dashboard/',
         'vendor/kits/', 'vendor/payments/', 'vendor/orders/', 'vendor/handover/', 'vendor/customers/', 'vendor/settings/',
+        'vendor/pos/', 'vendor/promotions/',
         'store/auth/', 'store/profile/', 'store/session',
         'store/schools/', 'store/school', 'store/classes', 'store/children/', 'store/catalog', 'store/product', 'store/kit',
         'store/cart/', 'store/news/', 'store/clearance/', 'store/checkout/', 'store/orders/'

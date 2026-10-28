@@ -49,13 +49,15 @@ Setiap prompt di bawah bermula dengan "Ikut peraturan umum". Maksudnya:
    Sejak B1: skema sebenar = `database/schema.sql` (75 jadual, PELAN 9 J); lajur baharu → fail `database/migrations/NNN-nama.sql`
    **dan** kemas kini `schema.sql` + PELAN 9. Konvensyen job & core dalam PELAN 10.2 (constructor menerima id dari sesi + input, `run()`,
    `Database::fetchOne/fetchAll/execute/insert`, `Response::ok/fail/notFound`). Data demo & akaun: kepala `database/seed.sql`.
-   Semakan asas sebelum commit: `php tools/verify-b1.php` + `verify-b2.php` + `verify-b3.php` + `verify-b4.php` + `verify-b5.php` + `verify-b6.php` + `verify-b7.php` + `verify-b8.php` + `verify-b9.php` (mesti 0 gagal) + `php tools/check-ui.php`; tambah skrip semakan
+   Semakan asas sebelum commit: `php tools/verify-b1.php` + `verify-b2.php` + `verify-b3.php` + `verify-b4.php` + `verify-b5.php` + `verify-b6.php` + `verify-b7.php` + `verify-b8.php` + `verify-b9.php` + `verify-b10.php` (mesti 0 gagal) + `php tools/check-ui.php`; tambah skrip semakan
    session sendiri `tools/verify-bN.php` dengan ujian kebocoran VENDOR01↔VENDOR02 dan ibu bapa A↔B (contoh HTTP sebenar: kelas `Browser`
    dalam `tools/test-helpers.php` sejak B3 — pelayan `php -S` sendiri, cookie, CSRF; `require __DIR__ . '/test-helpers.php'`).
    Sejak B4: skop koperasi melalui `VendorAuth::requireCooperative()`; stok HANYA melalui `StockLedger::move()` dalam transaksi DB;
    gambar melalui `core/Uploader` (data URL dari borang) — PELAN 10.2 "Konvensyen B4".
    Sejak B5: kit sekolah dalam `jobs/SchoolKit/` (`SchoolKits` pembantu); store mesti guna `SchoolKits::findPublished()` (draf tidak
    pernah kelihatan); harga kit sentiasa dikira dari harga semasa produk — PELAN 18.9 "B5 (sebenar)".
+   Sejak B10: POS melalui `core/PosAuth` (juruwang PIN dalam sesi) + `jobs/Pos/` — jualan HANYA `PosCheckoutJob`, harga HANYA
+   `PosCalculateCartJob` (sama dengan `pos-cart.js` — ubah kedua-duanya bersama), bayaran diterima HANYA `PosSales::complete` — PELAN 10.2 "Konvensyen B10".
    Sejak B6: store menyelesaikan koperasi dengan `StoreSchool::require($slug)` (baris koperasi → job; tiada id dari input); harga/stok/had
    store HANYA melalui `StorePricing`; troli melalui `Carts` (`quote` = CartQuote), anak melalui `Children` — PELAN 10.2 "Konvensyen B6", 18.12 "B6 (sebenar)".
    Ujian HTTP dengan parameter: `$browser->status($laluan, $params)` (`tools/test-helpers.php`).
@@ -456,7 +458,7 @@ selepas PaymentSettlement `paid`. Log status `paid` oleh `system` + nota `paymen
 > `OrderEmails::queueReady/queueCollected/queuePaid` (+ templat `order_paid`, migrasi `004-order-handover-emails.sql`); `tools/verify-b9.php`.
 > Tertangguh: resit PDF (tidak perlu — slip/label dicetak dari pelayar), refund dari panel (B11, `vendor/refunds/*` masih mock), POS sebenar (B10).
 
-## B10 — POS kaunter
+## B10 — POS kaunter ✅ (28 Okt 2026 — lihat PROSES.md)
 
 ```
 Ikut peraturan umum. Session: B10. Prasyarat: B9 ✅.
@@ -477,6 +479,12 @@ ReceiveCashPaymentJob (baris payments cash + received_by) dan serah melalui Hand
 dengan StockLedger::move('pos_sale'); butiran pesanan POS sudah dipapar oleh vendor/orders/get (VendorOrders::detail). Buang baki MockOrders
 (mock/vendor-orders.js) yang hanya digunakan POS bila POS sebenar; MockFinance.settings boleh dibuang.
 ```
+> Hasil B10: 15 laluan sebenar (`vendor/pos/*` 12, `vendor/promotions/*` 3); `core/PosAuth`; `jobs/Pos/` (PosCashiers, PosShifts, PosSales +
+> GetPosSessionJob, PosLoginJob, OpenShiftJob, CloseShiftJob, ShiftReportJob, ListShiftSalesJob, PosCatalogJob, PosCalculateCartJob, PosCheckoutJob,
+> PosOnlinePaymentJob, PosPaymentStatusJob, CancelPosPaymentJob, GetPosReceiptJob); `jobs/Promotion/` List/Save/DeletePromotionJob; `OrderNumbers::nextPos`;
+> `PaymentSettlement` cabang POS; `mock/vendor-pos.js`, promosi & `MockFinance.settings` mock dibuang; `hideModal` menunggu animasi; `tools/verify-b10.php`.
+> Tidak dibina (sengaja): `FindByBarcodeJob` (padanan di pelayar dari katalog), `ReceivePosCashForOrderJob` (= `vendor/handover/receive-cash` B9).
+> Tertangguh: refund POS & tolak refund tunai dari laci (B11); QR iPay88 di kaunter (gateway borang POST perlu sesi ibu bapa).
 
 ## B11 — Laporan, refund, PO & stock take
 > PO & stock take sudah siap dalam B4 — B11 tinggal laporan, refund & promosi.
@@ -485,13 +493,17 @@ dengan StockLedger::move('pos_sale'); butiran pesanan POS sudah dipapar oleh ven
 Ikut peraturan umum. Session: B11. Prasyarat: B10 ✅.
 Job laporan (harian, bulanan, produk, darjah, kelas, untung, stok, tunai vs online, ExportCsvJob),
 RefundOrderJob (pulang stok melalui StockLedger, gateway refund jika disokong — tambah kaedah refund() pada driver payments/ yang
-supportsRefund(), sejak B8 hanya Stripe — audit log), promosi
-(SavePromotionJob, ApplyPromotionJob dalam GetCartJob & PosCalculateCartJob).
+supportsRefund(), sejak B8 hanya Stripe — audit log). Promosi SUDAH siap dalam B10 (SavePromotionJob; Promotions::choose dipakai
+CheckoutQuote & PosCalculateCartJob) — tiada ApplyPromotionJob berasingan.
 Sahkan: semua laporan menapis vendor_id + cooperative_id yang disahkan.
 Sejak B9: pesanan, item (collected_qty/cancelled_qty/returned_qty), order_pickups & payments (online + tunai) sebenar — refund guna
 VendorOrders::require (skop vendor + koperasi) dan CustomerOrders::releaseHolds / StockLedger untuk pulang stok; butang refund di
 vendor/order.php sudah memaut ke vendor/refunds.php?order_id= (masih mock sehingga session ini). Pesanan `paid_late` (nota payment.paid_after_close)
 perlu refund.
+Sejak B10: jualan POS sebenar (`channel pos`, `order_items.source pos`, `pos_shift_id`, `cashier_id`, stok `pos_sale`) — refund POS dari halaman
+refund yang sama; unit POS sentiasa sudah diambil → `returned_qty` + restock `refund`. Refund TUNAI semasa syif terbuka perlu ditolak dari
+jangkaan laci (`PosShifts::summary` — tambah lajur/rujukan syif pada refunds jika perlu). Laporan jualan termasuk POS (paid_at). Bila refund &
+laporan sebenar: buang `MockOrders` (mock/vendor-orders.js) & `MockFinance.gateways`/`refunds`.
 ```
 
 ## B12 — Langganan & invois vendor

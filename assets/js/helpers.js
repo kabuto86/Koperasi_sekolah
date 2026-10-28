@@ -322,8 +322,25 @@ function showModal(id) {
     bootstrap.Modal.getOrCreateInstance(document.getElementById(id)).show();
 }
 
+// Modal yang masih beranimasi dibuka mengabaikan hide() — tunggu 'shown' dahulu (B10: jawapan pelayan sebenar
+// boleh tiba lebih pantas daripada animasi, cth. Enter terus selepas F2 di POS)
+document.addEventListener('show.bs.modal', function (event) {
+    event.target.setAttribute('data-opening', '1');
+});
+document.addEventListener('shown.bs.modal', function (event) {
+    event.target.removeAttribute('data-opening');
+});
+
 function hideModal(id) {
-    bootstrap.Modal.getOrCreateInstance(document.getElementById(id)).hide();
+    var element = document.getElementById(id);
+    var modal = bootstrap.Modal.getOrCreateInstance(element);
+    if (element.hasAttribute('data-opening')) {
+        element.addEventListener('shown.bs.modal', function () {
+            modal.hide();
+        }, { once: true });
+        return;
+    }
+    modal.hide();
 }
 
 // ---------- Jadual & penomboran ----------
