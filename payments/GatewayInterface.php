@@ -25,6 +25,10 @@ interface GatewayInterface
 
     public function supportsRefund();
 
+    // B11: pulangkan $amount (sen) bagi bayaran $gatewayRef (bil yang sudah dibayar). $reference = no. refund (kunci idempotensi).
+    // Pulangkan ['refund_ref' => id refund di gateway]. Ditolak / rangkaian gagal → GatewayException. Hanya bila supportsRefund()
+    public function refund($gatewayRef, $amount, $reference);
+
     // Badan jawapan HTTP yang dijangka gateway selepas panggilan balik diterima
     public function callbackResponse();
 }

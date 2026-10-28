@@ -2,7 +2,7 @@
 // Gateway palsu untuk ujian B8 (tools/verify-b8.php) — pelayan router `php -S`:
 //   FAKE_GATEWAY_STATE=/tmp/state.json php -S 127.0.0.1:8097 tools/fake-gateway.php
 // Aplikasi dihala ke sini dengan KOPERASI_GATEWAY_TEST_URL=http://127.0.0.1:8097 (mod sandbox sahaja).
-// Meniru API ToyyibPay, Billplz, SenangPay, iPay88 & Stripe secukupnya. Kunci sah: lihat FAKE_KEYS.
+// Meniru API ToyyibPay, Billplz, SenangPay, iPay88 & Stripe (termasuk refund Stripe, B11) secukupnya. Kunci sah: lihat FAKE_KEYS.
 // /_admin/set?ref=…&status=paid|failed|pending[&amount=sen] = "ibu bapa membayar" (atau gateway melapor amaun lain).
 // Bukan sebahagian aplikasi — CLI / ujian sahaja.
 if (PHP_SAPI !== 'cli-server') {
@@ -216,6 +216,28 @@ if (preg_match('#^/stripe/v1/checkout/sessions/([A-Za-z0-9_]+)$#', $path, $m) &&
     reply(200, ['id' => $bill['ref'], 'payment_status' => $bill['status'] === 'paid' ? 'paid' : 'unpaid',
         'status' => $bill['status'] === 'paid' ? 'complete' : ($bill['status'] === 'failed' ? 'expired' : 'open'),
         'amount_total' => reportedAmount($bill), 'currency' => $bill['currency'], 'payment_intent' => 'pi_' . $bill['ref']]);
+}
+// Refund (B11): payment_intent pi_{ref} mesti dibayar; jumlah refund ≤ amaun bil; Idempotency-Key sama → jawapan sama
+if ($path === '/stripe/v1/refunds' && $method === 'POST') {
+    $ref = preg_replace('/^pi_/', '', (string) ($_POST['payment_intent'] ?? ''));
+    $bill = bill($state, $ref);
+    $key = (string) ($_SERVER['HTTP_IDEMPOTENCY_KEY'] ?? '');
+    if ($bill === null || bearer() !== FAKE_KEYS['stripe']['secret_key']) {
+        reply(404, ['error' => ['type' => 'invalid_request_error']]);
+    }
+    if ($key !== '' && isset($state['refund_keys'][$key])) {
+        reply(200, $state['refund_keys'][$key]);
+    }
+    $amount = (int) ($_POST['amount'] ?? 0);
+    $refunded = (int) ($bill['refunded'] ?? 0);
+    if ($bill['status'] !== 'paid' || $amount <= 0 || $refunded + $amount > (int) $bill['amount']) {
+        reply(400, ['error' => ['type' => 'invalid_request_error', 'code' => 'charge_already_refunded']]);
+    }
+    $state['bills'][$ref]['refunded'] = $refunded + $amount;
+    $result = ['id' => 're_' . substr(md5($ref . $key . microtime()), 0, 12), 'object' => 'refund', 'amount' => $amount, 'status' => 'succeeded'];
+    $state['refund_keys'][$key] = $result;
+    save($file, $state);
+    reply(200, $result);
 }
 if ($path === '/stripe/v1/balance') {
     $ok = bearer() === FAKE_KEYS['stripe']['secret_key'];

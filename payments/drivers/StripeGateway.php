@@ -88,6 +88,27 @@ class StripeGateway extends BaseGateway
         return true;
     }
 
+    // Refund = POST /v1/refunds atas payment_intent sesi Checkout (dibaca semula dari Stripe, bukan dari DB).
+    // Idempotency-Key = no. refund → cubaan berganda tidak memulangkan wang dua kali
+    public function refund($gatewayRef, $amount, $reference)
+    {
+        $session = $this->http('GET', $this->baseUrl() . '/v1/checkout/sessions/' . rawurlencode($gatewayRef), null, $this->authHeader());
+        $intent = (string) ($session['json']['payment_intent'] ?? '');
+        if ($session['status'] !== 200 || $intent === '') {
+            throw new GatewayException('stripe refund: sesi tiada payment_intent (HTTP ' . $session['status'] . ')');
+        }
+        $response = $this->http('POST', $this->baseUrl() . '/v1/refunds', [
+            'payment_intent' => $intent,
+            'amount'         => (int) $amount,
+            'metadata'       => ['reference' => $reference],
+        ], array_merge($this->authHeader(), ['Idempotency-Key: ' . $reference]));
+        $json = $response['json'];
+        if ($response['status'] !== 200 || empty($json['id']) || in_array($json['status'] ?? '', ['failed', 'canceled'], true)) {
+            throw new GatewayException('stripe refund: HTTP ' . $response['status']);
+        }
+        return ['refund_ref' => (string) $json['id']];
+    }
+
     public function callbackResponse()
     {
         return '{"received":true}';

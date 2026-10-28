@@ -1,32 +1,8 @@
-// Data mock vendor bahagian 3 (U3c): bayaran, refund, promosi, kakitangan, laporan, tetapan,
-// langganan & bil, kedai modul, log aktiviti.
-// Bergantung pada mock/vendor.js (MockVendor, mockRequireCoop …) dan mock/vendor-orders.js (MockOrders).
+// Data mock vendor bahagian 3 (U3c): langganan & bil, kedai modul, log aktiviti.
+// Bayaran (B8), promosi (B10), kakitangan (B2), tetapan (B9), refund & laporan (B11) kini laluan sebenar (api/v1/vendor/).
+// Bergantung pada mock/vendor.js (MockVendor, mockRequireCoop …).
 
 var MockFinance = {
-    // Salinan katalog owner (payment_gateways). Vendor hanya melihat driver yang dibenarkan owner
-    drivers: [
-        { code: 'toyyibpay', name: 'ToyyibPay', allowed_for_vendors: true, supports_refund: false,
-          fields: [{ name: 'secret_key', secret: true }, { name: 'category_code', secret: false }] },
-        { code: 'billplz', name: 'Billplz', allowed_for_vendors: true, supports_refund: false,
-          fields: [{ name: 'api_key', secret: true }, { name: 'collection_id', secret: false }, { name: 'x_signature', secret: true }] },
-        { code: 'senangpay', name: 'SenangPay', allowed_for_vendors: false, supports_refund: false,
-          fields: [{ name: 'merchant_id', secret: false }, { name: 'secret_key', secret: true }] },
-        { code: 'stripe', name: 'Stripe', allowed_for_vendors: true, supports_refund: true,
-          fields: [{ name: 'publishable_key', secret: false }, { name: 'secret_key', secret: true }, { name: 'webhook_secret', secret: true }] }
-    ],
-
-    // cooperative_gateways. Rahsia disimpan (Peringkat 2: disulitkan sodium) tetapi TIDAK pernah dipulangkan
-    gateways: [
-        { id: 1, vendor_id: 1, cooperative_id: 1, gateway_code: 'toyyibpay', mode: 'live', is_active: true,
-          values: { category_code: 'tmelati01' }, secrets: { secret_key: 'sk-live-xxxx' } },
-        { id: 2, vendor_id: 1, cooperative_id: 2, gateway_code: 'billplz', mode: 'sandbox', is_active: true,
-          values: { collection_id: 'chunghwa26' }, secrets: { api_key: 'xxxx', x_signature: 'yyyy' } },
-        { id: 3, vendor_id: 2, cooperative_id: 3, gateway_code: 'toyyibpay', mode: 'live', is_active: true,
-          values: { category_code: 'bukitindah' }, secrets: { secret_key: 'zzzz' } }
-    ],
-
-    refunds: [],
-
     // vendor_users + vendor_user_cooperatives. vendor_admin: semua koperasi (cooperative_ids diabaikan)
     staff: [
         { id: 10, vendor_id: 1, full_name: 'Ahmad bin Ismail', email: 'ahmad@niagasekolah.my', phone: '012-3456789', role: 'vendor_admin',
@@ -122,23 +98,9 @@ var MockFinance = {
     activity: []
 };
 
-// ---------- Data contoh: refund & log aktiviti ----------
+// ---------- Data contoh: log aktiviti ----------
 
 (function seedFinance() {
-    // Satu refund contoh: pesanan TM-2610-0006 (sudah diambil), satu buku dipulang.
-    // Kesan pada pesanan hanya dikenakan sekali (pesanan yang tersimpan dalam sessionStorage sudah membawanya)
-    var order = Mock.findById(MockOrders.orders, 6);
-    if (order) {
-        var item = order.items[order.items.length - 1];
-        if (order.refunded_amount === undefined) {
-            item.returned_qty = 1;
-            order.refunded_amount = item.unit_price;
-        }
-        MockFinance.refunds.push({ id: 1, vendor_id: 1, cooperative_id: 1, refund_no: 'RF-1001', order_id: order.id, amount: item.unit_price,
-            method: 'bank_transfer', reason: 'Saiz tidak sesuai — ibu bapa pulangkan', restock: true,
-            items: [{ order_item_id: item.id, qty: 1, cancelled: 0 }], user_name: 'Ahmad bin Ismail', created_at: '2026-10-24T11:30:00+08:00' });
-    }
-
     var rows = [
         [1, 1, 10, 'login', null, null, '', '2026-10-25T08:02:00+08:00'],
         [1, 1, 12, 'handover_collect', 'order', 5, 'TM-2610-0005', '2026-10-24T10:15:00+08:00'],
@@ -196,15 +158,6 @@ function mockActivity(action, cooperativeId, entity, entityId, detail) {
     MockFinance.activity.unshift({ id: Mock.nextId(MockFinance.activity), vendor_id: MockVendor.sessionVendorId, cooperative_id: cooperativeId || null,
         user_id: MockFinance.sessionUserId, action: action, entity: entity || null, entity_id: entityId || null, detail: detail || '', created_at: Mock.now() });
 }
-
-function mockDriver(code) {
-    return MockFinance.drivers.filter(function (driver) { return driver.code === code; })[0] || null;
-}
-
-function mockCoopGateway(cooperativeId) {
-    return mockCoopRows(MockFinance.gateways, cooperativeId).filter(function (row) { return row.is_active; })[0] || null;
-}
-
 
 function mockVendorSubscription() {
     return MockFinance.subscriptions[MockVendor.sessionVendorId];
@@ -266,142 +219,9 @@ function mockOwnInvoice(id) {
     return mockOwnRows(MockFinance.invoices).filter(function (row) { return row.id === Number(id); })[0] || null;
 }
 
-// Baki item yang belum diambil / dibatalkan / dipulangkan
-function mockReturnableQty(item) {
-    return item.qty - (item.cancelled_qty || 0) - (item.returned_qty || 0);
-}
+// Bayaran: laluan sebenar sejak B8 (api/v1/vendor/payments/, jobs/Payment/)
 
-// ---------- Bayaran: gateway, kaedah & rekod ----------
-// Sejak B8: vendor/payments/* sebenar (api/v1/vendor/payments/, jobs/Payment/). MockFinance.gateways kekal untuk refund & laporan mock (B11).
-
-// ---------- Pemulangan & refund ----------
-
-function mockRefundSummary(refund) {
-    var order = Mock.findById(MockOrders.orders, refund.order_id);
-    return { id: refund.id, refund_no: refund.refund_no, order_id: refund.order_id, order_no: order.order_no, short_code: order.short_code,
-        customer_name: order.customer_name, amount: refund.amount, method: refund.method, reason: refund.reason, restock: refund.restock,
-        item_count: refund.items.reduce(function (sum, row) { return sum + row.qty; }, 0), user_name: refund.user_name, created_at: refund.created_at };
-}
-
-Mock.register('vendor/refunds/list', function (params) {
-    var coop = mockRequireCoop(params);
-    if (!coop) {
-        return mockCoopError();
-    }
-    var rows = mockCoopRows(MockFinance.refunds, coop.id).map(mockRefundSummary).filter(function (row) {
-        var day = row.created_at.slice(0, 10);
-        return (!params.method || row.method === params.method) && (!params.date_from || day >= params.date_from) && (!params.date_to || day <= params.date_to);
-    }).sort(function (a, b) { return a.created_at < b.created_at ? 1 : -1; });
-    var data = Mock.paginate(rows, params, ['refund_no', 'order_no', 'short_code', 'customer_name', 'reason']);
-    data.total_amount = rows.reduce(function (sum, row) { return sum + row.amount; }, 0);
-    return Mock.ok(data);
-});
-
-// Cari pesanan yang boleh direfund (dibayar) ikut id / no. pesanan / kod pendek
-Mock.register('vendor/refunds/order', function (params) {
-    var coop = mockRequireCoop(params);
-    if (!coop) {
-        return mockCoopError();
-    }
-    var q = String(params.q || '').trim().toLowerCase();
-    var order = params.order_id ? mockFindOrder(params.order_id, coop.id) : mockCoopRows(MockOrders.orders, coop.id).filter(function (row) {
-        return q && (row.order_no.toLowerCase() === q || row.short_code.toLowerCase() === q);
-    })[0];
-    if (!order) {
-        return Mock.fail(T('refund.order_not_found'));
-    }
-    if (order.payment_status !== 'paid') {
-        return Mock.fail(T('refund.order_not_paid'));
-    }
-    var gateway = order.payment_method === 'online' ? mockCoopGateway(coop.id) : null;
-    var driver = gateway ? mockDriver(gateway.gateway_code) : null;
-    var refunded = order.refunded_amount || 0;
-    return Mock.ok({
-        id: order.id, order_no: order.order_no, short_code: order.short_code, status: order.status, customer_name: order.customer_name,
-        payment_method: order.payment_method, gateway_name: driver ? driver.name : null, gateway_supports_refund: Boolean(driver && driver.supports_refund),
-        total: order.total, refunded_amount: refunded, refundable_amount: order.total - refunded,
-        items: order.items.map(function (item) {
-            return { id: item.id, product_name: item.product_name, variant_label: item.variant_label, child_name: item.child_name,
-                unit_price: item.unit_price, qty: item.qty, collected_qty: item.collected_qty, cancelled_qty: item.cancelled_qty || 0,
-                returned_qty: item.returned_qty || 0, returnable_qty: mockReturnableQty(item) };
-        })
-    });
-});
-
-// items = [{ item_id, qty }] — barang belum diambil: dibatalkan (tahanan stok dilepaskan);
-// barang sudah diambil: dipulangkan (restock → stok masuk semula). Amaun ≤ baki boleh direfund
-Mock.register('vendor/refunds/create', function (body) {
-    var order = mockFindOrder(body.order_id, body.cooperative_id);
-    if (!order) {
-        return mockCoopError();
-    }
-    if (order.payment_status !== 'paid') {
-        return Mock.fail(T('refund.order_not_paid'));
-    }
-    var refundable = order.total - (order.refunded_amount || 0);
-    var errors = Mock.requireFields(body, ['amount', 'method', 'reason']);
-    if (body.amount !== null && !(body.amount > 0 && body.amount <= refundable)) {
-        errors.amount = T('refund.amount_range', { max: formatRM(refundable) });
-    }
-    var gateway = mockCoopGateway(order.cooperative_id);
-    var driver = gateway ? mockDriver(gateway.gateway_code) : null;
-    if (body.method === 'gateway' && !(order.payment_method === 'online' && driver && driver.supports_refund)) {
-        errors.method = T('refund.gateway_unsupported');
-    }
-    if (body.method && ['cash', 'bank_transfer', 'gateway'].indexOf(body.method) === -1) {
-        errors.method = T('error.invalid');
-    }
-    var lines = (body.items || []).filter(function (line) { return line.qty > 0; });
-    var tooMany = lines.some(function (line) {
-        var item = order.items.filter(function (row) { return row.id === Number(line.item_id); })[0];
-        return !item || line.qty > mockReturnableQty(item);
-    });
-    if (tooMany) {
-        errors.items = T('refund.qty_too_many');
-    }
-    if (Mock.hasErrors(errors)) {
-        return Mock.fail(errors.items && Object.keys(errors).length === 1 ? errors.items : T('error.check_form'), errors);
-    }
-
-    var refundId = Mock.nextId(MockFinance.refunds);
-    var refund = { id: refundId, vendor_id: order.vendor_id, cooperative_id: order.cooperative_id, refund_no: 'RF-' + (1000 + refundId),
-        order_id: order.id, amount: body.amount, method: body.method, reason: String(body.reason).trim(), restock: Boolean(body.restock),
-        items: [], user_name: mockSessionUser().full_name, created_at: Mock.now() };
-
-    lines.forEach(function (line) {
-        var item = order.items.filter(function (row) { return row.id === Number(line.item_id); })[0];
-        var level = mockStockLevel(order.cooperative_id, item.product_id, item.variant_id);
-        var uncollected = item.qty - item.collected_qty - (item.cancelled_qty || 0);
-        var cancel = Math.min(line.qty, Math.max(0, uncollected));
-        var returned = line.qty - cancel;
-        if (cancel > 0) {
-            item.cancelled_qty = (item.cancelled_qty || 0) + cancel;
-            if (level) {
-                level.qty_reserved = Math.max(0, level.qty_reserved - cancel);
-                mockMoveStock(level, 'release', 0, 'order', order.id, refund.refund_no);
-            }
-        }
-        if (returned > 0) {
-            item.returned_qty = (item.returned_qty || 0) + returned;
-            if (level && refund.restock) {
-                mockMoveStock(level, 'refund', returned, 'order', order.id, refund.refund_no);
-            }
-        }
-        refund.items.push({ order_item_id: item.id, qty: line.qty, cancelled: cancel });
-    });
-
-    order.refunded_amount = (order.refunded_amount || 0) + refund.amount;
-    if (order.refunded_amount >= order.total) {
-        mockLogStatus(order, 'refunded', refund.refund_no + ' · ' + refund.reason);
-    } else if (['ready', 'partially_collected'].indexOf(order.status) !== -1 && order.items.every(function (item) {
-        return item.qty - item.collected_qty - (item.cancelled_qty || 0) <= 0;
-    })) {
-        mockLogStatus(order, 'collected', refund.refund_no);
-    }
-    MockFinance.refunds.push(refund);
-    mockActivity('refund_create', order.cooperative_id, 'refund', refund.id, refund.refund_no + ' · ' + formatRM(refund.amount));
-    return Mock.ok(mockRefundSummary(refund));
-});
+// Pemulangan & refund: laluan sebenar sejak B11 (api/v1/vendor/refunds/, jobs/Refund/)
 
 // Promosi / kupon: laluan sebenar sejak B10 (api/v1/vendor/promotions/*, jobs/Promotion/)
 
@@ -657,206 +477,8 @@ Mock.register('vendor/activity-logs/list', function (params) {
     return Mock.ok(data);
 });
 
-// ---------- Laporan ----------
-
-// Item jualan dalam julat tarikh: pesanan dibayar (refund ditolak berasingan)
-function mockSalesOrders(coop, params) {
-    return mockCoopRows(MockOrders.orders, coop.id).filter(function (order) {
-        var day = (order.paid_at || order.created_at).slice(0, 10);
-        return order.payment_status === 'paid' && (!params.date_from || day >= params.date_from) && (!params.date_to || day <= params.date_to);
-    });
-}
-
-function mockItemCost(item) {
-    var product = Mock.findById(MockVendor.products, item.product_id);
-    return (product ? product.cost_price : 0) * item.qty;
-}
-
-function mockGroupRows(orders, keyFn, labelFn) {
-    var groups = {};
-    orders.forEach(function (order) {
-        var key = keyFn(order);
-        var row = groups[key] = groups[key] || { key: key, label: labelFn(order), orders: 0, gross: 0, discount: 0, refunds: 0, net: 0, cash: 0, online: 0 };
-        var net = order.total - (order.refunded_amount || 0);
-        row.orders += 1;
-        row.gross += order.subtotal;
-        row.discount += order.discount;
-        row.refunds += order.refunded_amount || 0;
-        row.net += net;
-        row[order.payment_method] += net;
-    });
-    return Object.keys(groups).sort().map(function (key) { return groups[key]; });
-}
-
-function mockSum(rows, keys) {
-    var totals = {};
-    keys.forEach(function (key) {
-        totals[key] = rows.reduce(function (sum, row) { return sum + (row[key] || 0); }, 0);
-    });
-    return totals;
-}
-
-function mockMargin(profit, sales) {
-    return sales ? Math.round(profit / sales * 1000) / 10 : 0;
-}
-
-var MOCK_REPORTS = {
-    daily: function (coop, params) {
-        var rows = mockGroupRows(mockSalesOrders(coop, params), function (o) { return (o.paid_at || o.created_at).slice(0, 10); }, function (o) { return (o.paid_at || o.created_at).slice(0, 10); })
-            .map(function (row) { return { date: row.key, orders: row.orders, gross: row.gross, discount: row.discount, refunds: row.refunds, net: row.net, cash: row.cash, online: row.online }; });
-        return { columns: [['date', 'date'], ['orders', 'int'], ['gross', 'money'], ['discount', 'money'], ['refunds', 'money'], ['net', 'money'], ['cash', 'money'], ['online', 'money']],
-            rows: rows, totals: mockSum(rows, ['orders', 'gross', 'discount', 'refunds', 'net', 'cash', 'online']),
-            chart: rows.map(function (row) { return { label: row.date.slice(8, 10) + '/' + row.date.slice(5, 7), value: row.net }; }) };
-    },
-    monthly: function (coop, params) {
-        var rows = mockGroupRows(mockSalesOrders(coop, params), function (o) { return (o.paid_at || o.created_at).slice(0, 7); }, function () { return ''; })
-            .map(function (row) { return { month: row.key, orders: row.orders, gross: row.gross, discount: row.discount, refunds: row.refunds, net: row.net, cash: row.cash, online: row.online }; });
-        return { columns: [['month', 'month'], ['orders', 'int'], ['gross', 'money'], ['discount', 'money'], ['refunds', 'money'], ['net', 'money'], ['cash', 'money'], ['online', 'money']],
-            rows: rows, totals: mockSum(rows, ['orders', 'gross', 'discount', 'refunds', 'net', 'cash', 'online']),
-            chart: rows.map(function (row) { return { label: row.month, value: row.net, format: 'month' }; }) };
-    },
-    product: function (coop, params) {
-        var groups = {};
-        mockSalesOrders(coop, params).forEach(function (order) {
-            order.items.forEach(function (item) {
-                var key = item.product_id + ':' + (item.variant_id || 0);
-                var row = groups[key] = groups[key] || { product: item.product_name + (item.variant_label ? ' — ' + item.variant_label : ''), sku: item.sku, qty: 0, sales: 0, cost: 0, profit: 0 };
-                row.qty += item.qty;
-                row.sales += item.line_total;
-                row.cost += mockItemCost(item);
-            });
-        });
-        var rows = Object.keys(groups).map(function (key) {
-            var row = groups[key];
-            row.profit = row.sales - row.cost;
-            row.margin = mockMargin(row.profit, row.sales);
-            return row;
-        }).sort(function (a, b) { return b.sales - a.sales; });
-        var totals = mockSum(rows, ['qty', 'sales', 'cost', 'profit']);
-        totals.margin = mockMargin(totals.profit, totals.sales);
-        return { columns: [['product', 'text'], ['sku', 'text'], ['qty', 'int'], ['sales', 'money'], ['cost', 'money'], ['profit', 'money'], ['margin', 'percent']],
-            rows: rows, totals: totals, chart: rows.slice(0, 8).map(function (row) { return { label: row.sku, value: row.sales }; }) };
-    },
-    grade: function (coop, params) {
-        return mockChildReport(coop, params, false);
-    },
-    class: function (coop, params) {
-        return mockChildReport(coop, params, true);
-    },
-    profit: function (coop, params) {
-        var groups = {};
-        mockSalesOrders(coop, params).forEach(function (order) {
-            order.items.forEach(function (item) {
-                var product = Mock.findById(MockVendor.products, item.product_id);
-                var name = mockCategoryName(product.category_id);
-                var row = groups[name] = groups[name] || { category: name, qty: 0, sales: 0, cost: 0, profit: 0 };
-                row.qty += item.qty;
-                row.sales += item.line_total;
-                row.cost += mockItemCost(item);
-            });
-        });
-        var rows = Object.keys(groups).map(function (key) {
-            var row = groups[key];
-            row.profit = row.sales - row.cost;
-            row.margin = mockMargin(row.profit, row.sales);
-            return row;
-        }).sort(function (a, b) { return b.profit - a.profit; });
-        var totals = mockSum(rows, ['qty', 'sales', 'cost', 'profit']);
-        totals.margin = mockMargin(totals.profit, totals.sales);
-        return { columns: [['category', 'text'], ['qty', 'int'], ['sales', 'money'], ['cost', 'money'], ['profit', 'money'], ['margin', 'percent']],
-            rows: rows, totals: totals, chart: rows.map(function (row) { return { label: row.category, value: row.profit }; }) };
-    },
-    stock: function (coop) {
-        var rows = mockCoopRows(MockVendor.stock, coop.id).map(function (level) {
-            var info = mockInventoryRow(level);
-            var product = Mock.findById(MockVendor.products, level.product_id);
-            var variant = level.variant_id ? mockFindVariant(product, level.variant_id) : null;
-            var price = product.price + (variant ? variant.price_delta : 0);
-            return { product: info.product_name + (info.variant_label ? ' — ' + info.variant_label : ''), sku: info.sku, on_hand: info.qty_on_hand,
-                reserved: info.qty_reserved, available: info.qty_available, cost_value: info.qty_on_hand * product.cost_price, retail_value: info.qty_on_hand * price };
-        }).sort(function (a, b) { return b.retail_value - a.retail_value; });
-        return { columns: [['product', 'text'], ['sku', 'text'], ['on_hand', 'int'], ['reserved', 'int'], ['available', 'int'], ['cost_value', 'money'], ['retail_value', 'money']],
-            rows: rows, totals: mockSum(rows, ['on_hand', 'reserved', 'available', 'cost_value', 'retail_value']), chart: null, no_dates: true };
-    },
-    payment: function (coop, params) {
-        var gateway = mockCoopGateway(coop.id);
-        var groups = {};
-        mockSalesOrders(coop, params).forEach(function (order) {
-            var key = order.payment_method;
-            var row = groups[key] = groups[key] || { method: key, channel: key === 'online' && gateway ? mockDriver(gateway.gateway_code).name : '', orders: 0, amount: 0, refunds: 0 };
-            row.orders += 1;
-            row.amount += order.total;
-            row.refunds += order.refunded_amount || 0;
-        });
-        var rows = Object.keys(groups).map(function (key) { return groups[key]; });
-        var totals = mockSum(rows, ['orders', 'amount', 'refunds']);
-        rows.forEach(function (row) { row.share = mockMargin(row.amount, totals.amount); });
-        totals.share = rows.length ? 100 : 0;
-        return { columns: [['method', 'method'], ['channel', 'text'], ['orders', 'int'], ['amount', 'money'], ['refunds', 'money'], ['share', 'percent']],
-            rows: rows, totals: totals, chart: rows.map(function (row) { return { label: T('payment.method.' + row.method), value: row.amount }; }) };
-    }
-};
-
-// Jualan ikut darjah / kelas (dari salinan nama anak & kelas dalam order_items)
-function mockChildReport(coop, params, byClass) {
-    var grades = mockGradesFor(coop.school_type);
-    var groups = {};
-    mockSalesOrders(coop, params).forEach(function (order) {
-        order.items.forEach(function (item) {
-            if (!item.grade_level_code) {
-                return;
-            }
-            var key = item.grade_level_code + (byClass ? '|' + item.class_name : '');
-            var row = groups[key] = groups[key] || { grade: item.grade_level_code, class_name: item.class_name, children: [], orders: [], qty: 0, sales: 0 };
-            if (row.children.indexOf(item.child_id) === -1) {
-                row.children.push(item.child_id);
-            }
-            if (row.orders.indexOf(order.id) === -1) {
-                row.orders.push(order.id);
-            }
-            row.qty += item.qty;
-            row.sales += item.line_total;
-        });
-    });
-    var rows = Object.keys(groups).map(function (key) {
-        var row = groups[key];
-        var result = { grade: row.grade, students: row.children.length, orders: row.orders.length, qty: row.qty, sales: row.sales,
-            average: row.children.length ? Math.round(row.sales / row.children.length) : 0 };
-        if (byClass) {
-            result.class_name = row.class_name;
-        }
-        return result;
-    }).sort(function (a, b) {
-        return grades.indexOf(a.grade) - grades.indexOf(b.grade) || String(a.class_name || '').localeCompare(String(b.class_name || ''));
-    });
-    var columns = [['grade', 'grade']].concat(byClass ? [['class_name', 'text']] : []).concat([['students', 'int'], ['orders', 'int'], ['qty', 'int'], ['sales', 'money'], ['average', 'money']]);
-    var totals = mockSum(rows, ['students', 'orders', 'qty', 'sales']);
-    totals.average = totals.students ? Math.round(totals.sales / totals.students) : 0;
-    return { columns: columns, rows: rows, totals: totals,
-        chart: byClass ? null : rows.map(function (row) { return { label: row.grade, value: row.sales, format: 'grade' }; }) };
-}
-
-Mock.register('vendor/reports/run', function (params) {
-    var coop = mockRequireCoop(params);
-    if (!coop) {
-        return mockCoopError();
-    }
-    var builder = MOCK_REPORTS[params.type];
-    if (!builder) {
-        return Mock.fail(T('error.invalid'));
-    }
-    if (params.date_from && params.date_to && params.date_to < params.date_from) {
-        return Mock.fail(T('promo.end_before_start'), { date_to: T('promo.end_before_start') });
-    }
-    var report = builder(coop, params);
-    return Mock.ok({
-        type: params.type, school_name: coop.school_name, date_from: report.no_dates ? null : params.date_from || null,
-        date_to: report.no_dates ? null : params.date_to || null, generated_at: Mock.now(),
-        columns: report.columns.map(function (column) { return { key: column[0], label: 'report.col.' + column[0], format: column[1] }; }),
-        rows: report.rows, totals: report.totals, chart: report.chart
-    });
-});
+// Laporan: laluan sebenar sejak B11 (api/v1/vendor/reports/run, jobs/Report/)
 
 // Kekalkan perubahan antara halaman — mesti selepas data contoh dijana
-Mock.persist('vendor-finance', MockFinance, ['gateways', 'refunds', 'staff', 'subscriptions', 'moduleSubs',
+Mock.persist('vendor-finance', MockFinance, ['staff', 'subscriptions', 'moduleSubs',
     'templateSubs', 'invoices', 'invoiceSeq', 'activity']);

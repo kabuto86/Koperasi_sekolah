@@ -7,6 +7,6 @@
 <?php
 View::partial('partials/ui-shell.php');
 View::partial('partials/scripts.php', [
-    'mockFiles'   => ['vendor.js', 'vendor-orders.js', 'vendor-finance.js', 'vendor-addons.js'],
+    'mockFiles'   => ['vendor.js', 'vendor-finance.js', 'vendor-addons.js'],
     'pageScripts' => array_merge([View::asset('js/vendor-layout.js')], $pageScripts ?? []),
 ]);

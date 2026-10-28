@@ -1,7 +1,7 @@
 // Data mock modul add-on (U6): berita, jualan murah, kalendar cuti, pembukaan sekolah, WhatsApp/SMS.
 // Dikongsi panel vendor DAN store ibu bapa (dimuat sebelum store.js) — "pangkalan data" yang sama,
 // jadi berita / jualan murah / cuti / slot yang dicipta vendor terus kelihatan di store.
-// Bergantung pada mock/vendor.js, vendor-orders.js, vendor-finance.js.
+// Bergantung pada mock/vendor.js, vendor-finance.js.
 //
 // Keselamatan (sama seperti Peringkat 2 — ModuleAccess::has($cooperativeId, $code)):
 // - Setiap laluan vendor mengesahkan koperasi milik vendor sesi DAN modul dilanggan koperasi itu.
@@ -124,18 +124,12 @@ function addonTimeValid(text) {
     return /^([01]\d|2[0-3]):[0-5]\d$/.test(String(text || ''));
 }
 
-// Ibu bapa yang mempunyai anak aktif di koperasi ini (penerima e-mel berita)
+// Bilangan ibu bapa yang mempunyai anak aktif di koperasi ini (penerima e-mel berita). Sejak B11 MockOrders dibuang —
+// nilai tetap ikut data contoh lama; B13 mengira dari jadual children
+var MOCK_ADDON_RECIPIENTS = { 1: 12, 2: 3, 3: 2 };
+
 function addonRecipients(coop) {
-    var ids = [];
-    MockOrders.children.forEach(function (child) {
-        if (child.cooperative_id === coop.id && child.is_active !== false && ids.indexOf(child.customer_id) === -1) {
-            var customer = Mock.findById(MockOrders.customers, child.customer_id);
-            if (customer && !customer.deleted_at) {
-                ids.push(child.customer_id);
-            }
-        }
-    });
-    return ids.length;
+    return MOCK_ADDON_RECIPIENTS[coop.id] || 0;
 }
 
 // 0123344556 → 012-***4556

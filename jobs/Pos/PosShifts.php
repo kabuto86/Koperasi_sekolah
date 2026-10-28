@@ -1,7 +1,8 @@
 <?php
 // Syif & tunai laci POS (pos_shifts — PELAN 9 G, 18.11). Satu syif terbuka setiap juruwang setiap koperasi.
 // Jangkaan tunai laci = tunai permulaan + jualan tunai POS syif ini + tunai pesanan store yang diterima juruwang
-// yang sama di kaunter koperasi ini sepanjang syif (vendor/handover/receive-cash). Setiap pertanyaan menapis vendor_id.
+// yang sama di kaunter koperasi ini sepanjang syif (vendor/handover/receive-cash) − refund tunai syif ini (B11).
+// Setiap pertanyaan menapis vendor_id.
 class PosShifts
 {
     public static function find($vendorId, $cooperativeId, $shiftId, $forUpdate = false)
@@ -60,7 +61,8 @@ class PosShifts
             $args
         );
         $orderCash = self::orderCash($shift);
-        $expected = (int) $shift['opening_cash'] + $by['cash']['total'] + $orderCash['total'];
+        $refunds = self::cashRefunds($shift);
+        $expected = (int) $shift['opening_cash'] + $by['cash']['total'] + $orderCash['total'] - $refunds['total'];
         $closed = $shift['status'] === 'closed';
         return [
             'id'               => (int) $shift['id'],
@@ -80,6 +82,8 @@ class PosShifts
             'online_sales'     => $by['online']['total'],
             'order_cash_count' => $orderCash['n'],
             'order_cash_total' => $orderCash['total'],
+            'refund_count'     => $refunds['n'],
+            'refund_total'     => $refunds['total'],
             'discount_total'   => $discount,
             'tax_total'        => $tax,
             'pending_count'    => $pending,
@@ -88,6 +92,17 @@ class PosShifts
             'variance'         => $shift['variance'] === null ? null : (int) $shift['variance'],
             'note'             => (string) $shift['note'],
         ];
+    }
+
+    // B11: refund tunai yang direkod pada syif ini (refunds.pos_shift_id) — wang keluar dari laci
+    private static function cashRefunds(array $shift)
+    {
+        $row = Database::fetchOne(
+            "SELECT COUNT(*) AS n, COALESCE(SUM(amount), 0) AS total FROM refunds
+              WHERE vendor_id = ? AND cooperative_id = ? AND pos_shift_id = ? AND method = 'cash' AND status = 'completed'",
+            [(int) $shift['vendor_id'], (int) $shift['cooperative_id'], (int) $shift['id']]
+        );
+        return ['n' => (int) $row['n'], 'total' => (int) $row['total']];
     }
 
     // Tunai pesanan store (channel online) yang diterima juruwang syif ini di koperasi ini dalam tempoh syif

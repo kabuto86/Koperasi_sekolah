@@ -425,8 +425,10 @@ try {
         && $cashier1->page('vendor/orders.php')['status'] === 302);
     $api = file_get_contents(APP_ROOT . '/assets/js/api.js');
     check('Api.livePrefixes: vendor/orders/, handover/, customers/, settings/', strpos($api, "'vendor/orders/', 'vendor/handover/', 'vendor/customers/', 'vendor/settings/'") !== false);
-    $mock = file_get_contents(APP_ROOT . '/assets/js/mock/vendor-orders.js') . file_get_contents(APP_ROOT . '/assets/js/mock/vendor-finance.js')
-        . file_get_contents(APP_ROOT . '/assets/js/mock/vendor-addons.js');
+    $mock = '';
+    foreach (glob(APP_ROOT . '/assets/js/mock/*.js') as $file) {
+        $mock .= file_get_contents($file);
+    }
     check('Mock.register laluan B9 dibuang', !preg_match("#Mock\.register\('vendor/(orders|handover|customers|settings)/#", $mock));
 } finally {
     proc_terminate($server);

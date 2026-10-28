@@ -49,7 +49,7 @@ Setiap prompt di bawah bermula dengan "Ikut peraturan umum". Maksudnya:
    Sejak B1: skema sebenar = `database/schema.sql` (75 jadual, PELAN 9 J); lajur baharu → fail `database/migrations/NNN-nama.sql`
    **dan** kemas kini `schema.sql` + PELAN 9. Konvensyen job & core dalam PELAN 10.2 (constructor menerima id dari sesi + input, `run()`,
    `Database::fetchOne/fetchAll/execute/insert`, `Response::ok/fail/notFound`). Data demo & akaun: kepala `database/seed.sql`.
-   Semakan asas sebelum commit: `php tools/verify-b1.php` + `verify-b2.php` + `verify-b3.php` + `verify-b4.php` + `verify-b5.php` + `verify-b6.php` + `verify-b7.php` + `verify-b8.php` + `verify-b9.php` + `verify-b10.php` (mesti 0 gagal) + `php tools/check-ui.php`; tambah skrip semakan
+   Semakan asas sebelum commit: `php tools/verify-b1.php` + `verify-b2.php` + `verify-b3.php` + `verify-b4.php` + `verify-b5.php` + `verify-b6.php` + `verify-b7.php` + `verify-b8.php` + `verify-b9.php` + `verify-b10.php` + `verify-b11.php` (mesti 0 gagal) + `php tools/check-ui.php`; tambah skrip semakan
    session sendiri `tools/verify-bN.php` dengan ujian kebocoran VENDOR01↔VENDOR02 dan ibu bapa A↔B (contoh HTTP sebenar: kelas `Browser`
    dalam `tools/test-helpers.php` sejak B3 — pelayan `php -S` sendiri, cookie, CSRF; `require __DIR__ . '/test-helpers.php'`).
    Sejak B4: skop koperasi melalui `VendorAuth::requireCooperative()`; stok HANYA melalui `StockLedger::move()` dalam transaksi DB;
@@ -58,6 +58,10 @@ Setiap prompt di bawah bermula dengan "Ikut peraturan umum". Maksudnya:
    pernah kelihatan); harga kit sentiasa dikira dari harga semasa produk — PELAN 18.9 "B5 (sebenar)".
    Sejak B10: POS melalui `core/PosAuth` (juruwang PIN dalam sesi) + `jobs/Pos/` — jualan HANYA `PosCheckoutJob`, harga HANYA
    `PosCalculateCartJob` (sama dengan `pos-cart.js` — ubah kedua-duanya bersama), bayaran diterima HANYA `PosSales::complete` — PELAN 10.2 "Konvensyen B10".
+   Sejak B11: refund HANYA `RefundOrderJob` (`jobs/Refund/` — kesan stok/status HANYA `Refunds::apply`; baki = bayaran − refund selesai − pending;
+   gateway = pending → `driver->refund()` di luar transaksi → completed/failed; refund tunai → `pos_shift_id` syif terbuka, ditolak dari laci);
+   laporan HANYA `RunReportJob` → satu job setiap jenis (`jobs/Report/`, pembantu `ReportRange`) — PELAN 10.2 "Konvensyen B11", 13 "Pelaksanaan B11".
+   `mock/vendor-orders.js` sudah dibuang; `MockFinance` tinggal langganan, bil, kedai modul & log aktiviti.
    Sejak B6: store menyelesaikan koperasi dengan `StoreSchool::require($slug)` (baris koperasi → job; tiada id dari input); harga/stok/had
    store HANYA melalui `StorePricing`; troli melalui `Carts` (`quote` = CartQuote), anak melalui `Children` — PELAN 10.2 "Konvensyen B6", 18.12 "B6 (sebenar)".
    Ujian HTTP dengan parameter: `$browser->status($laluan, $params)` (`tools/test-helpers.php`).
@@ -486,7 +490,7 @@ dengan StockLedger::move('pos_sale'); butiran pesanan POS sudah dipapar oleh ven
 > Tidak dibina (sengaja): `FindByBarcodeJob` (padanan di pelayar dari katalog), `ReceivePosCashForOrderJob` (= `vendor/handover/receive-cash` B9).
 > Tertangguh: refund POS & tolak refund tunai dari laci (B11); QR iPay88 di kaunter (gateway borang POST perlu sesi ibu bapa).
 
-## B11 — Laporan, refund, PO & stock take
+## B11 — Laporan, refund, PO & stock take ✅ (28 Okt 2026 — lihat PROSES.md)
 > PO & stock take sudah siap dalam B4 — B11 tinggal laporan, refund & promosi.
 
 ```
@@ -505,12 +509,21 @@ refund yang sama; unit POS sentiasa sudah diambil → `returned_qty` + restock `
 jangkaan laci (`PosShifts::summary` — tambah lajur/rujukan syif pada refunds jika perlu). Laporan jualan termasuk POS (paid_at). Bila refund &
 laporan sebenar: buang `MockOrders` (mock/vendor-orders.js) & `MockFinance.gateways`/`refunds`.
 ```
+> Hasil B11: 4 laluan sebenar (`vendor/refunds/{list,order,create}`, `vendor/reports/run`); `jobs/Refund/` (`Refunds`, `FindRefundOrderJob`,
+> `ListRefundsJob`, `RefundOrderJob`); `jobs/Report/` (`RunReportJob` + 8 job laporan + `ReportRange`, `PeriodSales`, `ChildSales`);
+> `GatewayInterface::refund()` (Stripe sebenar, lain → GatewayException); migrasi `005-refund-shift.sql` (`refunds.pos_shift_id`, `gateway_ref`,
+> `refund_no` 40); `PosShifts::summary` menolak refund tunai syif (`refund_count`, `refund_total`, POS memaparnya); `mock/vendor-orders.js` &
+> mock refund/laporan dibuang; `tools/verify-b11.php`. Tidak dibina (sengaja): `ExportCsvJob` (CSV dijana di pelayar dari jawapan yang sama).
+> Tertangguh: e-mel "refund diproses" kepada ibu bapa; semakan semula refund gateway `pending` yang tersangkut (jika proses mati selepas gateway
+> menerima) — kini kekal `pending` dan menempah baki; refund automatik ToyyibPay/Billplz (API tiada / manual).
 
 ## B12 — Langganan & invois vendor
 
 ```
 Ikut peraturan umum. Session: B12. Prasyarat: B11 ✅.
 Baca DOC/PELAN.md bahagian 14.
+Sejak B11: mock langganan & bil masih dalam mock/vendor-finance.js (MockFinance.subscriptions/plans/moduleSubs/templateSubs/invoices) — buang
+bila vendor/subscription/*, vendor/addons/{catalog,quote,subscribe,cancel} & vendor/invoices/* sebenar. Laporan & refund vendor sudah sebenar.
 Job: SubscribeJob (bulanan/tahunan), AddCooperativeSubscriptionJob, SubscribeModuleJob,
 SubscribeTemplateJob, CalculateProrataJob, GenerateInvoiceJob (snapshot), PayInvoiceJob
 (gateway owner), MarkInvoicePaidJob (owner). core/ModuleAccess, core/PlanLimit.

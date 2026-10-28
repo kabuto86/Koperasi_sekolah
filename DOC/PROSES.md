@@ -4,9 +4,9 @@
 > Kemas kini fail ini di HUJUNG setiap session, sebelum commit & push.
 > Reka bentuk: [PELAN.md](PELAN.md) · Prompt kerja: [PROMPT-SESSION.md](PROMPT-SESSION.md)
 
-**Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · **Peringkat 2 berjalan** — skema & core (B1), auth sebenar (B2), panel owner (B3), katalog & inventori vendor (B4), kit sekolah (B5), store ibu bapa: anak, katalog, kit, troli (B6), checkout tunai, pesanan & queue e-mel (B7), payment gateway + webhook (B8), pesanan vendor & serah barang (B9), POS kaunter & promosi (B10)
-**Session terakhir siap:** B10 — POS kaunter
-**Session seterusnya:** **B11 — Laporan, refund, PO & stock take**
+**Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · **Peringkat 2 berjalan** — skema & core (B1), auth sebenar (B2), panel owner (B3), katalog & inventori vendor (B4), kit sekolah (B5), store ibu bapa: anak, katalog, kit, troli (B6), checkout tunai, pesanan & queue e-mel (B7), payment gateway + webhook (B8), pesanan vendor & serah barang (B9), POS kaunter & promosi (B10), refund & laporan (B11)
+**Session terakhir siap:** B11 — Laporan, refund, PO & stock take
+**Session seterusnya:** **B12 — Langganan & invois vendor + cron**
 
 Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 
@@ -46,7 +46,7 @@ Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 | B8 | Payment gateway + webhook | ✅ | 28 Okt 2026 | `97e3b42` | 5 driver `payments/`, 13 job `jobs/Payment/`, `vendor/payments/*` sebenar, 5 webhook, semakan semula + amaun + idempotent, cron luput online, `tools/verify-b8.php` 95/95 lulus |
 | B9 | Pengurusan pesanan & serah barang | ✅ | 28 Okt 2026 | `cdd17ba` | 16 endpoint vendor (pesanan, serah, ibu bapa, tetapan), pembantu `VendorOrders` + 16 job, `StockLedger::collect`, e-mel sedia/diambil/dibayar, kod 4 digit dikunci + buka oleh pengurus, `tools/verify-b9.php` 106/106 lulus |
 | B10 | POS kaunter | ✅ | 28 Okt 2026 | `a3417ed` | 15 endpoint (`vendor/pos/*` 12, `vendor/promotions/*` 3), `core/PosAuth`, 15 job + 3 pembantu `jobs/Pos/`, 3 job promosi, PIN Argon2id sebenar, QR gateway + webhook, `PaymentSettlement` cabang POS, mock POS dibuang, `tools/verify-b10.php` 97/97 lulus |
-| B11 | Laporan, refund, PO, stock take | ⬜ | | | |
+| B11 | Laporan, refund, PO, stock take | ✅ | 28 Okt 2026 | (lihat git log) | 4 endpoint (`vendor/refunds/*` 3, `vendor/reports/run`), `jobs/Refund/` 3 job + `Refunds`, `jobs/Report/` 9 job + 3 pembantu, refund Stripe (`GatewayInterface::refund`), migrasi 005 (`refunds.pos_shift_id`), refund tunai ditolak dari laci syif, mock refund/laporan & `vendor-orders.js` dibuang, `tools/verify-b11.php` 78/78 lulus |
 | B12 | Langganan & invois vendor + cron | ⬜ | | | |
 | B13 | Modul add-on | ⬜ | | | |
 | B14 | Modul terjemahan + pengerasan keselamatan | ⬜ | | | |
@@ -1078,6 +1078,70 @@ Tertangguh / peralihan:
 - Refund jualan POS & refund tunai ditolak dari jangkaan laci → B11 (`vendor/refunds/*` masih mock; `MockOrders` & `MockFinance.gateways` kekal)
 - QR kaunter untuk gateway borang POST (iPay88) — perlu halaman bayaran awam tanpa sesi ibu bapa (kemudian)
 - Laporan Z dicetak dari pelayar (CSS cetak) — tiada PDF
+
+---
+
+### B11 — Laporan, refund, PO & stock take (28 Okt 2026)
+
+PO & stock take sudah siap dalam B4; promosi dalam B10. B11 menyiapkan refund & laporan.
+
+Dibuat:
+- **Job refund (`jobs/Refund/`):** pembantu `Refunds` (baki boleh direfund, unit boleh dipulang, gateway yang menyokong refund, no. refund,
+  `apply` — kesan item/stok/status, `shape`); `FindRefundOrderJob` (`vendor/refunds/order`), `ListRefundsJob` (`vendor/refunds/list`),
+  `RefundOrderJob` (`vendor/refunds/create` — tunai/pindahan bank satu transaksi; gateway 3 langkah pending → API → completed/failed)
+- **Job laporan (`jobs/Report/`):** `RunReportJob` (pilih jenis + julat + bungkus) → `DailySalesReportJob`, `MonthlySalesReportJob`,
+  `PaymentMethodReportJob`, `ProductSalesReportJob`, `ProfitReportJob`, `StockValueReportJob`, `GradeSalesReportJob`, `ClassSalesReportJob`;
+  pembantu `ReportRange` (julat ≤ 366 hari, lajur, jumlah, peratus), `PeriodSales` (harian/bulanan), `ChildSales` (darjah/kelas)
+- **Gateway:** `GatewayInterface::refund($ref, $amount, $reference)`; `BaseGateway` → GatewayException; `StripeGateway::refund` (payment_intent dari
+  sesi Checkout → `POST /v1/refunds`, `Idempotency-Key` = no. refund); `tools/fake-gateway.php` + `/stripe/v1/refunds`
+- **API (4 fail, tiada SQL):** `vendor/refunds/{list,order,create}`, `vendor/reports/run` — admin + pengurus (juruwang 403)
+- **POS:** `PosShifts::summary` menolak refund tunai syif (`refund_count`, `refund_total`); `pos.js` memapar baris "Refund tunai (n)" dalam ringkasan
+  & laporan Z
+- **DB:** migrasi `005-refund-shift.sql` — `refunds.refund_no` VARCHAR(40), `gateway_ref`, `pos_shift_id` (+ indeks & FK); `schema.sql` dikemas kini
+- **JS:** `Api.livePrefixes` + `vendor/refunds/`, `vendor/reports/`; `refunds.js` — lencana status pending/gagal, nota laci syif / gateway ikut cara
+  dipilih, nota refund pending, senarai dimuat semula bila refund gateway gagal; `mock/vendor-orders.js` (`MockOrders`) dibuang;
+  `mock/vendor-finance.js` — mock refund, laporan, `gateways`, `drivers` dibuang; `mock/vendor-addons.js` bilangan penerima berita tetap
+  (tidak lagi dari `MockOrders`); layout vendor tidak memuat `vendor-orders.js`; `asset_version` → 12
+- **Halaman:** `vendor/refunds.php` + baris nota refund pending
+- 11 kunci bahasa baharu × 4 (`refund.log`, `refund.gateway_failed`, `refund.cash_drawer`, `refund.pending_note`, `refund.status.pending|failed`,
+  `report.range_invalid`, `report.range_too_long`, `report.no_category`, `pos.cash_refunds`, `activity.action.refund_failed`); nota laporan
+  harian/bulanan/produk dikemas kini (refund ikut tarikh refund, unit bersih) — jumlah 1850
+- `tools/verify-b11.php` (78 semakan; pelayan 4 pekerja + gateway palsu; jadual diubah dipulihkan); `tools/verify-b9.php` membaca semua fail mock (bukan `vendor-orders.js`)
+
+Disahkan (MariaDB 10.11, PHP 8.3, pemasangan baharu schema + seed — `verify-b11` **78 lulus, 0 gagal**; `verify-b10` 97/97; `verify-b9` 106/106;
+`verify-b8` 95/95; `verify-b7` 92/92; `verify-b6` 85/85; `verify-b5` 59/59; `verify-b4` 118/118; `verify-b3` 101/101; `verify-b2` 94/94; `verify-b1` 42/42;
+`check-ui` OK; Playwright 1366px: Ahmad → Pemulangan & refund → Refund baharu → cari TM-2610-0001 → 2 unit → amaun RM3.60 dicadang → sahkan →
+RF-TM-2610-0001-1 dalam senarai → Laporan harian/bulanan/tunai vs online/produk/untung/stok/darjah/kelas + CSV — 0 ralat konsol):
+- **Peranan:** tanpa sesi 401; juruwang 403 (list, order, create, reports); ibu bapa 401; CSRF 419; halaman juruwang dialih
+- **Pengesahan pelayan:** amaun > baki / 0, kuantiti > baki (baris berganda dicantum), item pesanan lain, gateway pada pesanan tunai, cara tidak sah,
+  sebab kosong → ditolak tanpa apa-apa disimpan
+- **Batal sebelum diambil:** `cancelled_qty`, tahanan dilepas (`release`), log status bernota, log aktiviti; refund penuh amaun sahaja → `refunded`,
+  baki unit dibatalkan, `payments.refunded`; tidak boleh diserah lagi
+- **POS:** pulang dengan restock (`refund` +qty, ref_type `refund`) & tanpa restock; tunai dari laci syif juruwang PIN → jangkaan syif ditolak, tutup
+  syif beza 0; pindahan bank tidak menyentuh laci; resit `refunded_amount`
+- **Store sudah diambil:** satu refund = 1 dibatal + 1 dipulang; tiada baki → `collected`
+- **Gateway (Stripe palsu):** refund selesai + `gateway_ref`; amaun > baki bil ditolak; gateway mati → `failed`, tiada kesan, log `refund_failed`;
+  refund pending menempah baki & unit; Idempotency-Key → wang dipulang sekali; driver lain → GatewayException
+- **Dibayar selepas batal:** boleh direfund (dari `payments`), refund penuh → `refunded` tanpa melepas tahanan dua kali
+- **Serentak:** dua refund penuh serentak → tepat satu berjaya
+- **Laporan:** julat (wajib, tamat ≥ mula, ≤ 366 hari), jenis tidak sah; harian = DB (bersih = jumlah − refund, tunai + online = bersih); bulanan = harian;
+  tunai vs online sepadan + saluran Stripe; produk unit bersih × harga & kos; untung = produk; darjah/kelas dari snapshot; stok varian sahaja
+- **VENDOR01 ↔ VENDOR02:** list/order/create/reports koperasi lain → 404; order_id V01 melalui koperasi V02 → tidak dijumpai; senarai & laporan V02
+  tiada data V01; stok koperasi 2 ≠ 3
+- **Ibu bapa A ↔ B:** A melihat status `refunded`; B tidak boleh membuka / melihat pesanan A
+
+Keputusan kecil (dicatat dalam PELAN 9 G, 10.2, 13, 18.10, 18.11, 18.14):
+- No. refund `RF-{order_no}-{n}` (bukan `RF-1001`) — unik di bawah kunci pesanan, tidak perlu mengunci baris koperasi (elak deadlock dengan checkout)
+- Boleh direfund dikira dari `payments` (bukan `orders.total`) → bayaran lewat / bil kedua boleh direfund
+- Refund gateway `pending` menempah baki & unit; gagal → kekal sebagai rekod `failed` (jejak audit)
+- Refund tunai direkod pada syif POS terbuka pengguna kaunter (`PosAuth::counterUserId`); tiada syif → tidak menyentuh laci
+- Laporan: refund ikut tarikh refund; unit bersih; kos semasa; tiada `ExportCsvJob` (CSV di pelayar)
+
+Tertangguh / peralihan:
+- E-mel "refund diproses" kepada ibu bapa (templat baharu) — kemudian
+- Refund gateway `pending` yang tersangkut (proses mati selepas gateway menerima) perlu disemak manual — tiada cron semakan lagi
+- ToyyibPay / Billplz / SenangPay / iPay88 tiada refund API dalam driver → tunai / pindahan bank manual
+- `MockFinance` masih untuk langganan, bil, kedai modul & log aktiviti (B12/B13)
 
 ---
 

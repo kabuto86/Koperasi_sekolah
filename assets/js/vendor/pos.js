@@ -951,7 +951,7 @@ function summaryRows(box, rows) {
     });
 }
 
-// Tunai pesanan store yang diterima di kaunter (skrin serah) turut masuk laci — dipapar bila ada
+// Tunai pesanan store yang diterima di kaunter (skrin serah) turut masuk laci; refund tunai syif (B11) keluar — dipapar bila ada
 function shiftRows(shift) {
     var rows = [
         [T('pos.opened_at'), formatDate(shift.opened_at, true)],
@@ -961,6 +961,9 @@ function shiftRows(shift) {
     ];
     if (shift.order_cash_count) {
         rows.push([T('pos.order_cash', { n: shift.order_cash_count }), formatRM(shift.order_cash_total)]);
+    }
+    if (shift.refund_count) {
+        rows.push([T('pos.cash_refunds', { n: shift.refund_count }), '−' + formatRM(shift.refund_total)]);
     }
     return rows.concat([
         [T('pos.discount_total'), formatRM(shift.discount_total)],
@@ -1073,6 +1076,9 @@ function renderShiftReport(container, shift) {
     receiptRow(paper, T('pos.online_sales', { n: shift.online_count }), formatRM(shift.online_sales));
     if (shift.order_cash_count) {
         receiptRow(paper, T('pos.order_cash', { n: shift.order_cash_count }), formatRM(shift.order_cash_total));
+    }
+    if (shift.refund_count) {
+        receiptRow(paper, T('pos.cash_refunds', { n: shift.refund_count }), '−' + formatRM(shift.refund_total));
     }
     receiptRow(paper, T('pos.discount_total'), formatRM(shift.discount_total));
     receiptRule(paper);
