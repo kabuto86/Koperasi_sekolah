@@ -61,7 +61,7 @@ var MockFinance = {
     ],
     sessionUserId: 10,
 
-    // cooperative_settings (pickup_methods & pickup_code_required_above disegerakkan dengan MockOrders.pickupSettings)
+    // cooperative_settings (salinan untuk POS mock sahaja — tetapan sebenar sejak B9)
     settings: {
         1: { alert_emails: ['ahmad@niagasekolah.my', 'koperasi.tmelati@gmail.com'], receipt_header: 'Koperasi SK Taman Melati',
              receipt_footer: 'Terima kasih. Barang boleh ditukar dalam tempoh 7 hari dengan resit.', receipt_show_logo: true, receipt_paper: '80',
@@ -536,69 +536,7 @@ Mock.register('vendor/promotions/delete', function (body) {
 
 // Kakitangan vendor: laluan sebenar sejak B2 (api/v1/vendor/staff/*)
 
-// ---------- Tetapan koperasi ----------
-
-function mockSettingsData(coop) {
-    var settings = MockFinance.settings[coop.id];
-    var pickup = MockOrders.pickupSettings[coop.id];
-    return Object.assign(JSON.parse(JSON.stringify(settings)), {
-        default_language: coop.default_language, pickup_methods: pickup.methods.slice(), pickup_code_required_above: pickup.code_required_above
-    });
-}
-
-Mock.register('vendor/settings/get', function (params) {
-    var coop = mockRequireCoop(params);
-    if (!coop) {
-        return mockCoopError();
-    }
-    return Mock.ok(mockSettingsData(coop));
-});
-
-Mock.register('vendor/settings/save', function (body) {
-    var coop = mockRequireCoop(body);
-    if (!coop) {
-        return mockCoopError();
-    }
-    var errors = {};
-    var emails = (body.alert_emails || []).map(function (email) { return String(email).trim().toLowerCase(); });
-    if (emails.length === 0) {
-        errors.alert_emails = T('error.required');
-    } else if (emails.length > 5) {
-        errors.alert_emails = T('settings_v.alert_emails_max', { max: 5 });
-    } else if (emails.some(function (email) { return !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email); })) {
-        errors.alert_emails = T('settings_v.alert_emails_invalid');
-    }
-    var methods = (body.pickup_methods || []).filter(function (code) { return ['A', 'B', 'C', 'D', 'E'].indexOf(code) !== -1; });
-    if (!methods.some(function (code) { return code !== 'E'; })) {
-        errors.pickup_methods = T('settings_v.pickup_required');
-    }
-    if (!(body.cash_order_expiry_days >= 1 && body.cash_order_expiry_days <= 14)) {
-        errors.cash_order_expiry_days = T('error.range', { min: 1, max: 14 });
-    }
-    if (body.tax_rate === null || !(body.tax_rate >= 0 && body.tax_rate <= 10)) {
-        errors.tax_rate = T('error.range', { min: 0, max: 10 });
-    }
-    if (!(body.low_stock_default >= 0)) {
-        errors.low_stock_default = T('error.invalid');
-    }
-    if (['ms', 'en', 'zh', 'ta'].indexOf(body.default_language) === -1) {
-        errors.default_language = T('error.invalid');
-    }
-    if (Mock.hasErrors(errors)) {
-        return Mock.fail(T('error.check_form'), errors);
-    }
-    var settings = MockFinance.settings[coop.id];
-    settings.alert_emails = emails.filter(function (email, index) { return emails.indexOf(email) === index; });
-    ['receipt_header', 'receipt_footer', 'receipt_paper', 'tax_rate', 'cash_order_expiry_days', 'low_stock_default'].forEach(function (field) {
-        settings[field] = body[field];
-    });
-    settings.receipt_show_logo = Boolean(body.receipt_show_logo);
-    coop.default_language = body.default_language;
-    MockOrders.pickupSettings[coop.id] = { methods: ['A', 'B', 'C', 'D', 'E'].filter(function (code) { return methods.indexOf(code) !== -1; }),
-        code_required_above: body.pickup_code_required_above || 0 };
-    mockActivity('settings_save', coop.id, 'cooperative', coop.id, '');
-    return Mock.ok(mockSettingsData(coop));
-});
+// Tetapan koperasi: laluan sebenar sejak B9 (api/v1/vendor/settings/*). MockFinance.settings kekal untuk resit/cukai POS mock (B10)
 
 // ---------- Langganan & bil ----------
 

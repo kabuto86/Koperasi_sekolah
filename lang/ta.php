@@ -1891,4 +1891,18 @@ return [
     'payment.paid_after_close'               => 'ஆர்டர் மூடப்பட்ட பின் ஆன்லைன் கட்டணம் பெறப்பட்டது (குறிப்பு {ref}) — பெற்றோருக்குப் பணத்தைத் திருப்பித் தரவும்.',
     'payment.test_failed'                    => '{name} இணைப்பு தோல்வி. API விசைகளையும் முறையையும் (சோதனை / உண்மை) சரிபார்க்கவும்.',
     'payment.test_unsupported'               => '{name} இணைப்புச் சோதனையை வழங்கவில்லை. சோதனை முறையில் சிறிய கட்டணம் செய்து சோதிக்கவும்.',
+    // B9 — pesanan & serah barang
+    'order.actor_system'            => 'அமைப்பு',
+    'order.unlock_code'             => 'குறியீட்டைத் திற',
+    'order.code_unlocked_toast'     => 'குறியீடு திறக்கப்பட்டது. ஆர்டரை மீண்டும் ஒப்படைக்கலாம்.',
+    'order.code_unlocked_log'       => '4 இலக்கக் குறியீட்டை மேலாளர் திறந்தார்',
+    'order.code_not_locked'         => 'இந்த ஆர்டரின் குறியீடு பூட்டப்படவில்லை.',
+    'activity.action.pickup_unlock' => 'பெறும் குறியீட்டைத் திறந்தார்',
+    'email_template.order_paid'     => 'கட்டணம் பெறப்பட்டது',
+    'email.order_ready.subject'     => 'ஆர்டர் {order_no} பெறத் தயார்',
+    'email.order_ready.body'        => '{child_name} ({child_class}) பொருட்கள் {school_name} கூட்டுறவில் தயார்.' . "\n" . 'இயங்கும் நேரம்: {opening_hours}',
+    'email.order_collected.subject' => 'ஆர்டர் {order_no} பெறப்பட்டது',
+    'email.order_collected.body'    => '{child_name} பொருட்களை {collected_by} {collected_at} அன்று பெற்றார்.',
+    'email.order_paid.subject'      => 'கட்டணம் பெறப்பட்டது — ஆர்டர் {order_no}',
+    'email.order_paid.body'         => 'நன்றி {customer_name}. ஆர்டர் {order_no} க்கான {total} கட்டணம் பெறப்பட்டது (குறிப்பு {reference}).',
 ];

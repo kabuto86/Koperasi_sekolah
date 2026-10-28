@@ -1891,4 +1891,18 @@ return [
     'payment.paid_after_close'               => 'Online payment received after the order was closed (reference {ref}) — please refund the parent.',
     'payment.test_failed'                    => '{name} connection failed. Check the API keys and mode (test / live).',
     'payment.test_unsupported'               => '{name} does not offer a connection test. Make a small payment in test mode to try it.',
+    // B9 — pesanan & serah barang
+    'order.actor_system'            => 'System',
+    'order.unlock_code'             => 'Unlock code',
+    'order.code_unlocked_toast'     => 'Code unlocked. The order can be handed over again.',
+    'order.code_unlocked_log'       => '4-digit code unlocked by a manager',
+    'order.code_not_locked'         => 'This order\'s code is not locked.',
+    'activity.action.pickup_unlock' => 'Unlocked a pickup code',
+    'email_template.order_paid'     => 'Payment received',
+    'email.order_ready.subject'     => 'Order {order_no} is ready for collection',
+    'email.order_ready.body'        => 'Items for {child_name} ({child_class}) are ready at the {school_name} cooperative.' . "\n" . 'Opening hours: {opening_hours}',
+    'email.order_collected.subject' => 'Order {order_no} has been collected',
+    'email.order_collected.body'    => 'Items for {child_name} were collected by {collected_by} at {collected_at}.',
+    'email.order_paid.subject'      => 'Payment received — order {order_no}',
+    'email.order_paid.body'         => 'Thank you {customer_name}. Your payment of {total} for order {order_no} has been received (reference {reference}).',
 ];

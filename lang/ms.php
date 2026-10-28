@@ -1906,4 +1906,18 @@ return [
     'payment.paid_after_close'               => 'Bayaran online diterima selepas pesanan ditutup (rujukan {ref}) — sila buat refund kepada ibu bapa.',
     'payment.test_failed'                    => 'Sambungan {name} gagal. Semak kunci API dan mod (ujian / sebenar).',
     'payment.test_unsupported'               => '{name} tidak menyediakan ujian sambungan. Buat satu bayaran kecil dalam mod ujian untuk menguji.',
+    // B9 — pesanan & serah barang
+    'order.actor_system'            => 'Sistem',
+    'order.unlock_code'             => 'Buka kunci kod',
+    'order.code_unlocked_toast'     => 'Kunci kod dibuka. Pesanan boleh diserah semula.',
+    'order.code_unlocked_log'       => 'Kunci kod 4 digit dibuka oleh pengurus',
+    'order.code_not_locked'         => 'Kod pesanan ini tidak dikunci.',
+    'activity.action.pickup_unlock' => 'Buka kunci kod ambil',
+    'email_template.order_paid'     => 'Bayaran diterima',
+    'email.order_ready.subject'     => 'Pesanan {order_no} sedia diambil',
+    'email.order_ready.body'        => 'Barang untuk {child_name} ({child_class}) sedia diambil di koperasi {school_name}.' . "\n" . 'Waktu operasi: {opening_hours}',
+    'email.order_collected.subject' => 'Pesanan {order_no} telah diambil',
+    'email.order_collected.body'    => 'Barang untuk {child_name} telah diambil oleh {collected_by} pada {collected_at}.',
+    'email.order_paid.subject'      => 'Bayaran diterima — pesanan {order_no}',
+    'email.order_paid.body'         => 'Terima kasih {customer_name}. Bayaran {total} untuk pesanan {order_no} telah diterima (rujukan {reference}).',
 ];

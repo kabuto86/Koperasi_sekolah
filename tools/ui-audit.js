@@ -130,6 +130,8 @@ async function auditPage(page, item, lang, width, errors) {
                 if (item.name === 'store_school_order-detail') item.url += '&id=' + (orderId || 1);
                 if (item.name === 'store_school_order-success') item.url += '&order=' + (orderId || 1);
                 if (item.name === 'store_school_product') item.url += '&id=1';
+                // B9: butiran pesanan vendor = pesanan sebenar ibu bapa A (SK Taman Melati, VENDOR01)
+                if (item.name === 'vendor_order' && orderId) item.url = item.url.replace('id=1', 'id=' + orderId);
                 const r = await auditPage(page, item, lang, width, errors);
                 report.push(Object.assign({ page: item.name, lang, width }, r));
             }

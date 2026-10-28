@@ -134,6 +134,10 @@ function renderStatusActions(order) {
             changeStatus(status, '');
         }));
     });
+    // Kod 4 digit dikunci selepas 5 cubaan salah → pentadbir / pengurus membuka semula
+    if (order.pickup_locked) {
+        box.appendChild(createButton(T('order.unlock_code'), 'btn-outline-warning', 'bi-unlock', unlockCode));
+    }
     if (CANCELLABLE.indexOf(order.status) !== -1) {
         box.appendChild(createButton(T('order.cancel'), 'btn-outline-danger', null, function () {
             resetForm(document.getElementById('cancel-form'));
@@ -162,6 +166,18 @@ function changeStatus(status, note) {
         orderPage.order = res.data;
         renderOrder(res.data);
         return res;
+    });
+}
+
+function unlockCode() {
+    Api.post('vendor/orders/unlock-code', withCoop({ id: orderId })).then(function (res) {
+        if (!res.ok) {
+            showToast(res.error, 'danger');
+            return;
+        }
+        showToast(T('order.code_unlocked_toast'), 'success');
+        orderPage.order = res.data;
+        renderOrder(res.data);
     });
 }
 

@@ -42,6 +42,84 @@ class OrderEmails
         (new QueueEmailJob($vendorId, $customer['email'], 'order_receipt', $language, $receiptVars, $html))->run();
     }
 
+    // B9: "Sedia diambil" — satu e-mel setiap pesanan (nama semua anak), dengan waktu operasi koperasi
+    public static function queueReady(array $cooperative, array $order)
+    {
+        $customer = self::customer($order);
+        if ($customer === null) {
+            return;
+        }
+        $language = $customer['language'];
+        $groups = CustomerOrders::groups(CustomerOrders::items($order));
+        $vars = [
+            'order_no'      => $order['order_no'],
+            'customer_name' => (string) $order['customer_name'],
+            'child_name'    => implode(', ', array_column($groups, 'child_name')),
+            'child_class'   => implode(', ', array_map(function ($group) use ($language) {
+                return trim(Lang::getFor($language, 'grade.' . $group['grade_level_code']) . ' ' . $group['class_name']);
+            }, $groups)),
+            'school_name'   => $cooperative['school_name'],
+            'opening_hours' => self::openingHours($cooperative, $language),
+        ];
+        (new QueueEmailJob((int) $order['vendor_id'], $customer['email'], 'order_ready', $language, $vars))->run();
+    }
+
+    // B9: "Telah diambil oleh Aisyah (4 Bestari) pada 10:15" — setiap serahan (termasuk separa)
+    public static function queueCollected(array $order, $pickedByName, array $childNames)
+    {
+        $customer = self::customer($order);
+        if ($customer === null) {
+            return;
+        }
+        $vars = [
+            'order_no'      => $order['order_no'],
+            'customer_name' => (string) $order['customer_name'],
+            'child_name'    => implode(', ', $childNames),
+            'collected_by'  => $pickedByName,
+            'collected_at'  => date('d/m/Y H:i'),
+        ];
+        (new QueueEmailJob((int) $order['vendor_id'], $customer['email'], 'order_collected', $customer['language'], $vars))->run();
+    }
+
+    // B9: "Bayaran diterima" selepas PaymentSettlement menanda pesanan online `paid`
+    public static function queuePaid(array $order, $gatewayRef)
+    {
+        $customer = self::customer($order);
+        if ($customer === null) {
+            return;
+        }
+        $vars = [
+            'order_no'      => $order['order_no'],
+            'customer_name' => (string) $order['customer_name'],
+            'total'         => Money::format($order['total']),
+            'reference'     => (string) $gatewayRef,
+        ];
+        (new QueueEmailJob((int) $order['vendor_id'], $customer['email'], 'order_paid', $customer['language'], $vars))->run();
+    }
+
+    // Penerima = e-mel snapshot pesanan + bahasa akaun ibu bapa. POS walk-in / tiada e-mel → null
+    private static function customer(array $order)
+    {
+        if ($order['customer_id'] === null || (string) $order['customer_email'] === '') {
+            return null;
+        }
+        $language = Database::fetchValue("SELECT language FROM customers WHERE id = ?", [(int) $order['customer_id']]);
+        return ['email' => $order['customer_email'], 'language' => (string) ($language ?: Config::get('default_language'))];
+    }
+
+    // "Isnin 07:30–13:00, Selasa 07:30–13:00, …" (hari buka sahaja)
+    private static function openingHours(array $cooperative, $language)
+    {
+        $hours = json_decode((string) CooperativeSettings::get($cooperative['vendor_id'], $cooperative['id'], 'opening_hours', ''), true);
+        $parts = [];
+        foreach (GetCooperativeJob::normaliseHours(is_array($hours) ? $hours : []) as $day => $row) {
+            if ($row['open']) {
+                $parts[] = Lang::getFor($language, 'day.' . $day) . ' ' . $row['from'] . '–' . $row['to'];
+            }
+        }
+        return implode(', ', $parts);
+    }
+
     // Senarai e-mel amaran koperasi (JSON dalam cooperative_settings), sah & unik, maksimum 5
     public static function alertEmails(array $cooperative)
     {

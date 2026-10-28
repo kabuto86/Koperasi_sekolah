@@ -49,7 +49,7 @@ Setiap prompt di bawah bermula dengan "Ikut peraturan umum". Maksudnya:
    Sejak B1: skema sebenar = `database/schema.sql` (75 jadual, PELAN 9 J); lajur baharu → fail `database/migrations/NNN-nama.sql`
    **dan** kemas kini `schema.sql` + PELAN 9. Konvensyen job & core dalam PELAN 10.2 (constructor menerima id dari sesi + input, `run()`,
    `Database::fetchOne/fetchAll/execute/insert`, `Response::ok/fail/notFound`). Data demo & akaun: kepala `database/seed.sql`.
-   Semakan asas sebelum commit: `php tools/verify-b1.php` + `verify-b2.php` + `verify-b3.php` + `verify-b4.php` + `verify-b5.php` + `verify-b6.php` + `verify-b7.php` + `verify-b8.php` (mesti 0 gagal) + `php tools/check-ui.php`; tambah skrip semakan
+   Semakan asas sebelum commit: `php tools/verify-b1.php` + `verify-b2.php` + `verify-b3.php` + `verify-b4.php` + `verify-b5.php` + `verify-b6.php` + `verify-b7.php` + `verify-b8.php` + `verify-b9.php` (mesti 0 gagal) + `php tools/check-ui.php`; tambah skrip semakan
    session sendiri `tools/verify-bN.php` dengan ujian kebocoran VENDOR01↔VENDOR02 dan ibu bapa A↔B (contoh HTTP sebenar: kelas `Browser`
    dalam `tools/test-helpers.php` sejak B3 — pelayan `php -S` sendiri, cookie, CSRF; `require __DIR__ . '/test-helpers.php'`).
    Sejak B4: skop koperasi melalui `VendorAuth::requireCooperative()`; stok HANYA melalui `StockLedger::move()` dalam transaksi DB;
@@ -68,6 +68,10 @@ Setiap prompt di bawah bermula dengan "Ikut peraturan umum". Maksudnya:
    `StartOnlinePaymentJob` (di luar transaksi DB); status `paid` HANYA oleh `PaymentSettlement::recheck/apply` (tanya API gateway + semak amaun,
    idempotent) — jangan sekali-kali tanda dibayar dari redirect / input. Ujian gateway: `tools/fake-gateway.php` + env `KOPERASI_GATEWAY_TEST_URL`
    (sandbox sahaja) — PELAN 10.2 "Konvensyen B8", 13 "Pelaksanaan B8".
+   Sejak B9: pesanan panel vendor HANYA melalui `VendorOrders` (`jobs/Order/` — vendor sesi + koperasi disahkan; `STATUS_FLOW`); serah barang HANYA
+   `HandoverOrderJob` (stok `StockLedger::collect` = tolak qty_on_hand DAN qty_reserved); bayaran tunai pesanan = baris `payments` cash
+   (`ReceiveCashPaymentJob`); e-mel ibu bapa `OrderEmails::queueReady/queueCollected/queuePaid`; tetapan koperasi `Get/SaveCooperativeSettingsJob`
+   (juruwang baca tanpa `alert_emails`) — PELAN 10.2 "Konvensyen B9", 18.9 "B9 (sebenar)", 18.10.
    Sejak B2: endpoint ikut konvensyen PELAN 10.2 (`Request::requireMethod` → `XAuth::requireRole/requireLogin` → `Csrf::verifyRequest` →
    job yang melempar `ValidationException`). Bila modul siap: **tambah awalan laluan ke `Api.livePrefixes`** (`assets/js/api.js`), buang
    `Mock.register` laluan itu, dan tanda `— (Bn)` dalam PELAN 18.14. Halaman panel sudah dilindungi sesi (`requirePage`); akaun demo:
@@ -427,7 +431,7 @@ Laluan vendor/gateways/* sebenar di sini.
 > migrasi `003-webhook-result.sql`; `tools/fake-gateway.php` + `verify-b8.php`. Tertangguh: refund melalui API gateway (B11), QR online POS (B10),
 > e-mel "bayaran diterima" (B9), gateway owner untuk invois (B12 — `ListPaymentGatewaysJob::ownerSecrets` + driver yang sama).
 
-## B9 — Pengurusan pesanan & serah barang
+## B9 — Pengurusan pesanan & serah barang ✅ (28 Okt 2026 — lihat PROSES.md)
 
 ```
 Ikut peraturan umum. Session: B9. Prasyarat: B8 ✅.
@@ -445,6 +449,12 @@ Sejak B8: pesanan online `paid` datang dari PaymentSettlement (webhook); rekod `
 menulis baris `payments` (method cash, received_by juruwang) supaya vendor/payments/list lengkap. Pertimbang e-mel "bayaran diterima" (order_paid)
 selepas PaymentSettlement `paid`. Log status `paid` oleh `system` + nota `payment.paid_after_close` = wang diterima selepas pesanan ditutup (perlu refund).
 ```
+> Hasil B9: 16 laluan sebenar (`vendor/orders/*` 9 termasuk `unlock-code` baharu, `vendor/handover/*` 3, `vendor/customers/*` 2, `vendor/settings/*` 2);
+> `jobs/Order/` pembantu `VendorOrders` + 12 job (ListVendorOrdersJob, GetVendorOrderJob, UpdateOrderStatusJob, BulkOrderStatusJob, PickingListJob,
+> PrintLabelsJob, ListOrderSlotOptionsJob, FindOrdersForPickupJob, ReceiveCashPaymentJob, VerifyPickupCodeJob, HandoverOrderJob, UnlockPickupCodeJob),
+> `jobs/Customer/` ListVendorCustomersJob & SaveCustomerNoteJob, `jobs/Cooperative/` Get/SaveCooperativeSettingsJob; `StockLedger::collect`;
+> `OrderEmails::queueReady/queueCollected/queuePaid` (+ templat `order_paid`, migrasi `004-order-handover-emails.sql`); `tools/verify-b9.php`.
+> Tertangguh: resit PDF (tidak perlu — slip/label dicetak dari pelayar), refund dari panel (B11, `vendor/refunds/*` masih mock), POS sebenar (B10).
 
 ## B10 — POS kaunter
 
@@ -462,6 +472,10 @@ vendor/promotions/* sebenar di sini (seed sudah ada 3 promosi).
 Sejak B8: QR online POS = bil gateway koperasi (CooperativeGateways::active + driver->createBill, baris payments pending) dan status melalui
 PaymentSettlement (webhook / vendor/pos/payment-status menyemak semula ke gateway) — jangan tulis logik bayaran kedua. POS mock `online_available`
 masih membaca MockFinance.gateways sehingga session ini.
+Sejak B9: vendor/settings/get sebenar (resit, cukai, juruwang dibenarkan) — POS sudah membacanya; ReceivePosCashForOrderJob = guna semula
+ReceiveCashPaymentJob (baris payments cash + received_by) dan serah melalui HandoverOrderJob — jangan tulis logik kedua. Jualan POS menolak stok
+dengan StockLedger::move('pos_sale'); butiran pesanan POS sudah dipapar oleh vendor/orders/get (VendorOrders::detail). Buang baki MockOrders
+(mock/vendor-orders.js) yang hanya digunakan POS bila POS sebenar; MockFinance.settings boleh dibuang.
 ```
 
 ## B11 — Laporan, refund, PO & stock take
@@ -474,6 +488,10 @@ RefundOrderJob (pulang stok melalui StockLedger, gateway refund jika disokong �
 supportsRefund(), sejak B8 hanya Stripe — audit log), promosi
 (SavePromotionJob, ApplyPromotionJob dalam GetCartJob & PosCalculateCartJob).
 Sahkan: semua laporan menapis vendor_id + cooperative_id yang disahkan.
+Sejak B9: pesanan, item (collected_qty/cancelled_qty/returned_qty), order_pickups & payments (online + tunai) sebenar — refund guna
+VendorOrders::require (skop vendor + koperasi) dan CustomerOrders::releaseHolds / StockLedger untuk pulang stok; butang refund di
+vendor/order.php sudah memaut ke vendor/refunds.php?order_id= (masih mock sehingga session ini). Pesanan `paid_late` (nota payment.paid_after_close)
+perlu refund.
 ```
 
 ## B12 — Langganan & invois vendor
