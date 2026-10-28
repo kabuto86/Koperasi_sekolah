@@ -306,6 +306,8 @@ document.getElementById('cash-form').addEventListener('submit', function (event)
             return;
         }
         showToast(T('handover.cash_received', { change: formatRM(res.data.change) }), 'success');
+        // Cara carian (A/B/C) dikekalkan untuk direkod semasa serah
+        res.data.order.found_by = handoverState.order.found_by;
         handoverState.order = res.data.order;
         handoverState.afterCash = true;
         hideModal('cash-modal');
@@ -349,6 +351,7 @@ document.getElementById('handover-form').addEventListener('submit', function (ev
     }, function (payload) {
         payload.id = handoverState.order.id;
         payload.items = items;
+        payload.method = handoverState.order.found_by || 'A';
         return withCoop(payload);
     });
 });

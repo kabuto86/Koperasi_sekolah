@@ -572,38 +572,6 @@ function addonSlotsFor(coop, grades) {
     });
 }
 
-// Pesanan dibatal → lepaskan tempahan slot
-function addonReleaseSlot(order) {
-    if (!order.pickup_slot_id) {
-        return;
-    }
-    var slot = Mock.findById(MockAddons.slots, order.pickup_slot_id);
-    if (slot && slot.vendor_id === order.vendor_id) {
-        slot.booked = Math.max(0, slot.booked - 1);
-    }
-}
-
-// Bentuk slot dalam butiran pesanan (salinan tarikh/masa disimpan dalam pesanan)
-function addonOrderSlot(order) {
-    return order.pickup_slot ? Object.assign({}, order.pickup_slot) : null;
-}
-
-// Pilihan slot ambil untuk tapisan pesanan / picking list / label (kosong jika modul tidak aktif)
-Mock.register('vendor/orders/slot-options', function (params) {
-    var coop = mockRequireCoop(params);
-    if (!coop) {
-        return mockCoopError();
-    }
-    if ((MockVendor.activeModules[coop.id] || []).indexOf('school_opening') === -1) {
-        return Mock.ok([]);
-    }
-    var rows = [];
-    mockCoopRows(MockAddons.seasons, coop.id).forEach(function (season) {
-        rows = rows.concat(addonSeasonSlots(season).map(addonSlotRow));
-    });
-    return Mock.ok(rows);
-});
-
 Mock.register('vendor/school-opening/seasons', function (params) {
     var ctx = addonRequire(params, 'school_opening');
     if (ctx.error) {

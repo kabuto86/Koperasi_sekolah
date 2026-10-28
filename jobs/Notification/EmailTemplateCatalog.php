@@ -8,6 +8,7 @@ class EmailTemplateCatalog
         'order_receipt'    => ['{order_no}', '{customer_name}', '{school_name}', '{total}', '{items_table}', '{pickup_code}', '{pickup_qr}', '{order_url}'],
         'order_ready'      => ['{order_no}', '{customer_name}', '{child_name}', '{child_class}', '{school_name}', '{opening_hours}'],
         'order_collected'  => ['{order_no}', '{customer_name}', '{child_name}', '{collected_by}', '{collected_at}'],
+        'order_paid'       => ['{order_no}', '{customer_name}', '{total}', '{reference}'],
         'invoice_issued'   => ['{invoice_no}', '{vendor_name}', '{total}', '{due_date}', '{pay_url}'],
         'password_reset'   => ['{name}', '{reset_url}', '{expires_minutes}'],
     ];

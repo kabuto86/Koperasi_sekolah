@@ -69,6 +69,8 @@ class PaymentSettlement
                 [(int) $order['id'], $vendorId]
             );
             CustomerOrders::logStatus($order, 'paid', 'system', null);
+            // B9: e-mel "bayaran diterima" kepada ibu bapa (sekali sahaja — baris payments sudah dikunci)
+            OrderEmails::queuePaid($order, $payment['gateway_ref']);
             return 'paid';
         }
         // Wang diterima selepas pesanan dibatal / luput, atau bil kedua untuk pesanan yang sudah dibayar → vendor perlu refund (B11)

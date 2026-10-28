@@ -50,6 +50,32 @@ class StockLedger
         return self::changeReserved($vendorId, $cooperativeId, $productId, $variantId, 'release', -(int) $qty, $refId, $note);
     }
 
+    // Barang pesanan diserah (B9): qty_on_hand −= qty DAN qty_reserved −= qty (tahanan bertukar menjadi jualan).
+    // Pergerakan 'collect' qty_change −qty + rujukan pesanan + kakitangan yang menyerah. Pulangkan baki baharu
+    public static function collect($vendorId, $cooperativeId, $productId, $variantId, $qty, $orderId, $userId, $note = '')
+    {
+        if (!Database::connection()->inTransaction()) {
+            throw new RuntimeException('StockLedger::collect mesti dalam transaksi DB.');
+        }
+        $level = self::lock($vendorId, $cooperativeId, $productId, $variantId);
+        $balance = (int) $level['qty_on_hand'] - (int) $qty;
+        $reserved = max(0, (int) $level['qty_reserved'] - (int) $qty);
+        Database::execute(
+            "UPDATE stock_levels SET qty_on_hand = ?, qty_reserved = ? WHERE vendor_id = ? AND cooperative_id = ? AND product_id = ? AND variant_id = ?",
+            [$balance, $reserved, (int) $vendorId, (int) $cooperativeId, (int) $productId, (int) $variantId]
+        );
+        Database::insert(
+            "INSERT INTO stock_movements (vendor_id, cooperative_id, product_id, variant_id, type, qty_change, balance_after,
+                                          ref_type, ref_id, vendor_user_id, note)
+             VALUES (?, ?, ?, ?, 'collect', ?, ?, 'order', ?, ?, ?)",
+            [
+                (int) $vendorId, (int) $cooperativeId, (int) $productId, (int) $variantId, -(int) $qty, $balance,
+                (int) $orderId, $userId ?: null, mb_substr((string) $note, 0, 255, 'UTF-8') ?: null,
+            ]
+        );
+        return $balance;
+    }
+
     private static function changeReserved($vendorId, $cooperativeId, $productId, $variantId, $type, $change, $refId, $note)
     {
         if (!Database::connection()->inTransaction()) {

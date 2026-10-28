@@ -4,9 +4,9 @@
 > Kemas kini fail ini di HUJUNG setiap session, sebelum commit & push.
 > Reka bentuk: [PELAN.md](PELAN.md) · Prompt kerja: [PROMPT-SESSION.md](PROMPT-SESSION.md)
 
-**Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · **Peringkat 2 berjalan** — skema & core (B1), auth sebenar (B2), panel owner (B3), katalog & inventori vendor (B4), kit sekolah (B5), store ibu bapa: anak, katalog, kit, troli (B6), checkout tunai, pesanan & queue e-mel (B7), payment gateway + webhook (B8)
-**Session terakhir siap:** B8 — Payment gateway + webhook
-**Session seterusnya:** **B9 — Pengurusan pesanan & serah barang**
+**Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · **Peringkat 2 berjalan** — skema & core (B1), auth sebenar (B2), panel owner (B3), katalog & inventori vendor (B4), kit sekolah (B5), store ibu bapa: anak, katalog, kit, troli (B6), checkout tunai, pesanan & queue e-mel (B7), payment gateway + webhook (B8), pesanan vendor & serah barang (B9)
+**Session terakhir siap:** B9 — Pengurusan pesanan & serah barang
+**Session seterusnya:** **B10 — POS kaunter**
 
 Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 
@@ -44,7 +44,7 @@ Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 | B6 | Store ibu bapa: daftar, anak, katalog, kit, troli | ✅ | 26 Okt 2026 | `47a4acb` | 19 endpoint store, 19 job + 4 pembantu (`StoreSchool`, `StorePricing`, `Children`, `Carts`), template ikut koperasi, URL `/{slug}/`, `tools/verify-b6.php` 85/85 lulus |
 | B7 | Checkout tunai, pesanan, queue e-mel | ✅ | 27 Okt 2026 | `2f15ccc` | 6 endpoint store, 7 job + 4 pembantu `jobs/Order/` + `Promotions` + `SendQueuedEmailsJob`, `core/Mailer` (SMTP vanila) · `Money` · `QrCode`, 2 cron, `mock/store.js` dibuang, `tools/verify-b7.php` 92/92 lulus |
 | B8 | Payment gateway + webhook | ✅ | 28 Okt 2026 | `97e3b42` | 5 driver `payments/`, 13 job `jobs/Payment/`, `vendor/payments/*` sebenar, 5 webhook, semakan semula + amaun + idempotent, cron luput online, `tools/verify-b8.php` 95/95 lulus |
-| B9 | Pengurusan pesanan & serah barang | ⬜ | | | |
+| B9 | Pengurusan pesanan & serah barang | ✅ | 28 Okt 2026 | (lihat log git) | 16 endpoint vendor (pesanan, serah, ibu bapa, tetapan), pembantu `VendorOrders` + 16 job, `StockLedger::collect`, e-mel sedia/diambil/dibayar, kod 4 digit dikunci + buka oleh pengurus, `tools/verify-b9.php` 106/106 lulus |
 | B10 | POS kaunter | ⬜ | | | |
 | B11 | Laporan, refund, PO, stock take | ⬜ | | | |
 | B12 | Langganan & invois vendor + cron | ⬜ | | | |
@@ -509,8 +509,8 @@ Dokumen:
 | Luput automatik pesanan tunai/online (cron) | B7 |
 | Kaitan promosi dengan pesanan (`orders.promotion_id`, `used_count`) | B7/B10 |
 | Gateway sebenar (redirect + webhook), QR POS sebenar | B8 |
-| Buka kunci pesanan oleh pengurus (selepas 5 cubaan kod) | B9 |
-| Muat turun resit / slip PDF (sekarang cetak sahaja) | B9 |
+| ~~Buka kunci pesanan oleh pengurus (selepas 5 cubaan kod)~~ (`vendor/orders/unlock-code`) | ✅ B9 |
+| Muat turun resit / slip PDF — B9 memutuskan cetak terus dari pelayar (tiada PDF pelayan) | B9 (ditolak) |
 | PIN Argon2id, buka kunci PIN oleh pentadbir | B10 |
 | Refund tunai POS ditolak dari jangkaan tunai laci; refund automatik melalui API gateway | B10/B11/B8 |
 | Bayaran invois vendor melalui gateway pemilik + webhook | B12 |
@@ -960,7 +960,64 @@ Tertangguh / peralihan:
 - Refund melalui API gateway (Stripe `supportsRefund`) → B11; QR online POS & `vendor/pos/payment-status` → B10; e-mel "bayaran diterima" → B9
 - Rekod bayaran tunai (`payments` method cash) ditulis semasa serah barang / POS → B9/B10
 - Gateway owner untuk invois langganan (driver yang sama) → B12
-- Panel vendor pesanan masih mock (pautan dari rekod bayaran ke `vendor/order.php`) → B9
+- Panel vendor pesanan masih mock (pautan dari rekod bayaran ke `vendor/order.php`) → B9 ✅
+
+### B9 — Pengurusan pesanan & serah barang (28 Okt 2026)
+
+Dibuat:
+- **Pembantu:** `jobs/Order/VendorOrders` (find/require ikut `vendor_id` sesi + `cooperative_id` disahkan, `filters` senarai/picking/label,
+  `summary` = OrderSummary, `detail` = OrderDetail dengan nama pelaku & rekod serahan, `STATUS_FLOW`, `pickupSettings`, `remaining`, `gradeOrder`)
+- **Job (16):** `jobs/Order/` ListVendorOrdersJob, GetVendorOrderJob, UpdateOrderStatusJob, BulkOrderStatusJob, PickingListJob, PrintLabelsJob,
+  ListOrderSlotOptionsJob, FindOrdersForPickupJob (cara A/B/C ikut tetapan + `found_by`), ReceiveCashPaymentJob, VerifyPickupCodeJob,
+  HandoverOrderJob, UnlockPickupCodeJob · `jobs/Customer/` ListVendorCustomersJob, SaveCustomerNoteJob · `jobs/Cooperative/`
+  GetCooperativeSettingsJob, SaveCooperativeSettingsJob
+- **API (16 fail, tiada SQL):** `vendor/orders/{list,get,set-status,bulk-status,picking-list,labels,class-options,slot-options,unlock-code}`,
+  `vendor/handover/{search,receive-cash,collect}`, `vendor/customers/{list,save-note}`, `vendor/settings/{get,save}`; `vendor/grades/list`
+  kini dibuka kepada juruwang (tapisan skrin serah)
+- **Ubah:** `StockLedger::collect` (tolak `qty_on_hand` + `qty_reserved`, pergerakan `collect`), `OrderEmails::queueReady/queueCollected/queuePaid`,
+  `PaymentSettlement` (e-mel `order_paid` bila `paid`), `EmailTemplateCatalog` (+`order_paid`)
+- **JS:** `Api.livePrefixes` + `vendor/orders/`, `vendor/handover/`, `vendor/customers/`, `vendor/settings/`; `Mock.register` laluan itu + pembantu
+  yang tinggal tidak digunakan dibuang dari `mock/vendor-orders.js`, `vendor-finance.js`, `vendor-addons.js` (`MockOrders` & `MockFinance.settings`
+  kekal untuk POS/refund/laporan mock); `handover.js` menghantar `method` (= `found_by`); `order.js` butang "Buka kunci kod"; `asset_version` → 10
+- **DB:** migrasi `004-order-handover-emails.sql` (templat `order_collected` en/zh/ta + nama anak, `order_paid` 4 bahasa) + `seed.sql`; tiada
+  perubahan jadual
+- 13 kunci bahasa baharu × 4 (`order.actor_system|unlock_code|code_unlocked_toast|code_unlocked_log|code_not_locked`,
+  `activity.action.pickup_unlock`, `email_template.order_paid`, `email.order_ready|order_collected|order_paid.subject|body`) — jumlah 1837
+- `tools/verify-b9.php` (106 semakan; pelayan 4 pekerja; jadual diubah dipulihkan); `verify-b3.php` dikemas kini (7 kunci templat e-mel);
+  `ui-audit.js`: `vendor/order.php` membuka pesanan sebenar ibu bapa A
+
+Disahkan (MariaDB 10.11, PHP 8.3, pemasangan baharu schema + seed + migrasi 004 — `verify-b9` **106 lulus, 0 gagal**; `verify-b8` 95/95;
+`verify-b7` 92/92; `verify-b6` 85/85; `verify-b5` 59/59; `verify-b4` 118/118; `verify-b3` 101/101; `verify-b2` 94/94; `verify-b1` 42/42; `check-ui` OK;
+`ui-audit` lang=ms halaman vendor pesanan/butiran/picking/label/ibu bapa/tetapan/serah/POS/papan pemuka/refund/bayaran/laporan × 2 lebar: 0 isu;
+Playwright 1366px: pentadbir → senarai pesanan sebenar → butiran → "Sedang disediakan" → "Sedia diambil" → tetapan disimpan; juruwang → skrin serah
+→ taip no. pendek + Enter → modal tunai → Enter → modal serah → Sahkan → "Semua barang telah diserahkan · Ibu bapa telah dimaklumkan" — 0 ralat konsol):
+- **Juruwang koperasi lain tidak boleh serah:** juruwang VENDOR02 (Kavitha) cari / terima tunai / serah pesanan SK Taman Melati → 404 (melalui
+  koperasi 1 dan koperasi 3), tiada perubahan; pengurus V02 (koperasi 2 sahaja) → pesanan koperasi 3 → 404; juruwang V01 → koperasi 3 → 404
+- **Kod salah 5 kali → dikunci:** tanpa kod / salah → "Baki cubaan 4…"; ke-5 → dikunci; kod betul selepas dikunci tetap ditolak; juruwang buka
+  kunci → 403; pentadbir buka → cubaan 0 + log; kod betul → collected, cara E
+- **VENDOR01 ↔ VENDOR02:** list/get/set-status/bulk/picking/label/settings/customers koperasi lain → 404 atau tiada data; pukal dengan id V02 →
+  `skipped`; label pesanan V01 melalui koperasi V02 → kosong; QR V01 di carian V02 → tiada
+- **Ibu bapa A ↔ B:** B tidak nampak rekod serahan pesanan A (404); senarai ibu bapa V01 hanya Siti (anak SK Taman Melati sahaja, tiada Faris di SJKC);
+  nota V01 & V02 untuk Siti berasingan; nota untuk ibu bapa tanpa anak di koperasi → 404
+- Stok: serah 3/4 → `qty_on_hand −3` DAN `qty_reserved −3`, pergerakan `collect −3` (ref pesanan, juruwang, `balance_after`); baki → collected
+- **Serentak:** 3 serahan baki yang sama serentak (curl_multi) → tepat satu berjaya, stok ditolak sekali
+- Tunai: baris `payments` cash + `received_by` → muncul dalam `vendor/payments/list`; kali kedua → "sudah dibayar"; online → ditolak
+- E-mel: `order_ready` sekali sahaja (ready → preparing → ready tidak berulang) dengan anak/kelas/waktu operasi; `order_collected` setiap serahan;
+  `order_paid` selepas PaymentSettlement `paid` (panggilan balik berganda → satu e-mel)
+
+Keputusan kecil (dicatat dalam PELAN 7, 10.2, 18.7, 18.9, 18.10, 18.14):
+- Dikunci = `pickup_attempts ≥ 5` (tiada lajur `pickup_locked`); buka kunci = laluan baharu `vendor/orders/unlock-code` (admin + pengurus)
+- Cara serahan direkod dari cara carian (`found_by`) — pelayan menyemak ia aktif dalam tetapan; kod 4 digit → E
+- Terima tunai tidak menukar status pesanan, tetapi mengosongkan `expires_at` (cron tidak meluputkan pesanan yang sudah dibayar)
+- `vendor/settings/get` dibenarkan juruwang & pengurus (POS/skrin serah) tanpa `alert_emails`; `save` = pentadbir sahaja
+- E-mel `order_ready` dihantar sekali setiap pesanan; `order_collected` setiap serahan (separa juga) — ibu bapa cepat mengesan penyalahgunaan
+- Picking list & label: darjah/kelas dari snapshot `order_items`, susunan ikut `grade_levels.sort_order`
+
+Tertangguh / peralihan:
+- POS kaunter (`vendor/pos/*`) masih mock — B10 (guna semula `ReceiveCashPaymentJob` / `HandoverOrderJob`); `MockOrders` kekal untuk POS mock
+- Refund (`vendor/refunds/*`) masih mock — B11; butang refund di butiran pesanan sebenar membuka halaman refund mock
+- Resit PDF tidak dibina — slip ibu bapa & label beg dicetak terus dari pelayar (CSS cetak)
+- Picking list mengira baris setiap anak setiap pesanan ("2 murid" bila seorang anak ada dua pesanan) — sama seperti mock U3b
 
 ---
 

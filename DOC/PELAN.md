@@ -241,6 +241,8 @@ Supaya mudah **dan** masih selamat:
   masa, kakitangan, item & kuantiti — bukti jika ada pertikaian.
 - **Ibu bapa terus dimaklumkan** bila barang diambil — penyalahgunaan cepat dikesan.
 - Kod 4 digit (E) disimpan sebagai hash; 5 cubaan salah → pesanan dikunci, perlu pengurus.
+  **B9:** dikunci = `orders.pickup_attempts ≥ 5` (tiada lajur baharu); pentadbir / pengurus membuka semula di butiran pesanan
+  (`vendor/orders/unlock-code` → cubaan 0, dilog). Cubaan salah disimpan dalam transaksi sendiri (`VerifyPickupCodeJob`).
 - Tetapan: `pickup_methods` (cth. `A,B,C,D`), `pickup_code_required_above` (cth. wajib kod jika > RM100).
 - Ambil separa dibenarkan: setiap item ada `collected_qty`.
 
@@ -612,6 +614,14 @@ Status `paid` HANYA diputuskan oleh `PaymentSettlement::recheck/apply` (tanya AP
 `store_payment_start:{customer}` 20/10 minit, `store_payment_check:{customer}` 30/10 minit, `vendor_gateway_test:{user}` 10/10 minit,
 `webhook:{ip}` 300/minit. Jawapan teks gateway: `Response::text()`; badan & tandatangan mentah: `Request::webhook()`; `?coop=`: `Request::queryInt()`.
 
+**Konvensyen B9 (pesanan vendor & serah barang):** pesanan panel vendor HANYA melalui `VendorOrders` (`find/require` sentiasa `vendor_id` sesi +
+`cooperative_id` disahkan) — jangan guna `CustomerOrders::find` (skop ibu bapa) di panel. Peralihan status = `VendorOrders::STATUS_FLOW`;
+`collected` / `partially_collected` HANYA oleh `HandoverOrderJob`. Barang diserah = `StockLedger::collect` (tolak `qty_on_hand` DAN
+`qty_reserved`, pergerakan `collect` −qty, `ref_type order`, `vendor_user_id`) dalam transaksi yang sama dengan `order_pickups`. Bayaran tunai
+pesanan store = baris `payments` (cash) oleh `ReceiveCashPaymentJob` — `paid_at` tanpa baris `payments` tidak dibenarkan. Kod 4 digit =
+`VerifyPickupCodeJob` (`password_verify`, cubaan disimpan walaupun serahan gagal). E-mel pesanan ibu bapa: `OrderEmails::queueReady`,
+`queueCollected`, `queuePaid` (dari `PaymentSettlement` bila `paid`) — penerima = `orders.customer_email` + bahasa akaun ibu bapa.
+
 ### 10.3 Kontrak API
 
 - Format jawapan: `{ "ok": true, "data": ... }` atau `{ "ok": false, "error": "mesej", "errors": { "field": "mesej" } }`
@@ -978,7 +988,7 @@ fields: [{ name, secret }] }], owner_gateway: { driver_code, sandbox, values: { 
 
 **EmailTemplate** — `owner/email-templates/list` → `[{ template_key, languages: { ms: { subject, updated_at } | null, … } }]`;
 `get {template_key, language_code}` → `{ template_key, language_code, subject, body_html, updated_at, placeholders: ['{order_no}', …] }`.
-Kunci: `order_new_vendor, order_receipt, order_ready, order_collected, invoice_issued, password_reset`.
+Kunci: `order_new_vendor, order_receipt, order_ready, order_collected, order_paid` (B9), `invoice_issued, password_reset`.
 Pelayan menolak pemegang tempat yang tiada dalam `placeholders`
 
 **Announcement** — `owner/announcements/list` (senarai)
@@ -1184,6 +1194,26 @@ collected_qty, source: 'ala_carte|kit|pos' }] }]` (item dikumpul ikut anak),
   — padanan tepat token QR / kod pendek dahulu; jika tidak, pesanan aktif (`paid, unpaid_cash, preparing, ready, partially_collected`)
   disusun `ready` dahulu
 
+> **B9 (sebenar, `jobs/Order/` + `jobs/Customer/`):** semua laluan pesanan/serah/ibu bapa menapis `vendor_id` (sesi) + `cooperative_id`
+> (`VendorAuth::requireCooperative` — juruwang/pengurus hanya koperasi yang diberi) melalui pembantu `VendorOrders` (`find/require`, `filters`,
+> `summary`, `detail`, `STATUS_FLOW`, `pickupSettings`). Senarai, picking list & label = `channel online` sahaja; butiran juga POS. Peranan:
+> `orders/*` & `customers/*` = admin + pengurus; `handover/*`, `orders/class-options`, `grades/list`, `settings/get` = juga juruwang.
+> `logs[].actor_name`: ibu bapa = nama snapshot, kakitangan = `vendor_users.full_name`, sistem = `order.actor_system`.
+> - **Status:** `UpdateOrderStatusJob` (transaksi, pesanan `FOR UPDATE`); batal = `releaseHolds` + bil pending → failed; → `ready` kali pertama
+>   sahaja menghantar e-mel `order_ready` (nama anak, kelas, waktu operasi). `BulkOrderStatusJob` = satu transaksi setiap pesanan, ≤ 200 id.
+> - **Carian serah** (`FindOrdersForPickupJob`) ikut `pickup_methods`: C/D token QR (32 hex, tepat) → B no. pendek (tepat, huruf besar/kecil) →
+>   A nama murid/ibu bapa/no. pesanan + darjah/kelas (pesanan aktif, `ready` dahulu). Setiap hasil membawa **`found_by`** (A/B/C); skrin serah
+>   menghantarnya semula sebagai `method` → direkod dalam `order_pickups` (E bila kod disahkan; C → D bila hanya slip aktif; lain → A).
+> - **Terima tunai** (`ReceiveCashPaymentJob`): baris `payments` (cash, paid, `received_by` juruwang, `verified_at`) + `orders.paid_at`,
+>   `amount_received`, `change_given`, `expires_at` = NULL (tidak diluputkan cron). Status pesanan kekal.
+> - **Serah** (`HandoverOrderJob`): kod dahulu (`VerifyPickupCodeJob`, transaksi sendiri), kemudian SATU transaksi: kunci pesanan → semak semula
+>   status/bayar/kunci → qty ≤ baki (qty − collected − cancelled) → `order_pickups` + `order_pickup_items` → `collected_qty` →
+>   `StockLedger::collect` (tertib kunci `sortStockKeys`) → `collected` / `partially_collected` (+ `collected_at`) → log (nota = nama pengambil) →
+>   e-mel `order_collected` setiap serahan → log aktiviti `handover_collect`. Serahan serentak: satu sahaja berjaya.
+> - **Ibu bapa** (`ListVendorCustomersJob`): akaun aktif (`deleted_at IS NULL`) yang ada anak aktif di koperasi ini; kiraan/jumlah pesanan tanpa
+>   batal/luput; nota `vendor_customer_notes` (satu setiap vendor, kosong = padam, ≤ 1000 aksara) — `SaveCustomerNoteJob` 404 jika tiada anak di koperasi.
+> - Mock `vendor-orders.js` (`MockOrders`) kekal untuk POS (B10), refund & laporan (B11) mock; laluan B9 dibuang dari mock.
+
 **Customer** — `vendor/customers/list { q, grade, class_name }` (hanya ibu bapa yang ada anak di koperasi ini; hanya anak itu)
 ```js
 { id, full_name, phone, email, relationship: 'mother|father|guardian', children: [{ id, full_name, grade_level_code, class_name }],
@@ -1259,6 +1289,11 @@ perlu ≥ 1 koperasi milik vendor; PIN 4–6 digit (hash Argon2id); had pelan; t
   pickup_methods: ['A','B','C','D','E'?] /* ≥ 1 dari A–D */, pickup_code_required_above /* sen, 0 = tidak */, cash_order_expiry_days /* 1–14 */, low_stock_default }
 ```
 `default_language` disimpan dalam `cooperatives`; selebihnya `cooperative_settings`. Skrin serah membaca `pickup_methods` & had kod yang sama.
+> **B9 (sebenar):** `GetCooperativeSettingsJob` / `SaveCooperativeSettingsJob` (`jobs/Cooperative/`, atas `CooperativeSettings`). `get` dibenarkan
+> juruwang & pengurus (POS / skrin serah) **tanpa** `alert_emails`; `save` = `vendor_admin`. Pengesahan: e-mel huruf kecil & unik (1–5),
+> ≥ 1 cara A–D, had kod 0–RM1,000,000 (sen), luput tunai 1–14, cukai 0–10 (2 titik perpuluhan), stok minimum 0–100000, bahasa aktif dalam
+> `languages`, pengepala ≤ 80, pengaki ≤ 200, kertas 58/80. Log aktiviti `settings_save`. Kod 4 digit pesanan sedia ada tidak berubah bila had ditukar
+> (`requires_code` = hash disimpan semasa checkout).
 
 **Laporan** — `vendor/reports/run { type, date_from, date_to }`, `type: daily|monthly|payment|product|profit|stock|grade|class` →
 `{ type, school_name, date_from, date_to /* null untuk stock */, generated_at, columns: [{ key, label /* kunci terjemahan */, format: 'text|int|money|percent|date|month|grade|method' }],
@@ -1505,7 +1540,7 @@ vendor) → `booked--`. **Lencana "Jualan murah"** (sedia sejak U5) kini dari `M
 
 Senarai **semua** laluan yang didaftar dalam `assets/js/mock/*.js` (214 laluan, dijana dari kod mock pada U7; B2 menambah 9 laluan auth
 — jumlah **223**; B3 menambah `owner/plans/options` — **224**; B4, B5 & B6 tiada laluan baharu; B8 menambah `store/orders/check-payment` dan
-membuang `store/payment/simulate` — kekal **224**, + 5 webhook `webhooks/{gateway}` di luar jadual). Lajur Mock `— (B2)` … `— (B5)` = sudah sebenar (`api/v1/`), mock dibuang.
+membuang `store/payment/simulate` — kekal **224**, + 5 webhook `webhooks/{gateway}` di luar jadual; B9 menambah `vendor/orders/unlock-code` — **225**). Lajur Mock `— (B2)` … `— (B5)` = sudah sebenar (`api/v1/`), mock dibuang.
 **B4:** PO, stock take, `templates/options` & `modules/active` disiapkan lebih awal (prompt B4); `vendor/settings/*` ditangguh ke B9 (skrin serah & POS mock masih membaca tetapan mock). Bentuk `data` setiap laluan
 ada dalam 18.4–18.13; jadual ini ialah senarai semak Peringkat 2 — setiap baris mesti menjadi `api/v1/{laluan}.php` (nipis, tiada SQL)
 yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan CSRF, B14).
@@ -1654,13 +1689,13 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 | `vendor/cooperatives/list` | GET | vendor sesi | B2 (baca) / B4 | — (B2) |
 | `vendor/cooperatives/pricing-preview` | GET | vendor sesi | B4 | — (B4) |
 | `vendor/cooperatives/save` | POST | vendor sesi | B4 | — (B4) |
-| `vendor/customers/list` | GET | vendor sesi + koperasi | B9 | `vendor-orders.js` |
-| `vendor/customers/save-note` | POST | vendor sesi + koperasi | B9 | `vendor-orders.js` |
+| `vendor/customers/list` | GET | vendor sesi + koperasi (admin + pengurus) | B9 | — (B9) |
+| `vendor/customers/save-note` | POST | vendor sesi + koperasi (admin + pengurus) | B9 | — (B9) |
 | `vendor/dashboard/summary` | GET | vendor sesi + koperasi | B4 | — (B4) |
-| `vendor/grades/list` | GET | vendor sesi + koperasi | B4 | — (B4) |
-| `vendor/handover/collect` | POST | vendor sesi + koperasi | B9 | `vendor-orders.js` |
-| `vendor/handover/receive-cash` | POST | vendor sesi + koperasi | B9 | `vendor-orders.js` |
-| `vendor/handover/search` | GET | vendor sesi + koperasi | B9 | `vendor-orders.js` |
+| `vendor/grades/list` | GET | vendor sesi + koperasi (+ juruwang sejak B9) | B4 | — (B4) |
+| `vendor/handover/collect` | POST | vendor sesi + koperasi (+ juruwang) | B9 | — (B9) |
+| `vendor/handover/receive-cash` | POST | vendor sesi + koperasi (+ juruwang) | B9 | — (B9) |
+| `vendor/handover/search` | GET | vendor sesi + koperasi (+ juruwang) | B9 | — (B9) |
 | `vendor/inventory/adjust` | POST | vendor sesi + koperasi | B4 | — (B4) |
 | `vendor/inventory/list` | GET | vendor sesi + koperasi | B4 | — (B4) |
 | `vendor/inventory/movements` | GET | vendor sesi + koperasi | B4 | — (B4) |
@@ -1684,14 +1719,15 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 | `vendor/news/list` | GET | koperasi + modul `news` | B13 | `vendor-addons.js` |
 | `vendor/news/recipients` | GET | koperasi + modul `news` | B13 | `vendor-addons.js` |
 | `vendor/news/save` | POST | koperasi + modul `news` | B13 | `vendor-addons.js` |
-| `vendor/orders/bulk-status` | POST | vendor sesi + koperasi | B9 | `vendor-orders.js` |
-| `vendor/orders/class-options` | GET | vendor sesi + koperasi | B9 | `vendor-orders.js` |
-| `vendor/orders/get` | GET | vendor sesi + koperasi | B9 | `vendor-orders.js` |
-| `vendor/orders/labels` | GET | vendor sesi + koperasi | B9 | `vendor-orders.js` |
-| `vendor/orders/list` | GET | vendor sesi + koperasi | B9 | `vendor-orders.js` |
-| `vendor/orders/picking-list` | GET | vendor sesi + koperasi | B9 | `vendor-orders.js` |
-| `vendor/orders/set-status` | POST | vendor sesi + koperasi | B9 | `vendor-orders.js` |
-| `vendor/orders/slot-options` | GET | vendor sesi + koperasi | B9 | `vendor-addons.js` |
+| `vendor/orders/bulk-status` | POST | vendor sesi + koperasi (admin + pengurus) | B9 | — (B9) |
+| `vendor/orders/class-options` | GET | vendor sesi + koperasi (+ juruwang) | B9 | — (B9) |
+| `vendor/orders/get` | GET | vendor sesi + koperasi (admin + pengurus) | B9 | — (B9) |
+| `vendor/orders/labels` | GET | vendor sesi + koperasi (admin + pengurus) | B9 | — (B9) |
+| `vendor/orders/list` | GET | vendor sesi + koperasi (admin + pengurus) | B9 | — (B9) |
+| `vendor/orders/picking-list` | GET | vendor sesi + koperasi (admin + pengurus) | B9 | — (B9) |
+| `vendor/orders/set-status` | POST | vendor sesi + koperasi (admin + pengurus) | B9 | — (B9) |
+| `vendor/orders/slot-options` | GET | vendor sesi + koperasi (admin + pengurus) | B9 | — (B9) |
+| `vendor/orders/unlock-code` | POST | vendor sesi + koperasi (admin + pengurus) | B9 (baharu) | — (B9) |
 | `vendor/payments/gateway` | GET | vendor sesi + koperasi (`vendor_admin`) | B8 | — (B8) |
 | `vendor/payments/list` | GET | vendor sesi + koperasi (`vendor_admin`) | B8 | — (B8) |
 | `vendor/payments/save-gateway` | POST | vendor sesi + koperasi (`vendor_admin`) | B8 | — (B8) |
@@ -1734,8 +1770,8 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 | `vendor/school-opening/slot-save` | POST | koperasi + modul `school_opening` | B13 | `vendor-addons.js` |
 | `vendor/school-opening/slots` | GET | koperasi + modul `school_opening` | B13 | `vendor-addons.js` |
 | `vendor/session/cooperative` | POST | vendor sesi + koperasi | B2 | — (B2) |
-| `vendor/settings/get` | GET | vendor sesi + koperasi | B9 (asal B4) | `vendor-finance.js` |
-| `vendor/settings/save` | POST | vendor sesi + koperasi | B9 (asal B4) | `vendor-finance.js` |
+| `vendor/settings/get` | GET | vendor sesi + koperasi (+ juruwang, tanpa `alert_emails`) | B9 (asal B4) | — (B9) |
+| `vendor/settings/save` | POST | vendor sesi + koperasi (`vendor_admin`) | B9 (asal B4) | — (B9) |
 | `vendor/staff/list` | GET | vendor sesi | B2 | — (B2) |
 | `vendor/staff/save` | POST | vendor sesi | B2 | — (B2) |
 | `vendor/staff/send-reset` | POST | vendor sesi | B2 | — (B2) |

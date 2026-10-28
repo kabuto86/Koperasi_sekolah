@@ -1891,4 +1891,18 @@ return [
     'payment.paid_after_close'               => '订单关闭后才收到在线付款（参考号 {ref}）— 请退款给家长。',
     'payment.test_failed'                    => '{name} 连接失败。请检查 API 密钥及模式（测试 / 正式）。',
     'payment.test_unsupported'               => '{name} 不提供连接测试。请在测试模式下进行一笔小额付款以测试。',
+    // B9 — pesanan & serah barang
+    'order.actor_system'            => '系统',
+    'order.unlock_code'             => '解锁取货码',
+    'order.code_unlocked_toast'     => '取货码已解锁，可重新交付订单。',
+    'order.code_unlocked_log'       => '经理已解锁 4 位取货码',
+    'order.code_not_locked'         => '此订单的取货码未被锁定。',
+    'activity.action.pickup_unlock' => '解锁取货码',
+    'email_template.order_paid'     => '已收款',
+    'email.order_ready.subject'     => '订单 {order_no} 可领取',
+    'email.order_ready.body'        => '{child_name}（{child_class}）的物品已可在 {school_name} 合作社领取。' . "\n" . '营业时间：{opening_hours}',
+    'email.order_collected.subject' => '订单 {order_no} 已领取',
+    'email.order_collected.body'    => '{child_name} 的物品已由 {collected_by} 于 {collected_at} 领取。',
+    'email.order_paid.subject'      => '已收款 — 订单 {order_no}',
+    'email.order_paid.body'         => '谢谢 {customer_name}。订单 {order_no} 的付款 {total} 已收到（参考号 {reference}）。',
 ];

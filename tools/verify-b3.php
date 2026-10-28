@@ -236,7 +236,10 @@ try {
 
     echo "11. Templat e-mel\n";
     $list = $owner->get('owner/email-templates/list')['data'];
-    check('6 kunci, order_ready ada 4 bahasa, invoice_issued en belum diisi', count($list) === 6 && $list[2]['languages']['ta'] !== null && $list[4]['languages']['en'] === null);
+    // B9 menambah order_paid (7 kunci)
+    $byKey = array_column($list, null, 'template_key');
+    check('7 kunci (B9: order_paid), order_ready ada 4 bahasa, invoice_issued en belum diisi', count($list) === 7
+        && $byKey['order_ready']['languages']['ta'] !== null && $byKey['invoice_issued']['languages']['en'] === null && isset($byKey['order_paid']));
     $tpl = $owner->get('owner/email-templates/get', ['template_key' => 'order_ready', 'language_code' => 'ta'])['data'];
     check('get: subjek Tamil + pemegang tempat', strpos($tpl['subject'], '{order_no}') !== false && in_array('{child_name}', $tpl['placeholders'], true));
     $unknown = $owner->post('owner/email-templates/save', ['template_key' => 'order_ready', 'language_code' => 'ta', 'subject' => 'S {order_no}', 'body_html' => '<p>{salah_eja}</p>']);
