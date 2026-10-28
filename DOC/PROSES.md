@@ -45,7 +45,7 @@ Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 | B7 | Checkout tunai, pesanan, queue e-mel | ✅ | 27 Okt 2026 | `2f15ccc` | 6 endpoint store, 7 job + 4 pembantu `jobs/Order/` + `Promotions` + `SendQueuedEmailsJob`, `core/Mailer` (SMTP vanila) · `Money` · `QrCode`, 2 cron, `mock/store.js` dibuang, `tools/verify-b7.php` 92/92 lulus |
 | B8 | Payment gateway + webhook | ✅ | 28 Okt 2026 | `97e3b42` | 5 driver `payments/`, 13 job `jobs/Payment/`, `vendor/payments/*` sebenar, 5 webhook, semakan semula + amaun + idempotent, cron luput online, `tools/verify-b8.php` 95/95 lulus |
 | B9 | Pengurusan pesanan & serah barang | ✅ | 28 Okt 2026 | `cdd17ba` | 16 endpoint vendor (pesanan, serah, ibu bapa, tetapan), pembantu `VendorOrders` + 16 job, `StockLedger::collect`, e-mel sedia/diambil/dibayar, kod 4 digit dikunci + buka oleh pengurus, `tools/verify-b9.php` 106/106 lulus |
-| B10 | POS kaunter | ✅ | 28 Okt 2026 | (lihat log B10) | 15 endpoint (`vendor/pos/*` 12, `vendor/promotions/*` 3), `core/PosAuth`, 15 job + 3 pembantu `jobs/Pos/`, 3 job promosi, PIN Argon2id sebenar, QR gateway + webhook, `PaymentSettlement` cabang POS, mock POS dibuang, `tools/verify-b10.php` 97/97 lulus |
+| B10 | POS kaunter | ✅ | 28 Okt 2026 | `a3417ed` | 15 endpoint (`vendor/pos/*` 12, `vendor/promotions/*` 3), `core/PosAuth`, 15 job + 3 pembantu `jobs/Pos/`, 3 job promosi, PIN Argon2id sebenar, QR gateway + webhook, `PaymentSettlement` cabang POS, mock POS dibuang, `tools/verify-b10.php` 97/97 lulus |
 | B11 | Laporan, refund, PO, stock take | ⬜ | | | |
 | B12 | Langganan & invois vendor + cron | ⬜ | | | |
 | B13 | Modul add-on | ⬜ | | | |
