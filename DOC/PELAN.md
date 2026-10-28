@@ -401,7 +401,11 @@ Nama, harga dan maklumat anak **disalin** (snapshot) ke pesanan dan invois.
   > Butiran barang: **`refund_items`** — id, vendor_id, refund_id, order_item_id, qty, cancelled_qty (U3c)
 - **`pos_shifts`** — id, vendor_id, cooperative_id, vendor_user_id, opened_at, opening_cash, closed_at, closing_cash, expected_cash, variance, note, status ENUM(open, closed)
   > U4: satu syif terbuka setiap juruwang setiap koperasi. Jangkaan tunai = tunai permulaan + jualan tunai POS syif itu
-- **`webhook_logs`** — id, gateway_code, cooperative_id NULL, payload, signature_valid, processed, created_at
+- **`webhook_logs`** — id, gateway_code, cooperative_id NULL, payload, signature_valid, processed, result (B8, migrasi `003-webhook-result.sql`), created_at
+  > **B8:** `payments.raw_payload` = JSON `{ reference, redirect_url, form, verified }` (rujukan kami `{order_no}-{n}`, pautan / borang gateway,
+  > jawapan semakan semula). `gateway_ref` = id bil di gateway (BillCode ToyyibPay, id Billplz, id sesi Stripe; SenangPay & iPay88 = rujukan kami).
+  > `result`: `paid`, `already_paid`, `pending`, `failed`, `paid_late`, `amount_mismatch`, `currency_mismatch`, `bad_signature`, `unknown_reference`,
+  > `no_gateway`, `recheck_failed` (+ ` (unsigned)` untuk ToyyibPay yang tiada tandatangan).
 
 ### H. Modul add-on (8)
 
@@ -475,13 +479,14 @@ Koperasi_sekolah/
 │   ├── Auth/ Owner/ Vendor/ Cooperative/ Plan/ Billing/ Module/ Template/
 │   ├── Product/ Inventory/ Supplier/ Promotion/ SchoolKit/
 │   ├── Customer/ Child/ Cart/ Store/ Order/ Pickup/ Payment/ Pos/ Report/   (Store/ = slug → koperasi, harga store, katalog, kit — B6)
+│   │   (Payment/ = gateway owner B3 + gateway koperasi, bayaran online, panggilan balik, luput — B8)
 │   │   (Order/ = checkout, pesanan ibu bapa, no. pesanan, e-mel pesanan, luput tunai — B7 · Promotion/ = pilih promosi — B7)
 │   └── News/ Clearance/ Calendar/ SchoolOpening/ Notification/ Language/ Setting/ Announcement/ (B3)
-├── payments/       GatewayInterface.php · GatewayFactory.php
+├── payments/       GatewayInterface · GatewayFactory · BaseGateway (HTTP curl, URL sandbox/live) · GatewayException — B8 (dimuat automatik)
 │   └── drivers/    ToyyibPayGateway · BillplzGateway · SenangPayGateway · Ipay88Gateway · StripeGateway
 ├── api/v1/
 │   ├── owner/  vendor/  store/  pos/
-│   └── webhooks/   toyyibpay.php · billplz.php · …
+│   └── webhooks/   toyyibpay.php · billplz.php · senangpay.php · ipay88.php · stripe.php (B8, ?coop={id}, tiada sesi/CSRF)
 ├── partials/       head · lang-switcher · sidebar-menu · ui-shell (toast + confirm) · scripts · login-form
 │                   page-title (tajuk + butang tindakan + kembali) · stat-card (kad papan pemuka) · sub-nav (pills)
 ├── owner/          panel owner (halaman .php)
@@ -492,18 +497,20 @@ Koperasi_sekolah/
 │   ├── addons/     halaman modul add-on: {code}.php (U6) — news · clearance (+ clearance-sale) · calendar · school_opening ·
 │   │               whatsapp_sms · advanced_report / mobile_app / membership (halaman sementara)
 │   └── pos/        POS kaunter + skrin serah barang
-├── store/          index.php (titik masuk ibu bapa: slug → koperasi → template)
+├── store/          index.php (titik masuk ibu bapa: slug → koperasi → template) · payment-return.php (kembali dari gateway → order-success)
+│                   payment-redirect.php (borang POST automatik untuk iPay88) — B8
 ├── .htaccess       URL store cantik /{slug}/{halaman} → store/index.php (B6; aktif bila config pretty_store_urls = true)
 ├── templates/
 │   └── template1/  manifest.json · layout.php · partials/ · pages/ · css/ · js/
 ├── modules/        news/ · clearance/ · calendar/ · school_opening/
 ├── lang/           ms.php · en.php · zh.php · ta.php
-├── cron/           send-emails · expire-cash-orders (B7, CLI sahaja, `.htaccess` halang web) · generate-invoices · suspend-overdue · promote-grades
+├── cron/           send-emails · expire-cash-orders (B7, CLI sahaja, `.htaccess` halang web) · expire-online-orders (B8) · generate-invoices · suspend-overdue · promote-grades
 ├── storage/        mail.log (mail_driver log) · fail kunci cron (.gitignore isi, `.htaccess` halang web) — B7
 ├── tools/          check-ui.php (tiada inline CSS + kunci 4 bahasa sama) · generate-secret.php · verify-b1.php · verify-b2.php
 │                   dev-totp.php (kod 2FA ujian) · ui-audit.js (pelayar, log masuk sebenar sejak B2) — CLI sahaja
 │                   verify-b3.php · test-helpers.php (Browser HTTP dikongsi — B3) · verify-b4.php (B4) · verify-b5.php (B5) · verify-b6.php (B6)
 │                   verify-b7.php · fake-smtp.php (pelayan SMTP palsu untuk ujian) — B7
+│                   verify-b8.php · fake-gateway.php (gateway palsu 5 driver, `php -S` router) — B8
 ├── assets/
 │   ├── lib/        bootstrap/ (5.3.3) · bootstrap-icons/ (1.11.3) · qrcode/ (qrcode-generator 1.4.4, MIT — sejak U2)
 │   ├── css/        app.css · print-label.css · print-slip.css · receipt.css
@@ -592,6 +599,18 @@ batal/luput; `sortStockKeys` = tertib kunci sama). E-mel pesanan: `OrderEmails::
 `QueueEmailJob` menerima `$htmlVars` (serpihan HTML yang dibina pelayan, cth. `{items_table}`, `{pickup_qr}`) yang tidak di-escape. Penghantaran
 HANYA oleh `cron/send-emails.php` (`SendQueuedEmailsJob` + `core/Mailer`, 5 cubaan → `failed`, `flock` elak larian bertindih). Had kadar:
 `store_checkout:{customer}` 20/10 minit. Ujian serentak: `parallelPost()` dalam `tools/test-helpers.php` (pelayan `PHP_CLI_SERVER_WORKERS`).
+
+**Konvensyen B8 (payment gateway):** driver dalam `payments/drivers/` (satu kelas setiap gateway, `extends BaseGateway implements GatewayInterface`)
+TIDAK menyentuh DB — hanya bercakap dengan API gateway (curl) dan menyemak tandatangan. Dapatkan driver HANYA melalui
+`CooperativeGateways::driver($baris)` (kunci dinyahsulit `Crypto` di pelayan) / `GatewayFactory::make()`. Gateway koperasi: `CooperativeGateways`
+(`active` = aktif + dibenarkan owner + driver wujud; `find`; `forCallback` = koperasi dari URL, vendor dari baris DB; `publicShape` tanpa rahsia).
+Bayaran dimulakan HANYA oleh `StartOnlinePaymentJob` (selepas transaksi checkout — panggilan rangkaian tidak pernah dalam transaksi DB).
+Status `paid` HANYA diputuskan oleh `PaymentSettlement::recheck/apply` (tanya API gateway → semak amaun sen + MYR = `payments.amount` =
+`orders.total` → kunci `payments` & `orders` FOR UPDATE → idempotent). Dipanggil oleh `HandleGatewayCallbackJob` (webhook), `CheckOrderPaymentJob`
+(ibu bapa kembali) dan `ExpirePendingPaymentsJob` (cron). Ralat rangkaian = `GatewayException` (mesej untuk log; ibu bapa melihat
+`payment.gateway_error`). Ujian: `KOPERASI_GATEWAY_TEST_URL` menghala mod **sandbox sahaja** ke `tools/fake-gateway.php`. Had kadar:
+`store_payment_start:{customer}` 20/10 minit, `store_payment_check:{customer}` 30/10 minit, `vendor_gateway_test:{user}` 10/10 minit,
+`webhook:{ip}` 300/minit. Jawapan teks gateway: `Response::text()`; badan & tandatangan mentah: `Request::webhook()`; `?coop=`: `Request::queryInt()`.
 
 ### 10.3 Kontrak API
 
@@ -682,6 +701,25 @@ Owner hanya mengutip yuran langganan (melalui gateway owner sendiri).
 - `payments.gateway_ref` UNIQUE → callback berganda tidak menggandakan bayaran (idempotent)
 - Setiap callback dilog dalam `webhook_logs`
 - Tunai: pesanan `unpaid_cash`, stok ditahan sehingga `expires_at` (`cash_order_expiry_days`), dibayar di POS semasa ambil
+
+**Pelaksanaan B8:**
+- Antara muka sebenar (array, bukan objek): `createBill($bill) → { gateway_ref, redirect_url, form }`, `verifyCallback($request) → { signature_valid:
+  true|false|null, gateway_ref }`, `fetchStatus($ref, $amount) → { status: paid|failed|pending, amount, currency, raw }`, `amountLocked()`,
+  `testConnection()`, `supportsRefund()`, `callbackResponse()`
+- Tandatangan: **Billplz** X-Signature (HMAC-SHA256, medan `kunciNilai` disusun, `|`); **SenangPay** HMAC-SHA256 (`secret+status_id+order_id+
+  transaction_id+msg`); **iPay88** SHA256 (`key+code+PaymentId+RefNo+amaun_tanpa_titik+MYR+Status`, jawab `RECEIVEOK`); **Stripe**
+  `Stripe-Signature` (t + v1, toleransi 5 minit); **ToyyibPay tiada tandatangan** → `signature_valid null`, disahkan sepenuhnya melalui
+  `getBillTransactions` dengan kunci rahsia (log `… (unsigned)`)
+- Semakan semula: ToyyibPay `getBillTransactions`, Billplz `GET /v3/bills/{id}`, SenangPay `query_order_status`, iPay88 `enquiry.asp` (dengan amaun —
+  "00" hanya jika sama), Stripe `GET /v1/checkout/sessions/{id}`. `amountLocked()` = SenangPay (amaun dalam hash pautan)
+- Panggilan balik: tandatangan salah → 400; rujukan tiada / milik koperasi lain → 200 tanpa perubahan; API semakan gagal → 502 (gateway cuba semula)
+- Redirect ibu bapa: `store/payment-return.php` (GET/POST, parameter gateway dibuang) → `order-success?returned=1` → `store/orders/check-payment`
+  (pelayan bertanya sendiri ke gateway). Redirect palsu "berjaya" tanpa bayaran sebenar → pesanan kekal `pending_payment`
+- Luput `pending_payment`: `expires_at` = masa checkout + `online_payment_expiry_minutes` (config, lalai 60). `cron/expire-online-orders.php` (setiap
+  10 minit) menyemak semula bil dahulu (panggilan balik hilang → `paid`), gateway rosak → cuba lagi sehingga 24 jam, kemudian `expired` + lepas tahanan
+- Wang diterima selepas pesanan dibatal / luput (atau bil kedua) → `payments.paid`, pesanan kekal, log nota `payment.paid_after_close` → refund B11
+- Bil `pending` yang sama diguna semula 30 minit (`StartOnlinePaymentJob::REUSE_MINUTES`); gateway gagal mencipta bil → pesanan tetap disimpan,
+  `payment: null` + `payment_error`; ibu bapa tekan "Bayar" semula
 
 ## 14. Langganan & harga
 
@@ -1179,6 +1217,14 @@ values: { medan_bukan_rahsia }, secrets_set: ['secret_key'] }` — **rahsia tida
   status: 'paid|pending|failed|refunded', received_by, paid_at, created_at }
 ```
 
+> **B8 (sebenar — `jobs/Payment/`, `payments/`):** `vendor/payments/*` (6 laluan) dari DB, **`vendor_admin` sahaja** (pengurus & juruwang 403).
+> Driver dalam `drivers` = `is_enabled_for_vendors` **dan** ada kelas driver. Simpan: rahsia → `credentials_encrypted` (JSON, `Crypto`), bukan rahsia
+> → `config_json`; rahsia kosong = kekal; gateway disimpan menjadi aktif, yang lain `is_active 0`; log aktiviti `gateway_save` / `payment_methods_save`.
+> `test-gateway`: panggilan sebenar (ToyyibPay `getCategoryDetails`, Billplz koleksi, SenangPay `query_order_status`, Stripe `/v1/balance`;
+> iPay88 tiada API → `payment.test_unsupported`); gagal → `payment.test_failed`. `callback_url` = `{app_url}/api/v1/webhooks/{gateway}.php?coop={id}`.
+> Rekod bayaran dari jadual `payments` (online sejak B8; tunai ditulis bila dibayar di kaunter — B9/B10); `paid_at` = `verified_at`;
+> `refunded_amount` = jumlah `refunds` selesai. Pautan rekod ke `vendor/order.php` masih panel pesanan mock sehingga B9.
+
 **Refund** — `vendor/refunds/list` (tapis `q, method, date_from, date_to`; `data.total_amount`)
 ```js
 { id, refund_no: 'RF-1001', order_id, order_no, short_code, customer_name, amount, method: 'cash|bank_transfer|gateway', reason, restock, item_count, user_name, created_at }
@@ -1330,10 +1376,11 @@ Harga, diskaun, cukai & stok dikira semula di pelayan; `expected_total` dari pel
 | `store/cart/add-kit` | POST | `child_id, kit_id, items: [{ kit_item_id, qty, variant_id }]` | item yang ditanda sahaja; saiz wajib untuk "ibu bapa pilih saiz"; menggantikan baris kit yang sama untuk anak itu |
 | `store/checkout/quote` | GET | `coupon_code` | CartQuote + `customer_name, email_verified` + (U6) `pickup_slots, slot_required, orders_blocked` |
 | `store/checkout/place` | POST | `pickup_by_type, pickup_by_name (wakil), payment_method, coupon_code, pickup_code (jika requires_code), pickup_slot_id (jika slot_required), expected_total` | (U6) ditolak jika `orders_blocked`; slot disahkan semula (koperasi, darjah, baki) → `booked++`; | e-mel disahkan; troli tanpa masalah; kaedah dibenarkan koperasi → tunai `unpaid_cash` (+ `expires_at` = `cash_order_expiry_days`), online `pending_payment`; stok **ditahan** (`reserve`); promosi `used_count++`; troli dikosongkan → `{ order_id, order_no, short_code, payment: null \| { reference, gateway_name, amount, mode, redirect_url } }` |
-| `store/payment/simulate` | POST | `order_id, result: paid\|cancel` | **Peringkat 1 sahaja** (B8: redirect gateway + webhook) |
+| ~~`store/payment/simulate`~~ | — | — | **Dibuang dalam B8** — diganti redirect gateway + panggilan balik |
+| `store/orders/check-payment` | POST | `slug, id` | (B8) ibu bapa kembali dari gateway: pelayan menyemak bil pending ke API gateway → StoreOrderDetail terkini |
 | `store/orders/list` | GET | `slug, child_id, year, page` | pesanan online ibu bapa di koperasi ini + `children, years, ready_count` |
 | `store/orders/get` | GET | `slug, id` | StoreOrderDetail |
-| `store/orders/pay { id }` · `cancel { id }` | POST | | bayar semula `pending_payment`; batal hanya `pending_payment`/`unpaid_cash` (tahanan dilepas) |
+| `store/orders/pay { id }` · `cancel { id }` | POST | | bayar semula `pending_payment` belum luput → `{ order_id, payment }` (B8); batal hanya `pending_payment`/`unpaid_cash` (tahanan dilepas, bil pending → failed) |
 | `store/news/list` · `store/clearance/list` | GET | `slug` | hanya jika modul aktif, jika tidak `store.module_unavailable` |
 
 ```js
@@ -1396,6 +1443,14 @@ diskaun automatik terbaik, cukai selepas diskaun. **Slip beg** (cara D): satu se
 > `alert_emails` (≤ 5, bahasa koperasi), resit ibu bapa (bahasanya) dengan `{items_table}` + `{pickup_qr}` (QR jadual HTML `bgcolor`, `core/QrCode`
 > = port qrcode.js) + `{order_url}` (URL store penuh).
 
+> **B8 (sebenar):** online ditawarkan (quote, `store/school`, troli) hanya bila `accept_online` + `CooperativeGateways::active`. Place online →
+> `pending_payment` + `expires_at` (60 minit) → selepas transaksi `StartOnlinePaymentJob` → `payment: { reference: '{order_no}-{n}', gateway_name,
+> amount, mode, redirect_url }`; gateway gagal → `payment: null, payment_error`. `storeStartPayment()` memaparkan modal ringkasan (amaun, rujukan,
+> nota mod ujian) dengan pautan "Teruskan ke halaman bayaran" (`redirect_url`) / "Bayar kemudian" (order-success). iPay88: `redirect_url` =
+> `store/payment-redirect.php?ref=` (borang POST automatik, bil milik ibu bapa sesi sahaja, CSP `form-action` + asal gateway). Kembali:
+> `store/payment-return.php?school=&order=` → `order-success&returned=1` → `store/orders/check-payment`. `gateway_ref` dalam StoreOrderDetail =
+> bil terkini.
+
 ### 18.13 Objek modul add-on (U6) — `assets/js/mock/vendor-addons.js`
 
 Data modul (`MockAddons`: `news, clearanceSales, clearanceItems, calendarEvents, seasons, slots, messaging, notifications`) dikongsi panel vendor
@@ -1449,7 +1504,8 @@ vendor) → `booked--`. **Lencana "Jualan murah"** (sedia sejak U5) kini dari `M
 ### 18.14 Indeks laluan API lengkap (U7) — spesifikasi backend
 
 Senarai **semua** laluan yang didaftar dalam `assets/js/mock/*.js` (214 laluan, dijana dari kod mock pada U7; B2 menambah 9 laluan auth
-— jumlah **223**; B3 menambah `owner/plans/options` — **224**; B4, B5 & B6 tiada laluan baharu). Lajur Mock `— (B2)` … `— (B5)` = sudah sebenar (`api/v1/`), mock dibuang.
+— jumlah **223**; B3 menambah `owner/plans/options` — **224**; B4, B5 & B6 tiada laluan baharu; B8 menambah `store/orders/check-payment` dan
+membuang `store/payment/simulate` — kekal **224**, + 5 webhook `webhooks/{gateway}` di luar jadual). Lajur Mock `— (B2)` … `— (B5)` = sudah sebenar (`api/v1/`), mock dibuang.
 **B4:** PO, stock take, `templates/options` & `modules/active` disiapkan lebih awal (prompt B4); `vendor/settings/*` ditangguh ke B9 (skrin serah & POS mock masih membaca tetapan mock). Bentuk `data` setiap laluan
 ada dalam 18.4–18.13; jadual ini ialah senarai semak Peringkat 2 — setiap baris mesti menjadi `api/v1/{laluan}.php` (nipis, tiada SQL)
 yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan CSRF, B14).
@@ -1555,8 +1611,8 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 | `store/orders/cancel` | POST | ibu bapa (sesi) + slug | B7 | — (B7) |
 | `store/orders/get` | GET | ibu bapa (sesi) + slug | B7 | — (B7) |
 | `store/orders/list` | GET | ibu bapa (sesi) + slug | B7 | — (B7) |
-| `store/orders/pay` | POST | ibu bapa (sesi) + slug | B7 | — (B7) |
-| `store/payment/simulate` | POST | ibu bapa (sesi) + slug | B8 | — (tiada mock sejak B7; diganti redirect gateway B8) |
+| `store/orders/check-payment` | POST | ibu bapa (sesi) + slug | B8 | — (B8) |
+| `store/orders/pay` | POST | ibu bapa (sesi) + slug | B7 | — (B8: bil gateway sebenar) |
 | `store/product` | GET | awam + slug | B6 | — (B6) |
 | `store/profile/delete` | POST | ibu bapa (sesi) | B2 | — (B2) |
 | `store/profile/get` | GET | ibu bapa (sesi) | B2 | — (B2) |
@@ -1636,12 +1692,12 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 | `vendor/orders/picking-list` | GET | vendor sesi + koperasi | B9 | `vendor-orders.js` |
 | `vendor/orders/set-status` | POST | vendor sesi + koperasi | B9 | `vendor-orders.js` |
 | `vendor/orders/slot-options` | GET | vendor sesi + koperasi | B9 | `vendor-addons.js` |
-| `vendor/payments/gateway` | GET | vendor sesi + koperasi | B8 | `vendor-finance.js` |
-| `vendor/payments/list` | GET | vendor sesi + koperasi | B8 | `vendor-finance.js` |
-| `vendor/payments/save-gateway` | POST | vendor sesi + koperasi | B8 | `vendor-finance.js` |
-| `vendor/payments/save-methods` | POST | vendor sesi + koperasi | B8 | `vendor-finance.js` |
-| `vendor/payments/settings` | GET | vendor sesi + koperasi | B8 | `vendor-finance.js` |
-| `vendor/payments/test-gateway` | POST | vendor sesi + koperasi | B8 | `vendor-finance.js` |
+| `vendor/payments/gateway` | GET | vendor sesi + koperasi (`vendor_admin`) | B8 | — (B8) |
+| `vendor/payments/list` | GET | vendor sesi + koperasi (`vendor_admin`) | B8 | — (B8) |
+| `vendor/payments/save-gateway` | POST | vendor sesi + koperasi (`vendor_admin`) | B8 | — (B8) |
+| `vendor/payments/save-methods` | POST | vendor sesi + koperasi (`vendor_admin`) | B8 | — (B8) |
+| `vendor/payments/settings` | GET | vendor sesi + koperasi (`vendor_admin`) | B8 | — (B8) |
+| `vendor/payments/test-gateway` | POST | vendor sesi + koperasi (`vendor_admin`) | B8 | — (B8) |
 | `vendor/pos/cancel-payment` | POST | vendor sesi | B10 | `vendor-pos.js` |
 | `vendor/pos/catalog` | GET | vendor sesi + koperasi | B10 | `vendor-pos.js` |
 | `vendor/pos/checkout` | POST | vendor sesi | B10 | `vendor-pos.js` |

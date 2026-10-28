@@ -49,7 +49,7 @@ Setiap prompt di bawah bermula dengan "Ikut peraturan umum". Maksudnya:
    Sejak B1: skema sebenar = `database/schema.sql` (75 jadual, PELAN 9 J); lajur baharu → fail `database/migrations/NNN-nama.sql`
    **dan** kemas kini `schema.sql` + PELAN 9. Konvensyen job & core dalam PELAN 10.2 (constructor menerima id dari sesi + input, `run()`,
    `Database::fetchOne/fetchAll/execute/insert`, `Response::ok/fail/notFound`). Data demo & akaun: kepala `database/seed.sql`.
-   Semakan asas sebelum commit: `php tools/verify-b1.php` + `verify-b2.php` + `verify-b3.php` + `verify-b4.php` + `verify-b5.php` + `verify-b6.php` + `verify-b7.php` (mesti 0 gagal) + `php tools/check-ui.php`; tambah skrip semakan
+   Semakan asas sebelum commit: `php tools/verify-b1.php` + `verify-b2.php` + `verify-b3.php` + `verify-b4.php` + `verify-b5.php` + `verify-b6.php` + `verify-b7.php` + `verify-b8.php` (mesti 0 gagal) + `php tools/check-ui.php`; tambah skrip semakan
    session sendiri `tools/verify-bN.php` dengan ujian kebocoran VENDOR01↔VENDOR02 dan ibu bapa A↔B (contoh HTTP sebenar: kelas `Browser`
    dalam `tools/test-helpers.php` sejak B3 — pelayan `php -S` sendiri, cookie, CSRF; `require __DIR__ . '/test-helpers.php'`).
    Sejak B4: skop koperasi melalui `VendorAuth::requireCooperative()`; stok HANYA melalui `StockLedger::move()` dalam transaksi DB;
@@ -64,6 +64,10 @@ Setiap prompt di bawah bermula dengan "Ikut peraturan umum". Maksudnya:
    → `email_queue` → `cron/send-emails.php` (`core/Mailer`); wang dalam teks `Money::format()`; QR untuk e-mel `QrCode::emailTable()` — PELAN 10.2
    "Konvensyen B7", 18.12 "B7 (sebenar)". Ujian serentak: `parallelPost()` (`tools/test-helpers.php`); SMTP ujian: `tools/fake-smtp.php`.
    Store tidak memuat mock lagi (sejak B7).
+   Sejak B8: gateway melalui `payments/` (driver tanpa DB) + `jobs/Payment/` — driver HANYA dari `CooperativeGateways::driver()`; bil HANYA melalui
+   `StartOnlinePaymentJob` (di luar transaksi DB); status `paid` HANYA oleh `PaymentSettlement::recheck/apply` (tanya API gateway + semak amaun,
+   idempotent) — jangan sekali-kali tanda dibayar dari redirect / input. Ujian gateway: `tools/fake-gateway.php` + env `KOPERASI_GATEWAY_TEST_URL`
+   (sandbox sahaja) — PELAN 10.2 "Konvensyen B8", 13 "Pelaksanaan B8".
    Sejak B2: endpoint ikut konvensyen PELAN 10.2 (`Request::requireMethod` → `XAuth::requireRole/requireLogin` → `Csrf::verifyRequest` →
    job yang melempar `ValidationException`). Bila modul siap: **tambah awalan laluan ke `Api.livePrefixes`** (`assets/js/api.js`), buang
    `Mock.register` laluan itu, dan tanda `— (Bn)` dalam PELAN 18.14. Halaman panel sudah dilindungi sesi (`requirePage`); akaun demo:
@@ -399,7 +403,7 @@ Sejak B6: troli & harga sebenar — CheckoutJob guna `Carts::quote()` / `StorePr
 > `expire-cash-orders.php`; `mock/store.js` + jambatan mock dibuang; seed promosi; migrasi `002-order-receipt-qr.sql`; `tools/verify-b7.php`.
 > Online masih tertutup (perlu driver B8) — `store/orders/pay` & `storeStartPayment` menunggu B8.
 
-## B8 — Payment gateway
+## B8 — Payment gateway ✅ (28 Okt 2026 — lihat PROSES.md)
 
 ```
 Ikut peraturan umum. Session: B8. Prasyarat: B7 ✅.
@@ -416,6 +420,12 @@ amount, mode, redirect_url }`) dan `PayCustomerOrderJob` (kini memulangkan metho
 (`store/payment/simulate`, tiada mock sejak B7) dengan redirect gateway. Tentukan luput `pending_payment` (expires_at) + cron.
 Laluan vendor/gateways/* sebenar di sini.
 ```
+> Hasil B8: `payments/` (GatewayInterface, GatewayFactory, BaseGateway, GatewayException + 5 driver); 13 job `jobs/Payment/` (CooperativeGateways,
+> PaymentSettlement, StartOnlinePaymentJob, HandleGatewayCallbackJob, CheckOrderPaymentJob, ExpirePendingPaymentsJob, GetPaymentFormJob +
+> 6 job tetapan/rekod vendor); `vendor/payments/*` (6) sebenar (`vendor_admin`); `api/v1/webhooks/{5 gateway}.php`; `store/orders/check-payment`
+> baharu, `store/payment/simulate` dibuang; `store/payment-return.php` & `payment-redirect.php` (iPay88); `cron/expire-online-orders.php`;
+> migrasi `003-webhook-result.sql`; `tools/fake-gateway.php` + `verify-b8.php`. Tertangguh: refund melalui API gateway (B11), QR online POS (B10),
+> e-mel "bayaran diterima" (B9), gateway owner untuk invois (B12 — `ListPaymentGatewaysJob::ownerSecrets` + driver yang sama).
 
 ## B9 — Pengurusan pesanan & serah barang
 
@@ -431,6 +441,9 @@ Juga (dari B4): vendor/settings/get|save sebenar (cooperative_settings + coopera
 — gunakan CooperativeSettings (jobs/Cooperative). Stok: tahan/lepas sudah ada (B7: StockLedger::reserve/release); ambil = tolak qty_on_hand
 DAN qty_reserved (tambah StockLedger::collect, pergerakan 'collect'). Pesanan store sebenar sejak B7 — panel vendor pesanan/serah barang masih mock
 sehingga session ini. Semak kod 4 digit dengan password_verify(orders.pickup_code_hash). E-mel order_ready / order_collected melalui QueueEmailJob.
+Sejak B8: pesanan online `paid` datang dari PaymentSettlement (webhook); rekod `payments` online sudah ada — bayaran TUNAI semasa serah barang mesti
+menulis baris `payments` (method cash, received_by juruwang) supaya vendor/payments/list lengkap. Pertimbang e-mel "bayaran diterima" (order_paid)
+selepas PaymentSettlement `paid`. Log status `paid` oleh `system` + nota `payment.paid_after_close` = wang diterima selepas pesanan ditutup (perlu refund).
 ```
 
 ## B10 — POS kaunter
@@ -446,6 +459,9 @@ PosOnlinePaymentJob (QR gateway + webhook → PAID, tahanan stok). Gantikan PIN 
 Sahkan: cashier ditolak untuk endpoint katalog/tetapan (403).
 Sejak B7: promosi guna Promotions::choose() (jobs/Promotion — sama dengan pos-cart.js) dan OrderNumbers::next() untuk no. pesanan POS;
 vendor/promotions/* sebenar di sini (seed sudah ada 3 promosi).
+Sejak B8: QR online POS = bil gateway koperasi (CooperativeGateways::active + driver->createBill, baris payments pending) dan status melalui
+PaymentSettlement (webhook / vendor/pos/payment-status menyemak semula ke gateway) — jangan tulis logik bayaran kedua. POS mock `online_available`
+masih membaca MockFinance.gateways sehingga session ini.
 ```
 
 ## B11 — Laporan, refund, PO & stock take
@@ -454,7 +470,8 @@ vendor/promotions/* sebenar di sini (seed sudah ada 3 promosi).
 ```
 Ikut peraturan umum. Session: B11. Prasyarat: B10 ✅.
 Job laporan (harian, bulanan, produk, darjah, kelas, untung, stok, tunai vs online, ExportCsvJob),
-RefundOrderJob (pulang stok melalui StockLedger, gateway refund jika disokong, audit log), promosi
+RefundOrderJob (pulang stok melalui StockLedger, gateway refund jika disokong — tambah kaedah refund() pada driver payments/ yang
+supportsRefund(), sejak B8 hanya Stripe — audit log), promosi
 (SavePromotionJob, ApplyPromotionJob dalam GetCartJob & PosCalculateCartJob).
 Sahkan: semua laporan menapis vendor_id + cooperative_id yang disahkan.
 ```

@@ -240,23 +240,22 @@ function childRadios(container, children, name, selectedId, onChange) {
     });
 }
 
-// Bayaran online: halaman gateway vendor (redirect_url), kembali ke order-success. Status PAID hanya diputuskan oleh pelayan.
-// B7: checkout tunai sahaja (payment = null); modal simulasi di bawah diganti oleh redirect gateway sebenar dalam B8.
+// Bayaran online (B8): papar amaun & rujukan, kemudian ibu bapa dibawa ke halaman gateway vendor (redirect_url).
+// Status PAID hanya diputuskan oleh pelayan (panggilan balik gateway + semakan semula) — bukan oleh halaman kembali.
+// payment = null (gateway gagal mencipta bil) → halaman pesanan, ibu bapa boleh tekan "Bayar" semula.
 function storeStartPayment(orderId, payment) {
-    if (payment.redirect_url) {
-        window.location.href = payment.redirect_url;
+    if (!payment || !payment.redirect_url) {
+        storeGo('order-success', { order: orderId });
         return;
     }
     document.getElementById('gateway-text').textContent = T('store.payment.text', { gateway: payment.gateway_name });
     document.getElementById('gateway-amount').textContent = formatRM(payment.amount);
     document.getElementById('gateway-ref').textContent = T('store.payment.reference', { ref: payment.reference });
-    function finish(result) {
-        storePost('store/payment/simulate', { order_id: orderId, result: result }).then(function () {
-            storeGo('order-success', { order: orderId });
-        });
-    }
-    document.getElementById('gateway-pay').onclick = function () { finish('paid'); };
-    document.getElementById('gateway-cancel').onclick = function () { finish('cancel'); };
+    document.getElementById('gateway-sandbox').classList.toggle('d-none', payment.mode !== 'sandbox');
+    document.getElementById('gateway-pay').href = payment.redirect_url;
+    document.getElementById('gateway-cancel').onclick = function () {
+        storeGo('order-success', { order: orderId });
+    };
     showModal('gateway-modal');
 }
 

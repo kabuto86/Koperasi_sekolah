@@ -85,6 +85,29 @@ class Request
         return in_array($value, [true, 1, '1', 'true', 'on', 'yes'], true);
     }
 
+    // Integer dari query string sahaja (cth. ?coop= pada URL webhook yang badannya POST)
+    public static function queryInt($key)
+    {
+        $value = $_GET[$key] ?? null;
+        return is_string($value) && preg_match('/^\d{1,10}$/', $value) ? (int) $value : null;
+    }
+
+    // Panggilan balik gateway (B8): badan mentah + medan borang/JSON + query + header tandatangan
+    public static function webhook()
+    {
+        $raw = (string) file_get_contents('php://input');
+        $post = $_POST;
+        if (!$post && stripos($_SERVER['CONTENT_TYPE'] ?? '', 'application/json') === false) {
+            parse_str($raw, $post);
+        }
+        return [
+            'post'    => is_array($post) ? $post : [],
+            'get'     => $_GET,
+            'raw'     => $raw,
+            'headers' => ['stripe-signature' => self::header('Stripe-Signature')],
+        ];
+    }
+
     public static function arrayValue($key)
     {
         $value = self::get($key, []);

@@ -89,8 +89,10 @@ try {
         && $guest->get('store/schools/list', ['q' => '%'])['data']['total'] === 0);
     check('Tapis negeri Johor → 2', $guest->get('store/schools/list', ['state' => 'Johor'])['data']['total'] === 2);
     $school = $guest->get('store/school', $melati);
-    check('Butiran sekolah: darjah PRA–D6, modul store aktif sahaja, tunai & online', ok($school) && $school['data']['grades'][0] === 'PRA'
-        && $school['data']['modules'] === ['news', 'calendar', 'school_opening'] && $school['data']['payment_methods'] === ['cash', 'online']
+    // Sejak B8: online hanya bila gateway koperasi aktif (seed tiada gateway → tunai sahaja walaupun accept_online)
+    check('Butiran sekolah: darjah PRA–D6, modul store aktif sahaja, tunai (online perlu gateway aktif — B8)', ok($school)
+        && $school['data']['grades'][0] === 'PRA'
+        && $school['data']['modules'] === ['news', 'calendar', 'school_opening'] && $school['data']['payment_methods'] === ['cash']
         && !isset($school['data']['vendor_id']) && !isset($school['data']['id']));
     check('Waktu operasi 7 hari', ok($school) && count($school['data']['opening_hours']) === 7 && $school['data']['opening_hours']['sat']['open'] === false);
     Database::execute("UPDATE cooperatives SET status = 'suspended' WHERE id = 3");

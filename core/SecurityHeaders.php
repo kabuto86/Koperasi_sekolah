@@ -9,7 +9,20 @@ class SecurityHeaders
             return;
         }
 
-        $csp = "default-src 'self'; "
+        header('Content-Security-Policy: ' . self::policy());
+        header('X-Content-Type-Options: nosniff');
+        header('X-Frame-Options: DENY');
+        header('Referrer-Policy: strict-origin-when-cross-origin');
+
+        // HSTS hanya bila sambungan HTTPS (XAMPP tempatan biasanya HTTP)
+        if (self::isHttps()) {
+            header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+        }
+    }
+
+    private static function policy()
+    {
+        return "default-src 'self'; "
              . "script-src 'self'; "
              . "style-src 'self'; "
              . "img-src 'self' data:; "
@@ -19,16 +32,16 @@ class SecurityHeaders
              . "base-uri 'self'; "
              . "form-action 'self'; "
              . "frame-ancestors 'none'";
+    }
 
-        header('Content-Security-Policy: ' . $csp);
-        header('X-Content-Type-Options: nosniff');
-        header('X-Frame-Options: DENY');
-        header('Referrer-Policy: strict-origin-when-cross-origin');
-
-        // HSTS hanya bila sambungan HTTPS (XAMPP tempatan biasanya HTTP)
-        if (self::isHttps()) {
-            header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+    // Halaman yang menghantar borang ke gateway bayaran (store/payment-redirect.php — B8): tambah asal gateway dalam form-action
+    public static function allowFormAction($origin)
+    {
+        if (headers_sent() || !preg_match('#^https?://[A-Za-z0-9.:-]+$#', $origin)) {
+            return;
         }
+        $csp = str_replace("form-action 'self'", "form-action 'self' " . $origin, self::policy());
+        header('Content-Security-Policy: ' . $csp);
     }
 
     public static function isHttps()

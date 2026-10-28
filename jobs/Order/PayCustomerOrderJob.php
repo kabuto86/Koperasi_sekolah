@@ -1,6 +1,6 @@
 <?php
-// Bayar semula pesanan online (PELAN 18.12 store/orders/pay). Hanya pending_payment.
-// B7: belum ada driver gateway — bayaran online dibuka dalam B8 (StartOnlinePaymentJob).
+// Bayar semula pesanan online (PELAN 18.12 store/orders/pay). Hanya pending_payment yang belum luput —
+// bil gateway dicipta (atau bil pending terkini diguna semula) oleh StartOnlinePaymentJob (B8).
 class PayCustomerOrderJob
 {
     private $customerId;
@@ -14,12 +14,9 @@ class PayCustomerOrderJob
         $this->orderId = (int) $orderId;
     }
 
+    // { order_id, payment: { reference, gateway_name, amount, mode, redirect_url } }
     public function run()
     {
-        $order = CustomerOrders::require($this->customerId, $this->cooperative, $this->orderId);
-        if ($order['status'] !== 'pending_payment') {
-            throw new ValidationException(t('store.order.not_payable'));
-        }
-        throw new ValidationException(t('store.checkout.method_unavailable'));
+        return (new StartOnlinePaymentJob($this->customerId, $this->cooperative, $this->orderId))->run();
     }
 }

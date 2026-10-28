@@ -1197,6 +1197,7 @@ CREATE TABLE webhook_logs (
     payload          MEDIUMTEXT   NOT NULL,
     signature_valid  TINYINT(1)   NOT NULL DEFAULT 0,
     processed        TINYINT(1)   NOT NULL DEFAULT 0,
+    result           VARCHAR(40)  NULL COMMENT 'B8: paid, already_paid, pending, failed, bad_signature, amount_mismatch, …',
     created_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     KEY idx_webhook_logs (gateway_code, created_at)

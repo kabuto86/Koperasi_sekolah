@@ -50,7 +50,11 @@ onStoreReady(function () {
         return;
     }
     document.getElementById('success-print').addEventListener('click', function () { storePrint('slip'); });
-    storeGet('store/orders/get', { id: queryParam('order') }).then(function (res) {
+    // Kembali dari gateway (?returned=1): pelayan menyemak sendiri status bil ke API gateway — parameter gateway diabaikan
+    var load = queryParam('returned')
+        ? storePost('store/orders/check-payment', { id: queryParam('order') })
+        : storeGet('store/orders/get', { id: queryParam('order') });
+    load.then(function (res) {
         if (!res.ok) {
             storeShowError(res.error);
             document.querySelector('.store-screen').classList.add('d-none');

@@ -39,6 +39,22 @@ class CheckoutJob
             Database::rollBack();
             throw $error;
         }
+        if ($this->input['payment_method'] === 'online') {
+            $result = $this->startPayment($result);
+        }
+        return $result;
+    }
+
+    // B8: bil gateway dicipta SELEPAS pesanan disimpan (di luar transaksi). Gateway gagal → pesanan kekal pending_payment,
+    // payment = null + payment_error; ibu bapa boleh tekan "Bayar" semula dari halaman pesanan
+    private function startPayment(array $result)
+    {
+        try {
+            $start = (new StartOnlinePaymentJob($this->customerId, $this->cooperative, $result['order_id']))->run();
+            $result['payment'] = $start['payment'];
+        } catch (ValidationException $error) {
+            $result['payment_error'] = $error->getMessage();
+        }
         return $result;
     }
 
@@ -124,7 +140,7 @@ class CheckoutJob
             'order_id'   => $order['id'],
             'order_no'   => $order['order_no'],
             'short_code' => $order['short_code'],
-            'payment'    => null, // B8: { reference, gateway_name, amount, mode, redirect_url } untuk bayaran online
+            'payment'    => null, // online: { reference, gateway_name, amount, mode, redirect_url } — diisi startPayment()
         ];
     }
 
@@ -238,7 +254,8 @@ class CheckoutJob
             'customer_name'      => $customer['full_name'],
             'customer_phone'     => $customer['phone'],
             'customer_email'     => $customer['email'],
-            'expires_at'         => $isCash ? date('Y-m-d 23:59:59', strtotime('+' . (int) $quote['cash_expiry_days'] . ' days')) : null,
+            'expires_at'         => $isCash ? date('Y-m-d 23:59:59', strtotime('+' . (int) $quote['cash_expiry_days'] . ' days'))
+                                                : date('Y-m-d H:i:s', time() + 60 * (int) Config::get('online_payment_expiry_minutes', 60)),
         ];
         $columns = array_keys($order);
         $order['id'] = Database::insert(
