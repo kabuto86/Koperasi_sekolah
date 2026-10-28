@@ -54,7 +54,6 @@ require __DIR__ . '/../_layout/pos-header.php';
                         <?php endforeach; ?>
                     </div>
                     <button type="submit" class="btn btn-brand btn-lg w-100"><i class="bi bi-box-arrow-in-right" aria-hidden="true"></i> <?= e(t('pos.sign_in')) ?></button>
-                    <p class="small text-body-secondary text-center mt-3 mb-0"><?= e(t('pos.pin_demo')) ?></p>
                 </div>
             </form>
         </div>

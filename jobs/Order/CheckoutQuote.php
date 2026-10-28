@@ -100,7 +100,7 @@ class CheckoutQuote
     }
 
     // Modul calendar: hari ini koperasi tutup (blocks_orders) → { title, reopens_on }, jika tidak null
-    private static function ordersBlocked(array $cooperative)
+    public static function ordersBlocked(array $cooperative)
     {
         if (!StoreSchool::hasModule($cooperative, 'calendar')) {
             return null;

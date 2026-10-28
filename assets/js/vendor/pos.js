@@ -3,9 +3,9 @@
 // Logik troli dari pos-cart.js (KedaiPOS). Harga & diskaun di sini untuk paparan — pelayan mengira semula semasa checkout.
 
 var pos = {
-    session: null,      // vendor/pos/session: { cooperative, cashier, shift, online_available, gateway_name }
+    session: null,      // vendor/pos/session: { cooperative, cashier, shift, online_available, gateway_name, closed_today, cashiers }
     settings: null,     // vendor/settings/get: resit & cukai
-    promotions: [],     // promosi berjalan (kupon & automatik)
+    promotions: [],     // promosi berjalan (kupon & automatik) — dari vendor/pos/catalog
     catalog: { categories: [], products: [] },
     category: '',
     cart: [],           // [{ line_id, product_id, variant_id, name, variant_label, sku, unit_price, qty, stock, max_per_order }]
@@ -70,26 +70,21 @@ function loadSession() {
 
 // ---------- Log masuk PIN ----------
 
-// Kakitangan aktif dengan PIN & akses koperasi ini (U3c: vendor/staff/list). Pelayan menyemak semula semasa log masuk
+// Kakitangan aktif dengan PIN & akses koperasi ini (B10: vendor/pos/session cashiers). Pelayan menyemak semula semasa log masuk
 function showLogin() {
     showStep('login');
     var form = byId('pin-form');
     resetForm(form);
     byId('pos-login-coop').textContent = pos.session.cooperative.school_name;
-    Api.get('vendor/staff/list', { per_page: 100, status: 'active' }).then(function (res) {
-        var coopId = currentCooperativeId();
-        var cashiers = (res.ok ? res.data.items : []).filter(function (user) {
-            return user.pin_set && (user.role === 'vendor_admin' || user.cooperative_ids.indexOf(coopId) !== -1);
-        });
-        renderCashiers(cashiers);
-    });
+    renderCashiers(pos.session.cashiers || []);
 }
 
 function renderCashiers(cashiers) {
     var box = byId('pos-cashiers');
     box.replaceChildren();
     byId('pos-no-cashier').classList.toggle('d-none', cashiers.length > 0);
-    cashiers.forEach(function (user, index) {
+    var first = cashiers.filter(function (user) { return !user.pin_locked; })[0];
+    cashiers.forEach(function (user) {
         var col = createEl('div', 'col-12 col-sm-6');
         var input = createEl('input', 'btn-check');
         input.type = 'radio';
@@ -97,11 +92,12 @@ function renderCashiers(cashiers) {
         input.id = 'cashier-' + user.id;
         input.value = user.id;
         input.required = true;
-        input.checked = cashiers.length === 1 || index === 0;
+        input.disabled = user.pin_locked;
+        input.checked = Boolean(first) && first.id === user.id;
         var label = createEl('label', 'btn btn-outline-secondary w-100 text-start app-pos-choice d-flex align-items-center gap-2');
         label.htmlFor = input.id;
-        label.appendChild(createIcon('bi-person-circle fs-4'));
-        label.appendChild(createStack(user.full_name, T('role.' + user.role)));
+        label.appendChild(createIcon(user.pin_locked ? 'bi-lock fs-4' : 'bi-person-circle fs-4'));
+        label.appendChild(createStack(user.full_name, user.pin_locked ? T('pos.pin_locked_short') : T('role.' + user.role)));
         input.addEventListener('change', function () {
             byId('pos-pin').focus();
         });
@@ -186,11 +182,9 @@ function startSale() {
     byId('pos-closed-text').textContent = closed ? T('pos.closed_today', { title: closed.title, date: formatDate(closed.reopens_on) }) : '';
     Promise.all([
         Api.get('vendor/settings/get', withCoop()),
-        Api.get('vendor/promotions/list', withCoop({ per_page: 100, state: 'active' })),
         loadCatalog()
     ]).then(function (results) {
         pos.settings = results[0].ok ? results[0].data : { tax_rate: 0, receipt_paper: '80', receipt_header: '', receipt_footer: '', receipt_show_logo: false };
-        pos.promotions = results[1].ok ? results[1].data.items : [];
         renderCart();
         focusScan();
     });
@@ -203,6 +197,7 @@ function loadCatalog() {
             return;
         }
         pos.catalog = res.data;
+        pos.promotions = res.data.promotions || [];
         refreshCartStock();
         renderCategories();
         renderProducts();
@@ -736,7 +731,7 @@ function qrDataUrl(text) {
     return qr.createDataURL(6, 2);
 }
 
-// Semak status setiap 2.5 saat (Peringkat 2: gateway → webhook → payments.status = paid)
+// Semak status setiap 2.5 saat (gateway → webhook → PaymentSettlement; pelayan juga bertanya gateway setiap 10 saat)
 function startPolling(orderId) {
     stopPolling();
     pos.pollTimer = setInterval(function () {
@@ -956,15 +951,21 @@ function summaryRows(box, rows) {
     });
 }
 
+// Tunai pesanan store yang diterima di kaunter (skrin serah) turut masuk laci — dipapar bila ada
 function shiftRows(shift) {
-    return [
+    var rows = [
         [T('pos.opened_at'), formatDate(shift.opened_at, true)],
         [T('pos.opening_cash'), formatRM(shift.opening_cash)],
         [T('pos.cash_sales', { n: shift.cash_count }), formatRM(shift.cash_sales)],
-        [T('pos.online_sales', { n: shift.online_count }), formatRM(shift.online_sales)],
+        [T('pos.online_sales', { n: shift.online_count }), formatRM(shift.online_sales)]
+    ];
+    if (shift.order_cash_count) {
+        rows.push([T('pos.order_cash', { n: shift.order_cash_count }), formatRM(shift.order_cash_total)]);
+    }
+    return rows.concat([
         [T('pos.discount_total'), formatRM(shift.discount_total)],
         [T('pos.expected_cash'), formatRM(shift.expected_cash), true]
-    ];
+    ]);
 }
 
 function openSalesPanel() {
@@ -1070,6 +1071,9 @@ function renderShiftReport(container, shift) {
     receiptRow(paper, T('pos.sale_count'), String(shift.sale_count));
     receiptRow(paper, T('pos.cash_sales', { n: shift.cash_count }), formatRM(shift.cash_sales));
     receiptRow(paper, T('pos.online_sales', { n: shift.online_count }), formatRM(shift.online_sales));
+    if (shift.order_cash_count) {
+        receiptRow(paper, T('pos.order_cash', { n: shift.order_cash_count }), formatRM(shift.order_cash_total));
+    }
     receiptRow(paper, T('pos.discount_total'), formatRM(shift.discount_total));
     receiptRule(paper);
     receiptRow(paper, T('pos.opening_cash'), formatRM(shift.opening_cash));

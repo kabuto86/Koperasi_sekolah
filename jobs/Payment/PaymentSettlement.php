@@ -63,6 +63,11 @@ class PaymentSettlement
             [json_encode($raw, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), (int) $payment['id']]
         );
 
+        if ($order['status'] === 'pending_payment' && $order['channel'] === 'pos') {
+            // B10: QR kaunter dibayar → jualan selesai (tahanan dilepas, stok ditolak pos_sale, terus `collected`)
+            PosSales::complete($order, 'system', null);
+            return 'paid';
+        }
         if ($order['status'] === 'pending_payment') {
             Database::execute(
                 "UPDATE orders SET status = 'paid', paid_at = NOW(), expires_at = NULL WHERE id = ? AND vendor_id = ?",

@@ -27,21 +27,6 @@ var MockFinance = {
 
     refunds: [],
 
-    promotions: [
-        { id: 1, vendor_id: 1, cooperative_id: 1, name: 'Diskaun pembukaan sekolah 2027', code: 'SEKOLAH27', type: 'percent', value: 5,
-          min_spend: 10000, starts_on: '2026-11-01', ends_on: '2027-01-15', max_uses: 500, used_count: 0, is_active: true },
-        { id: 2, vendor_id: 1, cooperative_id: 1, name: 'Jimat RM5', code: 'JIMAT5', type: 'fixed', value: 500,
-          min_spend: 5000, starts_on: '2026-10-01', ends_on: '2026-10-31', max_uses: 200, used_count: 37, is_active: true },
-        { id: 3, vendor_id: 1, cooperative_id: 1, name: 'Promosi Merdeka', code: 'MERDEKA10', type: 'percent', value: 10,
-          min_spend: 0, starts_on: '2026-08-25', ends_on: '2026-09-16', max_uses: null, used_count: 88, is_active: true },
-        { id: 4, vendor_id: 1, cooperative_id: 1, name: 'Diskaun automatik 3%', code: null, type: 'percent', value: 3,
-          min_spend: 20000, starts_on: '2026-01-01', ends_on: '2026-12-31', max_uses: null, used_count: 12, is_active: false },
-        { id: 5, vendor_id: 1, cooperative_id: 2, name: '开学优惠 Back to school', code: 'BTS2027', type: 'percent', value: 8,
-          min_spend: 5000, starts_on: '2026-12-01', ends_on: '2027-01-10', max_uses: 300, used_count: 0, is_active: true },
-        { id: 6, vendor_id: 2, cooperative_id: 3, name: 'Promo SMK Bukit Indah', code: 'BI10', type: 'fixed', value: 1000,
-          min_spend: 8000, starts_on: '2026-10-01', ends_on: '2026-12-31', max_uses: 100, used_count: 4, is_active: true }
-    ],
-
     // vendor_users + vendor_user_cooperatives. vendor_admin: semua koperasi (cooperative_ids diabaikan)
     staff: [
         { id: 10, vendor_id: 1, full_name: 'Ahmad bin Ismail', email: 'ahmad@niagasekolah.my', phone: '012-3456789', role: 'vendor_admin',
@@ -60,18 +45,6 @@ var MockFinance = {
           cooperative_ids: [3], is_active: true, pin_set: true, totp_enabled: false, last_login_at: '2026-10-24T08:00:00+08:00' }
     ],
     sessionUserId: 10,
-
-    // cooperative_settings (salinan untuk POS mock sahaja — tetapan sebenar sejak B9)
-    settings: {
-        1: { alert_emails: ['ahmad@niagasekolah.my', 'koperasi.tmelati@gmail.com'], receipt_header: 'Koperasi SK Taman Melati',
-             receipt_footer: 'Terima kasih. Barang boleh ditukar dalam tempoh 7 hari dengan resit.', receipt_show_logo: true, receipt_paper: '80',
-             tax_rate: 0, cash_order_expiry_days: 3, low_stock_default: 5 },
-        2: { alert_emails: ['chunghwa.coop@gmail.com'], receipt_header: '中华国民型小学合作社 SJKC Chung Hwa',
-             receipt_footer: '谢谢惠顾 Terima kasih', receipt_show_logo: false, receipt_paper: '58',
-             tax_rate: 0, cash_order_expiry_days: 3, low_stock_default: 10 },
-        3: { alert_emails: ['meiling@bestari.my'], receipt_header: 'Koperasi SMK Bukit Indah', receipt_footer: '',
-             receipt_show_logo: true, receipt_paper: '80', tax_rate: 0, cash_order_expiry_days: 5, low_stock_default: 5 }
-    },
 
     // Katalog pelan (salinan owner)
     plans: [
@@ -298,25 +271,8 @@ function mockReturnableQty(item) {
     return item.qty - (item.cancelled_qty || 0) - (item.returned_qty || 0);
 }
 
-function mockPromotionState(promo) {
-    var today = mockToday();
-    if (!promo.is_active) {
-        return 'inactive';
-    }
-    if (promo.max_uses !== null && promo.used_count >= promo.max_uses) {
-        return 'used_up';
-    }
-    if (today < promo.starts_on) {
-        return 'scheduled';
-    }
-    if (today > promo.ends_on) {
-        return 'expired';
-    }
-    return 'active';
-}
-
 // ---------- Bayaran: gateway, kaedah & rekod ----------
-// Sejak B8: vendor/payments/* sebenar (api/v1/vendor/payments/, jobs/Payment/). MockFinance.gateways kekal untuk refund & POS mock.
+// Sejak B8: vendor/payments/* sebenar (api/v1/vendor/payments/, jobs/Payment/). MockFinance.gateways kekal untuk refund & laporan mock (B11).
 
 // ---------- Pemulangan & refund ----------
 
@@ -447,96 +403,11 @@ Mock.register('vendor/refunds/create', function (body) {
     return Mock.ok(mockRefundSummary(refund));
 });
 
-// ---------- Promosi / kupon ----------
-
-function mockPromotionRow(promo) {
-    var copy = JSON.parse(JSON.stringify(promo));
-    delete copy.vendor_id;
-    copy.state = mockPromotionState(promo);
-    return copy;
-}
-
-function mockFindPromotion(id, cooperativeId) {
-    return mockCoopRows(MockFinance.promotions, cooperativeId).filter(function (row) { return row.id === Number(id); })[0] || null;
-}
-
-Mock.register('vendor/promotions/list', function (params) {
-    var coop = mockRequireCoop(params);
-    if (!coop) {
-        return mockCoopError();
-    }
-    var rows = mockCoopRows(MockFinance.promotions, coop.id).map(mockPromotionRow).filter(function (row) {
-        return !params.state || row.state === params.state;
-    }).sort(function (a, b) { return a.starts_on < b.starts_on ? 1 : -1; });
-    return Mock.ok(Mock.paginate(rows, params, ['name', 'code']));
-});
-
-Mock.register('vendor/promotions/save', function (body) {
-    var coop = mockRequireCoop(body);
-    if (!coop) {
-        return mockCoopError();
-    }
-    var errors = Mock.requireFields(body, ['name', 'type', 'value', 'starts_on', 'ends_on']);
-    var code = body.code ? String(body.code).trim().toUpperCase() : null;
-    if (code && !/^[A-Z0-9-]{3,20}$/.test(code)) {
-        errors.code = T('promo.code_format');
-    }
-    if (code && mockCoopRows(MockFinance.promotions, coop.id).some(function (row) { return row.code === code && row.id !== Number(body.id); })) {
-        errors.code = T('error.duplicate');
-    }
-    if (body.type === 'percent' && body.value !== null && !(body.value >= 1 && body.value <= 100)) {
-        errors.value = T('error.range', { min: 1, max: 100 });
-    }
-    if (body.type === 'fixed' && body.value !== null && !(body.value > 0)) {
-        errors.value = T('promo.value_positive');
-    }
-    if (body.starts_on && body.ends_on && body.ends_on < body.starts_on) {
-        errors.ends_on = T('promo.end_before_start');
-    }
-    if (body.max_uses !== null && body.max_uses !== undefined && !(body.max_uses >= 1)) {
-        errors.max_uses = T('promo.value_positive');
-    }
-    if (Mock.hasErrors(errors)) {
-        return Mock.fail(T('error.check_form'), errors);
-    }
-    var promo = body.id ? mockFindPromotion(body.id, coop.id) : null;
-    if (body.id && !promo) {
-        return mockCoopError();
-    }
-    if (!promo) {
-        promo = { id: Mock.nextId(MockFinance.promotions), vendor_id: MockVendor.sessionVendorId, cooperative_id: coop.id, used_count: 0 };
-        MockFinance.promotions.push(promo);
-    }
-    promo.name = String(body.name).trim();
-    promo.code = code;
-    promo.type = body.type;
-    promo.value = body.value;
-    promo.min_spend = body.min_spend || 0;
-    promo.starts_on = body.starts_on;
-    promo.ends_on = body.ends_on;
-    promo.max_uses = body.max_uses || null;
-    promo.is_active = Boolean(body.is_active);
-    mockActivity('promotion_save', coop.id, 'promotion', promo.id, promo.code || promo.name);
-    return Mock.ok(mockPromotionRow(promo));
-});
-
-// Promosi yang pernah digunakan tidak boleh dipadam (rekod pesanan merujuknya) — nyahaktifkan sahaja
-Mock.register('vendor/promotions/delete', function (body) {
-    var promo = mockFindPromotion(body.id, body.cooperative_id);
-    if (!promo) {
-        return mockCoopError();
-    }
-    if (promo.used_count > 0) {
-        return Mock.fail(T('promo.delete_used'));
-    }
-    MockFinance.promotions = MockFinance.promotions.filter(function (row) { return row.id !== promo.id; });
-    mockActivity('promotion_delete', promo.cooperative_id, 'promotion', promo.id, promo.code || promo.name);
-    return Mock.ok({ id: promo.id });
-});
+// Promosi / kupon: laluan sebenar sejak B10 (api/v1/vendor/promotions/*, jobs/Promotion/)
 
 // Kakitangan vendor: laluan sebenar sejak B2 (api/v1/vendor/staff/*)
 
-// Tetapan koperasi: laluan sebenar sejak B9 (api/v1/vendor/settings/*). MockFinance.settings kekal untuk resit/cukai POS mock (B10)
+// Tetapan koperasi: laluan sebenar sejak B9 (api/v1/vendor/settings/*)
 
 // ---------- Langganan & bil ----------
 
@@ -987,5 +858,5 @@ Mock.register('vendor/reports/run', function (params) {
 });
 
 // Kekalkan perubahan antara halaman — mesti selepas data contoh dijana
-Mock.persist('vendor-finance', MockFinance, ['gateways', 'refunds', 'promotions', 'staff', 'settings', 'subscriptions', 'moduleSubs',
+Mock.persist('vendor-finance', MockFinance, ['gateways', 'refunds', 'staff', 'subscriptions', 'moduleSubs',
     'templateSubs', 'invoices', 'invoiceSeq', 'activity']);

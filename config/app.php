@@ -18,7 +18,7 @@ return [
     'pretty_store_urls' => false,
 
     // Naikkan nombor ini bila CSS/JS berubah supaya pelayar tidak guna cache lama
-    'asset_version'     => '10',
+    'asset_version'     => '11',
 
     // Peringkat 1: data dari assets/js/mock/*.js. Peringkat 2: laluan yang sudah siap guna fetch() (Api.livePrefixes
     // dalam api.js); selebihnya masih mock sehingga session masing-masing. Tukar ke false bila semua B siap
@@ -38,6 +38,9 @@ return [
     // Bayaran online (B8): pesanan pending_payment yang tidak dibayar dalam tempoh ini diluputkan oleh
     // cron/expire-online-orders.php (stok dilepas). Bil gateway disemak semula dahulu sebelum diluputkan
     'online_payment_expiry_minutes' => 60,
+
+    // POS (B10): bayaran QR di kaunter yang tidak dibayar dalam tempoh ini diluputkan oleh cron yang sama (stok dilepas)
+    'pos_payment_expiry_minutes' => 15,
 
     // Kunci penyulitan (sodium secretbox) — dijana oleh: php tools/generate-secret.php
     'secret_key_file'   => 'config/secret.key',
