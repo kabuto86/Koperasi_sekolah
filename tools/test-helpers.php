@@ -189,5 +189,6 @@ function clearTestLocks()
 {
     Database::execute("DELETE FROM login_attempts WHERE ip_address IN ('127.0.0.1', '::1', '0.0.0.0')");
     Database::execute("DELETE FROM rate_limits WHERE bucket_key LIKE '%127.0.0.1%' OR bucket_key LIKE 'forgot:%' OR bucket_key LIKE 'resend_verify:%'"
-        . " OR bucket_key LIKE 'store_cart:%' OR bucket_key LIKE 'store_child_save:%' OR bucket_key LIKE 'store_checkout:%'");
+        . " OR bucket_key LIKE 'store_cart:%' OR bucket_key LIKE 'store_child_save:%' OR bucket_key LIKE 'store_checkout:%'"
+        . " OR bucket_key LIKE 'store_payment_%' OR bucket_key LIKE 'vendor_gateway_test:%'");
 }

@@ -12,6 +12,7 @@ require APP_ROOT . '/core/PanelRole.php';
 // Kelas lain dimuat bila diperlukan:
 //   core/{Kelas}.php           cth. Database, Request, Response, Validator, Csrf, Crypto
 //   jobs/{Folder}/{Kelas}.php  cth. jobs/Cooperative/ValidateCooperativeJob.php
+//   payments/{Kelas}.php, payments/drivers/{Kelas}.php  cth. GatewayFactory, ToyyibPayGateway (B8)
 spl_autoload_register('autoloadAppClass');
 
 function autoloadAppClass($class)
@@ -29,6 +30,14 @@ function autoloadAppClass($class)
     $jobFiles = glob(APP_ROOT . '/jobs/*/' . $class . '.php');
     if (!empty($jobFiles)) {
         require $jobFiles[0];
+        return;
+    }
+
+    foreach (['/payments/', '/payments/drivers/'] as $folder) {
+        if (is_file(APP_ROOT . $folder . $class . '.php')) {
+            require APP_ROOT . $folder . $class . '.php';
+            return;
+        }
     }
 }
 

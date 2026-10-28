@@ -19,7 +19,7 @@ class CheckoutQuote
         $settings = CooperativeSettings::all($cooperative['vendor_id'], $cooperative['id']);
         $methods = explode(',', (string) ($settings['pickup_methods'] ?? 'A,B,C,D'));
         $codeAbove = (int) ($settings['pickup_code_required_above'] ?? 0);
-        $gateway = self::gateway($cooperative);
+        $gateway = CooperativeGateways::active($cooperative['vendor_id'], $cooperative['id']);
         $slots = self::slots($cooperative, $data['groups']);
 
         $data['discount'] = $choice['discount'];
@@ -40,28 +40,17 @@ class CheckoutQuote
         return ['data' => $data, 'lines' => $result['lines'], 'promotion' => $choice['promotion']];
     }
 
-    // Tunai jika koperasi terima; online hanya bila gateway koperasi aktif DAN driver gateway sudah wujud (B8)
+    // Tunai jika koperasi terima; online hanya bila gateway koperasi aktif, dibenarkan owner & driver wujud (CooperativeGateways::active)
     private static function paymentMethods(array $cooperative, $gateway)
     {
         $methods = [];
         if ((int) $cooperative['accept_cash'] === 1) {
             $methods[] = 'cash';
         }
-        if ((int) $cooperative['accept_online'] === 1 && $gateway !== null && class_exists('GatewayFactory')) {
+        if ((int) $cooperative['accept_online'] === 1 && $gateway !== null) {
             $methods[] = 'online';
         }
         return $methods;
-    }
-
-    // Gateway aktif koperasi ini (dibenarkan owner untuk vendor), atau null
-    private static function gateway(array $cooperative)
-    {
-        return Database::fetchOne(
-            "SELECT cg.gateway_code, cg.mode, pg.name FROM cooperative_gateways cg JOIN payment_gateways pg ON pg.code = cg.gateway_code
-              WHERE cg.vendor_id = ? AND cg.cooperative_id = ? AND cg.is_active = 1 AND pg.is_enabled_for_vendors = 1
-              ORDER BY cg.id LIMIT 1",
-            [(int) $cooperative['vendor_id'], (int) $cooperative['id']]
-        );
     }
 
     // Slot ambil musim pre-order yang sedang dibuka, untuk darjah anak-anak dalam troli (NULL = semua darjah).

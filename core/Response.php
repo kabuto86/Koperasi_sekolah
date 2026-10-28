@@ -34,6 +34,18 @@ class Response
         self::fail(t('error.method_not_allowed'), [], 405);
     }
 
+    // Jawapan teks biasa (panggilan balik gateway: "OK", "RECEIVEOK")
+    public static function text($body, $status = 200)
+    {
+        if (!headers_sent()) {
+            http_response_code($status);
+            header('Content-Type: text/plain; charset=utf-8');
+            header('Cache-Control: no-store');
+        }
+        echo $body;
+        exit;
+    }
+
     public static function json($payload, $status = 200)
     {
         if (!headers_sent()) {

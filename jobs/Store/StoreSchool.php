@@ -73,13 +73,14 @@ class StoreSchool
         return (new ListCooperativeGradesJob($cooperative['school_type']))->run();
     }
 
+    // Online hanya bila gateway koperasi aktif & dibenarkan (B8)
     public static function paymentMethods(array $cooperative)
     {
         $methods = [];
         if ((int) $cooperative['accept_cash'] === 1) {
             $methods[] = 'cash';
         }
-        if ((int) $cooperative['accept_online'] === 1) {
+        if ((int) $cooperative['accept_online'] === 1 && CooperativeGateways::active($cooperative['vendor_id'], $cooperative['id']) !== null) {
             $methods[] = 'online';
         }
         return $methods;

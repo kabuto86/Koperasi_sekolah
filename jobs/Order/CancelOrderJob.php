@@ -27,6 +27,11 @@ class CancelOrderJob
                 "UPDATE orders SET status = 'cancelled', cancelled_at = NOW() WHERE id = ? AND vendor_id = ?",
                 [(int) $order['id'], (int) $order['vendor_id']]
             );
+            // Bil online yang belum dibayar ditutup (jika ibu bapa tetap membayar bil lama → PaymentSettlement merekod paid_late)
+            Database::execute(
+                "UPDATE payments SET status = 'failed' WHERE vendor_id = ? AND order_id = ? AND status = 'pending'",
+                [(int) $order['vendor_id'], (int) $order['id']]
+            );
             // Nota untuk kakitangan koperasi — bahasa koperasi
             $note = Lang::getFor($this->cooperative['default_language'], 'store.order.cancelled_by_parent');
             CustomerOrders::logStatus($order, 'cancelled', 'customer', $this->customerId, $note);

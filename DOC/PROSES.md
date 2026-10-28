@@ -4,9 +4,9 @@
 > Kemas kini fail ini di HUJUNG setiap session, sebelum commit & push.
 > Reka bentuk: [PELAN.md](PELAN.md) · Prompt kerja: [PROMPT-SESSION.md](PROMPT-SESSION.md)
 
-**Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · **Peringkat 2 berjalan** — skema & core (B1), auth sebenar (B2), panel owner (B3), katalog & inventori vendor (B4), kit sekolah (B5), store ibu bapa: anak, katalog, kit, troli (B6), checkout tunai, pesanan & queue e-mel (B7)
-**Session terakhir siap:** B7 — Checkout tunai, pesanan, queue e-mel
-**Session seterusnya:** **B8 — Payment gateway + webhook**
+**Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · **Peringkat 2 berjalan** — skema & core (B1), auth sebenar (B2), panel owner (B3), katalog & inventori vendor (B4), kit sekolah (B5), store ibu bapa: anak, katalog, kit, troli (B6), checkout tunai, pesanan & queue e-mel (B7), payment gateway + webhook (B8)
+**Session terakhir siap:** B8 — Payment gateway + webhook
+**Session seterusnya:** **B9 — Pengurusan pesanan & serah barang**
 
 Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 
@@ -43,7 +43,7 @@ Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 | B5 | Kit keperluan sekolah | ✅ | 26 Okt 2026 | `8ab4bf5` | 7 endpoint `vendor/kits/*`, 7 job + pembantu `SchoolKits` (`findPublished` untuk store), harga kit dari harga semasa, `tools/verify-b5.php` 59/59 lulus |
 | B6 | Store ibu bapa: daftar, anak, katalog, kit, troli | ✅ | 26 Okt 2026 | `47a4acb` | 19 endpoint store, 19 job + 4 pembantu (`StoreSchool`, `StorePricing`, `Children`, `Carts`), template ikut koperasi, URL `/{slug}/`, `tools/verify-b6.php` 85/85 lulus |
 | B7 | Checkout tunai, pesanan, queue e-mel | ✅ | 27 Okt 2026 | `2f15ccc` | 6 endpoint store, 7 job + 4 pembantu `jobs/Order/` + `Promotions` + `SendQueuedEmailsJob`, `core/Mailer` (SMTP vanila) · `Money` · `QrCode`, 2 cron, `mock/store.js` dibuang, `tools/verify-b7.php` 92/92 lulus |
-| B8 | Payment gateway + webhook | ⬜ | | | |
+| B8 | Payment gateway + webhook | ✅ | 28 Okt 2026 | `97e3b42` | 5 driver `payments/`, 13 job `jobs/Payment/`, `vendor/payments/*` sebenar, 5 webhook, semakan semula + amaun + idempotent, cron luput online, `tools/verify-b8.php` 95/95 lulus |
 | B9 | Pengurusan pesanan & serah barang | ⬜ | | | |
 | B10 | POS kaunter | ⬜ | | | |
 | B11 | Laporan, refund, PO, stock take | ⬜ | | | |
@@ -903,6 +903,64 @@ Tertangguh / peralihan:
 - Promosi vendor (`vendor/promotions/*`) masih mock → B10 (seed DB sudah ada promosi untuk store)
 - `order_ready` / `order_collected` e-mel → B9; resit PDF → B9
 - `ui-audit` vendor: `vendor_school-kit` kotak semak pratonton `aria-hidden` tanpa label (sedia ada sejak B5)
+
+### B8 — Payment gateway + webhook (28 Okt 2026)
+
+Dibuat:
+- **`payments/`** (dimuat automatik oleh `core/bootstrap.php`): `GatewayInterface` (createBill, verifyCallback, fetchStatus, amountLocked,
+  testConnection, supportsRefund, callbackResponse), `GatewayFactory` (5 kod), `BaseGateway` (curl, URL sandbox/live, `KOPERASI_GATEWAY_TEST_URL`
+  untuk ujian — sandbox sahaja), `GatewayException`; `drivers/` ToyyibPay (createBill, getBillTransactions, getCategoryDetails), Billplz (v3 bills,
+  X-Signature), SenangPay (pautan HMAC, query_order_status), iPay88 (borang POST SHA256, enquiry.asp, `RECEIVEOK`), Stripe (Checkout Session,
+  Stripe-Signature)
+- **Job (13, `jobs/Payment/`):** pembantu `CooperativeGateways`, `PaymentSettlement`; `StartOnlinePaymentJob`, `HandleGatewayCallbackJob`,
+  `CheckOrderPaymentJob`, `ExpirePendingPaymentsJob`, `GetPaymentFormJob`, `GetPaymentSettingsJob`, `GetCooperativeGatewayJob`,
+  `SaveCooperativeGatewayJob` (rahsia disulitkan, satu aktif), `TestCooperativeGatewayJob`, `SavePaymentMethodsJob`, `ListPaymentRecordsJob`
+- **API (12 fail baharu, tiada SQL):** `vendor/payments/{settings,gateway,save-gateway,test-gateway,save-methods,list}` (`vendor_admin`),
+  `webhooks/{toyyibpay,billplz,senangpay,ipay88,stripe}` (`?coop=`, tiada sesi/CSRF, had 300/minit/IP), `store/orders/check-payment` (baharu)
+- **Ubah:** `CheckoutJob` (online → `expires_at` +60 minit, bil dicipta selepas commit, `payment` / `payment_error`), `PayCustomerOrderJob` →
+  `StartOnlinePaymentJob`, `CancelOrderJob` (bil pending → failed), `CheckoutQuote` & `StoreSchool::paymentMethods` (online hanya dengan gateway
+  aktif), `Request::queryInt/webhook`, `Response::text`, `SecurityHeaders::allowFormAction`, `config online_payment_expiry_minutes` (60)
+- **Halaman:** `store/payment-return.php` (kembali dari gateway, GET/POST → order-success `returned=1`), `store/payment-redirect.php` +
+  `assets/js/store/payment-redirect.js` (borang iPay88); modal gateway template1 = ringkasan + pautan "Teruskan ke halaman bayaran" / "Bayar kemudian"
+  (simulasi dibuang); `order-success.js` memanggil `check-payment` bila `returned=1`
+- **Cron:** `cron/expire-online-orders.php` (flock; semak semula bil → paid, atau expired + lepas tahanan; gateway rosak → cuba semula ≤ 24 jam)
+- **DB:** migrasi `003-webhook-result.sql` (`webhook_logs.result`) + `schema.sql`; tiada perubahan seed
+- **JS:** `Api.livePrefixes` + `vendor/payments/`; 6 `Mock.register` bayaran & `mockGatewayPublic` dibuang dari `mock/vendor-finance.js`
+  (`MockFinance.gateways` kekal untuk refund/POS mock); `asset_version` → 9
+- 10 kunci bahasa baharu × 4 (`payment.gateway_error|bill_description|paid_after_close|test_failed|test_unsupported`, `store.payment.redirect_note|
+  sandbox_note|redirecting`, `store.order.payment_expired`), 2 diubah (`store.payment.pay|cancel`), 1 dibuang (`store.payment.demo_note`) — jumlah 1824
+- `tools/fake-gateway.php` (5 gateway palsu + `/_admin/set|bills|down`), `tools/verify-b8.php` (95 semakan), `test-helpers.php` `clearTestLocks()`
+  + `store_payment_*`, `vendor_gateway_test:`; `verify-b6.php` dikemas kini (online perlu gateway aktif)
+
+Disahkan (MariaDB 10.11, PHP 8.3, pemasangan baharu schema + seed — `verify-b8` **95 lulus, 0 gagal**; `verify-b7` 92/92; `verify-b6` 85/85;
+`verify-b5` 59/59; `verify-b4` 118/118; `verify-b3` 101/101; `verify-b2` 94/94; `verify-b1` 42/42; `check-ui` OK; `ui-audit` lang=ms store 38
+halaman + bayaran vendor 4 halaman: 0 isu; Playwright: vendor simpan ToyyibPay + uji sambungan → ibu bapa 390px checkout online → modal →
+gateway → kembali tanpa panggilan balik → "Bayaran berjaya" melalui semakan pelayan — 0 ralat konsol):
+- **Redirect palsu:** `payment-return.php?status_id=1…` tanpa bayaran sebenar → pesanan kekal `pending_payment`; panggilan balik palsu ToyyibPay
+  "status=1" → kekal pending (gateway: belum dibayar)
+- **Idempotent:** 4 panggilan balik serentak → satu `payments` paid, satu log `paid`; bil yang sama diguna semula bila "Bayar" ditekan lagi
+- **Tandatangan & amaun:** Billplz X-Signature salah → 400; gateway melapor amaun lain → `amount_mismatch`, kekal pending; SenangPay hash salah,
+  Stripe-Signature salah → 400; iPay88 `enquiry` amaun
+- **VENDOR01 ↔ VENDOR02:** settings/gateway/list/save koperasi lain → 404; rujukan bil V01 ke `?coop=3` (V02) → `unknown_reference`, tiada perubahan;
+  rekod bayaran V02 tiada data V01; pengurus & juruwang → 403
+- **Ibu bapa A ↔ B:** B bayar / semak / buka borang iPay88 bil A → 404; slug koperasi lain → 404
+- **Rahsia:** tidak dipulangkan, tidak disimpan teks biasa (Crypto), kosong = kekal
+- **Gagal & luput:** gateway rosak → pesanan disimpan + `payment_error`, panggilan balik → 502; cron: bil dibayar tanpa panggilan balik → paid,
+  lain → expired + tahanan dilepas + bil failed; wang selepas luput → `paid_late` + nota refund; owner sekat driver → online hilang
+
+Keputusan kecil (dicatat dalam PELAN 9, 10.1, 10.2, 13, 18.10, 18.12, 18.14):
+- ToyyibPay tidak menandatangani panggilan balik → disahkan sepenuhnya melalui API dengan kunci rahsia (`signature_valid` 0 + `(unsigned)`)
+- Luput `pending_payment` = 60 minit (config), cron setiap 10 minit; bil disemak semula sebelum luput
+- Rujukan bil `{order_no}-{n}`; bil pending diguna semula 30 minit; panggilan rangkaian tidak pernah dalam transaksi DB
+- `vendor/payments/*` = `vendor_admin` sahaja (ikut jadual peranan PELAN 4)
+- Kembali dari gateway melalui `store/payment-return.php` (303) — cookie sesi `SameSite=Lax` tetap dihantar walaupun gateway menghantar POST (iPay88)
+- Wang selepas pesanan ditutup tidak menghidupkan semula pesanan (stok sudah dilepas) — direkod & ditanda untuk refund (B11)
+
+Tertangguh / peralihan:
+- Refund melalui API gateway (Stripe `supportsRefund`) → B11; QR online POS & `vendor/pos/payment-status` → B10; e-mel "bayaran diterima" → B9
+- Rekod bayaran tunai (`payments` method cash) ditulis semasa serah barang / POS → B9/B10
+- Gateway owner untuk invois langganan (driver yang sama) → B12
+- Panel vendor pesanan masih mock (pautan dari rekod bayaran ke `vendor/order.php`) → B9
 
 ---
 
