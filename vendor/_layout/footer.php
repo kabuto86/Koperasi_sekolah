@@ -13,6 +13,6 @@ if (!empty($moduleCode)) {
 }
 View::partial('partials/ui-shell.php');
 View::partial('partials/scripts.php', [
-    'mockFiles'   => ['vendor.js', 'vendor-finance.js', 'vendor-addons.js'],
+    'mockFiles'   => ['vendor.js', 'vendor-addons.js'],
     'pageScripts' => array_merge($layoutScripts, $pageScripts ?? []),
 ]);

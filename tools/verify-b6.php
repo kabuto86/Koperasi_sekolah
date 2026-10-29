@@ -96,12 +96,13 @@ try {
         && !isset($school['data']['vendor_id']) && !isset($school['data']['id']));
     check('Waktu operasi 7 hari', ok($school) && count($school['data']['opening_hours']) === 7 && $school['data']['opening_hours']['sat']['open'] === false);
     Database::execute("UPDATE cooperatives SET status = 'suspended' WHERE id = 3");
-    check('Koperasi digantung → hilang dari senarai & 404', $guest->get('store/schools/list')['data']['total'] === 2
-        && $guest->status('store/school', ['slug' => 'smk-seri-indah']) === 404);
+    // Sejak B12: digantung = "Koperasi ditutup sementara" (503 + school_closed), bukan 404
+    check('Koperasi digantung → hilang dari senarai & ditutup sementara (503)', $guest->get('store/schools/list')['data']['total'] === 2
+        && $guest->status('store/school', ['slug' => 'smk-seri-indah']) === 503);
     Database::execute("UPDATE cooperatives SET status = 'active' WHERE id = 3");
     Database::execute("UPDATE vendors SET status = 'suspended' WHERE id = 2");
-    check('Vendor digantung → semua koperasinya ditutup', $guest->get('store/schools/list')['data']['total'] === 1
-        && $guest->status('store/catalog', ['slug' => 'sjkc-chung-hwa']) === 404);
+    check('Vendor digantung → semua koperasinya ditutup sementara (503)', $guest->get('store/schools/list')['data']['total'] === 1
+        && $guest->status('store/catalog', ['slug' => 'sjkc-chung-hwa']) === 503);
     Database::execute("UPDATE vendors SET status = 'active' WHERE id = 2");
     $classes = $guest->get('store/classes', $melati + ['grade' => 'D1']);
     check('Kelas D1 SK Taman Melati: Bestari, Cemerlang (koperasi lain tidak bercampur)', ok($classes)

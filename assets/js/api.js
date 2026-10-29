@@ -14,11 +14,13 @@ var Api = {
         'owner/auth/', 'owner/profile/', 'owner/staff/', 'owner/two-factor/',
         'owner/dashboard/', 'owner/vendors/', 'owner/cooperatives/', 'owner/plans/', 'owner/modules/', 'owner/templates/',
         'owner/gateways/', 'owner/grades/', 'owner/email-templates/', 'owner/announcements/', 'owner/audit-logs/', 'owner/settings/',
+        'owner/subscriptions/', 'owner/invoices/',
         'vendor/auth/', 'vendor/session/', 'vendor/staff/',
         'vendor/cooperatives/', 'vendor/templates/', 'vendor/modules/', 'vendor/grades/', 'vendor/classes/', 'vendor/categories/',
         'vendor/products/', 'vendor/inventory/', 'vendor/suppliers/', 'vendor/purchase-orders/', 'vendor/stock-takes/', 'vendor/dashboard/',
         'vendor/kits/', 'vendor/payments/', 'vendor/orders/', 'vendor/handover/', 'vendor/customers/', 'vendor/settings/',
         'vendor/pos/', 'vendor/promotions/', 'vendor/refunds/', 'vendor/reports/',
+        'vendor/subscription/', 'vendor/addons/', 'vendor/invoices/', 'vendor/activity-logs/',
         'store/auth/', 'store/profile/', 'store/session',
         'store/schools/', 'store/school', 'store/classes', 'store/children/', 'store/catalog', 'store/product', 'store/kit',
         'store/cart/', 'store/news/', 'store/clearance/', 'store/checkout/', 'store/orders/'

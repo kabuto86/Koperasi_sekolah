@@ -339,6 +339,8 @@ Nama, harga dan maklumat anak **disalin** (snapshot) ke pesanan dan invois.
 - **`invoices`** — id, vendor_id, invoice_no UNIQUE, period_start, period_end, subtotal, tax, total, status ENUM(draft, issued, paid, void), issued_at, due_at, paid_at
 - **`invoice_lines`** — id, invoice_id FK, vendor_id, description, item_type, cooperative_id NULL, qty, unit_price, amount, is_prorated
 - **`platform_payments`** — id, vendor_id, invoice_id FK, gateway_code, gateway_ref UNIQUE, amount, status, raw_payload, paid_at
+  > **B12:** `invoices.invoice_no` = `INV-{tahun}-{0001}` dari pembilang `platform_settings.invoice_seq_{tahun}`; `platform_payments` online =
+  > bil gateway owner (`gateway_ref` UNIQUE, `raw_payload` `{ reference, redirect_url, verified }`), manual = rujukan owner. Tiada jadual / lajur baharu.
 - **`vendor_announcements`** — id, title, body, target ENUM(all, selected), published_at, created_by
 
 ### C. Vendor & koperasi (7)
@@ -511,20 +513,22 @@ Koperasi_sekolah/
 │   └── template1/  manifest.json · layout.php · partials/ · pages/ · css/ · js/
 ├── modules/        news/ · clearance/ · calendar/ · school_opening/
 ├── lang/           ms.php · en.php · zh.php · ta.php
-├── cron/           send-emails · expire-cash-orders (B7, CLI sahaja, `.htaccess` halang web) · expire-online-orders (B8) · generate-invoices · suspend-overdue · promote-grades
+├── cron/           send-emails · expire-cash-orders (B7, CLI sahaja, `.htaccess` halang web) · expire-online-orders (B8) · generate-invoices ·
+│                   suspend-overdue (B12) · promote-grades
 ├── storage/        mail.log (mail_driver log) · fail kunci cron (.gitignore isi, `.htaccess` halang web) — B7
 ├── tools/          check-ui.php (tiada inline CSS + kunci 4 bahasa sama) · generate-secret.php · verify-b1.php · verify-b2.php
 │                   dev-totp.php (kod 2FA ujian) · ui-audit.js (pelayar, log masuk sebenar sejak B2) — CLI sahaja
 │                   verify-b3.php · test-helpers.php (Browser HTTP dikongsi — B3) · verify-b4.php (B4) · verify-b5.php (B5) · verify-b6.php (B6)
 │                   verify-b7.php · fake-smtp.php (pelayan SMTP palsu untuk ujian) — B7
-│                   verify-b8.php · fake-gateway.php (gateway palsu 5 driver, `php -S` router) — B8
+│                   verify-b8.php · fake-gateway.php (gateway palsu 5 driver, `php -S` router) — B8 · verify-b9 … verify-b12.php
 ├── assets/
 │   ├── lib/        bootstrap/ (5.3.3) · bootstrap-icons/ (1.11.3) · qrcode/ (qrcode-generator 1.4.4, MIT — sejak U2)
 │   ├── css/        app.css · print-label.css · print-slip.css · receipt.css
 │   ├── js/         api.js · lang.js · helpers.js · login.js · vendor-layout.js
 │   │   ├── owner/  satu fail per halaman owner (dashboard.js, vendors.js, …)
 │   │   ├── vendor/ satu fail per halaman vendor (dashboard.js, …) · addon-common.js · addons/{code}.js (U6)
-│   │   └── mock/   mock.js · owner.js · vendor.js · vendor-orders.js · vendor-finance.js · vendor-addons.js (Peringkat 1 sahaja; store.js dibuang B7)
+│   │   └── mock/   mock.js · owner.js (terjemahan sahaja sejak B12) · vendor.js · vendor-addons.js (Peringkat 1 sahaja; store.js dibuang B7,
+│   │               vendor-orders.js B11, vendor-finance.js B12)
 │   ├── img/
 │   └── fonts/      noto-sans-sc/ · noto-sans-tamil/ (woff2 400 & 700, unicode-range — dimuat bila perlu)
 ├── uploads/        {vendor_id}/{cooperative_id}/… (.gitignore isi, .htaccess halang PHP)
@@ -652,6 +656,18 @@ refunded`; tiada baki unit → `collected` (ada yang diambil) / `cancelled`. Log
 `DailySalesReportJob`, `MonthlySalesReportJob`, `PaymentMethodReportJob`, `ProductSalesReportJob`, `ProfitReportJob`, `StockValueReportJob`,
 `GradeSalesReportJob`, `ClassSalesReportJob` + pembantu `ReportRange`, `PeriodSales`, `ChildSales`); setiap pertanyaan menapis vendor_id +
 cooperative_id; julat wajib (kecuali stok), maks 366 hari. CSV kekal dijana di pelayar — tiada `ExportCsvJob`.
+
+**Konvensyen B12 (langganan & invois):** semua dalam `jobs/Billing/`. Langganan semasa HANYA `Subscriptions::current($vendorId)` (status
+trial/active/past_due/suspended — terkini); baris vendor dikunci `Subscriptions::lockVendor()` sebelum mengubah bil. Invois HANYA
+`Invoices::create($vendorId, $mula, $tamat, $baris, 'draft'|'issued')` — snapshot penerangan (bahasa lalai platform, `Invoices::text`), harga &
+`sst_rate`; nombor `INV-{tahun}-{0001}` dari pembilang atom `platform_settings.invoice_seq_{tahun}` (`LAST_INSERT_ID`, dikunci hingga commit);
+`Invoices::issue` = issued + `due_at` hari ini + 7 hari 23:59:59 + e-mel `invoice_issued` (queue). Baris pembaharuan HANYA `RenewalLines::build($sub,
+$applyPending)` (anggaran UI = draf = invois sebenar). Prorata HANYA `CalculateProrataJob` (harga × baki hari / hari tempoh; trial = 0 → tiada invois).
+Akses modul HANYA `ModuleAccess::codes/has/require($vendorId, $cooperativeId, $kod)` (`jobs/Module/` — membaca DB, seperti `PlanLimit`); setiap endpoint
+modul B13 memanggil `require` (403 `module_locked`). Bayaran yuran: `PlatformGateway` (gateway owner, `is_enabled_for_platform`) → `PayInvoiceJob`
+(bil di luar transaksi, `platform_payments` pending) → `paid` HANYA `PlatformPaymentSettlement::recheck/apply` (tanya API gateway + amaun, idempotent) dari
+`webhooks/platform.php?gateway=` atau `vendor/invoices/check-payment`. Status vendor ikut tunggakan HANYA `SuspendOverdueJob` (turun) &
+`VendorBillingStatus::restore` (naik, kecuali digantung manual oleh owner).
 
 ### 10.3 Kontrak API
 
@@ -783,6 +799,35 @@ melempar `GatewayException` (tidak disokong). **Stripe** sahaja: `GET /v1/checko
 - Trial (lalai 14 hari, owner set)
 - Had pelan dikuatkuasakan dalam job simpan (`PlanLimit`), bukan hanya UI
 - Invois ialah snapshot — perubahan harga tidak mengubah invois lama
+
+**Pelaksanaan B12:**
+- Tempoh: bulanan = +1 bulan − 1 hari (hujung bulan dikekalkan, `BillingPeriod::endFor`); prorata = `round(harga × baki hari / hari tempoh)` (termasuk
+  hari ini & hari akhir). SST dikira pada jumlah kecil invois (`round`), kadar disalin ke `invoices.sst_rate`
+- **Item langganan** (`subscription_items`, `ended_at NULL` = terbuka) ialah sumber bil: koperasi ke-2+ (harga peringkat), modul & template **per
+  koperasi**, `unit_price` = harga kitaran semasa dilanggan (snapshot). Harga pelan = harga semasa `plans`. Pembaharuan menggunakan snapshot; tukar
+  pelan / kitaran → semua item dihargakan semula ikut katalog & peringkat kitaran baharu
+- **Kitaran harian** (`cron/generate-invoices.php` → `RunBillingCycleJob`): (1) 7 hari sebelum `current_period_end` → **draf** invois pembaharuan
+  (owner boleh semak / terbit awal / batal; vendor tidak nampak draf); (2) tempoh tamat → `RenewSubscriptionJob`: modul `cancel_at_period_end` →
+  `expired` + item ditamatkan; template yang tidak dipakai koperasi itu berhenti; koperasi ditutup berhenti; pertukaran dijadualkan digunakan;
+  trial → active; tempoh baharu (lebih satu kitaran terlepas → bermula hari ini, tidak dicaj ke belakang); draf dikira semula & **diterbitkan**
+  (draf dibatalkan owner = tiada invois tempoh itu; sudah diterbitkan awal = tidak berganda). Digantung → tidak diperbaharui sehingga dibayar
+- **Add-on** (`vendor/addons/subscribe`): aktif serta-merta (`cooperative_modules` hingga `current_period_end`), item baharu, invois prorata
+  `issued`. Henti = `cancel_at_period_end` (modul + item), tiada refund; undo dibenarkan sebelum tamat. Template premium dilanggan per koperasi —
+  `vendor/templates/options?cooperative_id=` (koperasi baharu = percuma sahaja); store jatuh balik ke Template 1 jika langganan tamat
+- **Koperasi tambahan** (`SaveCooperativeJob` → `AddCooperativeSubscriptionJob`, dalam transaksi yang sama): item harga peringkat + invois prorata
+- **Tukar pelan** dijadualkan (`pending_plan_id`) pada tarikh pembaharuan; turun taraf ditolak jika penggunaan (koperasi, produk, kakitangan aktif)
+  melebihi had baharu. Tiada langganan hidup (dibatalkan) → `SubscribeJob`: bermula hari ini, aktif, item lama dipindah & dihargakan semula,
+  invois tempoh penuh `issued`
+- **Tunggakan** (`cron/suspend-overdue.php` setiap jam → `SuspendOverdueJob`): invois `issued` melepasi `due_at` → vendor & langganan `past_due`
+  (store masih dibuka); melepasi `due_at + grace_days` → `suspended` + nota vendor + audit `vendor.auto_suspend`. Bayaran (online / manual) atau
+  invois dibatalkan → `VendorBillingStatus::restore` → `active` (audit `vendor.auto_activate`) — **kecuali** penggantungan terakhir oleh owner
+  (`vendor.suspend`). Store vendor digantung / koperasi digantung → `store.school_closed` "Koperasi ditutup sementara" (HTTP 503 + `school_closed`)
+- **Bayar online**: gateway owner (Owner → Gateway, `is_enabled_for_platform`, kunci rahsia wajib); rujukan `{invoice_no}-{n}`; bil pending sama
+  diguna semula 30 minit; kembali ke `vendor/invoices.php?paid_return={id}` → `vendor/invoices/check-payment` (pelayan bertanya sendiri);
+  panggilan balik `api/v1/webhooks/platform.php?gateway={kod}` (dilog `webhook_logs.cooperative_id NULL`). Gateway borang POST (iPay88) belum
+  disokong untuk yuran. Wang diterima untuk invois dibayar/dibatalkan → `paid_late` (audit, owner pulangkan manual)
+- **Owner**: terbit draf, batal (draft/issued), tanda dibayar manual (`bank_transfer|cash|cheque|other`, rujukan unik, tarikh ≤ hari ini) — owner
+  sahaja; `owner_staff` baca sahaja (butang tidak dipapar)
 
 ## 15. Keselamatan — senarai semak wajib
 
@@ -1071,6 +1116,9 @@ QR dijana dalam pelayar (`assets/lib/qrcode/`) — rahsia tidak dihantar ke perk
 Mock demo: kata laluan semasa `salah` → ralat; kod 2FA `000000` → ditolak.
 
 **Sejak B3 (sebenar):** semua laluan owner di atas kecuali `subscriptions/*`, `invoices/*` (B12) dan `translations/*` (B14).
+**Sejak B12 (sebenar):** `owner/subscriptions/list` (semua langganan termasuk sejarah, terkini dahulu) & `owner/invoices/list|get` — owner + owner_staff;
+`issue` (draft sahaja → `invoice.cannot_issue`), `void` (draft/issued → `invoice.cannot_void`), `mark-paid` (`method: bank_transfer|cash|cheque|other`,
+`reference` unik → `invoice.reference_used`, `paid_at` ≤ hari ini → `invoice.paid_future`, `note` ≤ 255) — owner sahaja, log audit `invoice.*`.
 - `owner/plans/options` (baharu) → `[{ id, code, name, is_active }]` — tapisan pelan di senarai vendor (owner_staff tidak boleh `plans/list`)
 - `owner/vendors/set-status` hanya `owner`; peralihan: `active` ← trial/past_due/suspended, `suspended` ← trial/active/past_due (lain → ralat).
   Langganan terkini mengikut status; sebab → `vendor_notes`. `add-note` dibenarkan untuk `owner_staff` (sokongan)
@@ -1265,7 +1313,7 @@ collected_qty, source: 'ala_carte|kit|pos' }] }]` (item dikumpul ikut anak),
 papan kekunci + Enter) → satu hasil dibuka terus → [tunai: jumlah diterima diisi, Enter] → pilih siapa ambil (anak panah), Tab ke nama &
 item, Enter = sahkan → skrin berjaya ("Ibu bapa telah dimaklumkan"), fokus pada "Seterusnya" → Enter → kembali ke carian kosong
 
-### 18.10 Objek vendor bahagian 3 (U3c) — `assets/js/mock/vendor-finance.js`
+### 18.10 Objek vendor bahagian 3 (U3c) — `assets/js/mock/vendor-finance.js` (mock dibuang B12)
 
 Laluan koperasi menerima `cooperative_id` (disahkan `ValidateCooperativeJob`); kakitangan, langganan, invois & log aktiviti ialah
 **peringkat vendor** (tiada `cooperative_id`, ditapis `vendor_id` sesi). Setiap tindakan di bawah menulis `activity_logs`
@@ -1373,6 +1421,15 @@ refund ditolak dalam "Bersih"; kos = `cost_price` produk; darjah/kelas dari snap
 - `vendor/addons/cancel { code, undo }` → modul kekal aktif hingga hujung tempoh, tidak dicaj pada pembaharuan (tiada refund)
 - **Invois** — `vendor/invoices/list` (tapis `q, status`) → InvoiceSummary (18.7) + `line_count`; `get` → + `lines, payments, vendor { code, company_name }, sst_rate`
   (draf tidak dipapar kepada vendor); `pay { id }` → Peringkat 1 simulasi `{ paid: true }`; Peringkat 2 `{ redirect_url }` ke gateway pemilik, `paid` hanya selepas webhook
+
+> **B12 (sebenar — `jobs/Billing/`):** semua laluan langganan / kedai add-on / invois / log aktiviti di atas dari DB, **`vendor_admin` sahaja** kecuali
+> log aktiviti (admin + pengurus; pengurus = log koperasi yang diberi sahaja). Semasa digantung: `subscription/*`, `invoices/*`, `addons/catalog`
+> dibenarkan; `addons/quote|subscribe|cancel` → 403 `billing_only`. `subscription/get` tanpa langganan hidup → `{ plan: null, status: 'none',
+> usage, unpaid_count, unpaid_total }` (UI: "Tiada langganan aktif" + pilih pelan → `change` = `SubscribeJob`). `renewal` = baris pembaharuan sebenar
+> (pertukaran dijadualkan sudah diambil kira); `pending_change.effective_at` = `current_period_end + 1`. `addons/quote` + `is_trial`;
+> `addons/subscribe` semasa trial → `{ invoice_id: null, invoice_no: null, total: 0 }`. `invoices/pay` → `{ paid: false, redirect_url, gateway_name,
+> invoice }`; baharu **`vendor/invoices/check-payment { id }`** (POST) → `{ result: paid|already_paid|pending|failed|amount_mismatch|none|recheck_failed,
+> invoice }`. `invoices/get.payments` = bayaran diterima sahaja `{ method, gateway_code, reference, amount, paid_at, note }`.
 
 **ActivityLog** — `vendor/activity-logs/list` (tapis `q, user_id, scope: ''|current (+ cooperative_id), date_from, date_to`; `data.users: [{ id, full_name }]`)
 ```js
@@ -1607,7 +1664,8 @@ vendor) → `booked--`. **Lencana "Jualan murah"** (sedia sejak U5) kini dari `M
 
 Senarai **semua** laluan yang didaftar dalam `assets/js/mock/*.js` (214 laluan, dijana dari kod mock pada U7; B2 menambah 9 laluan auth
 — jumlah **223**; B3 menambah `owner/plans/options` — **224**; B4, B5 & B6 tiada laluan baharu; B8 menambah `store/orders/check-payment` dan
-membuang `store/payment/simulate` — kekal **224**, + 5 webhook `webhooks/{gateway}` di luar jadual; B9 menambah `vendor/orders/unlock-code` — **225**; B10 tiada laluan baharu — kekal **225**). Lajur Mock `— (B2)` … `— (B5)` = sudah sebenar (`api/v1/`), mock dibuang.
+membuang `store/payment/simulate` — kekal **224**, + 5 webhook `webhooks/{gateway}` di luar jadual; B9 menambah `vendor/orders/unlock-code` — **225**; B10 tiada laluan baharu — kekal **225**; B11 tiada; B12 menambah
+`vendor/invoices/check-payment` — **226**, + webhook `webhooks/platform` (yuran langganan) di luar jadual). Lajur Mock `— (B2)` … `— (B5)` = sudah sebenar (`api/v1/`), mock dibuang.
 **B4:** PO, stock take, `templates/options` & `modules/active` disiapkan lebih awal (prompt B4); `vendor/settings/*` ditangguh ke B9 (skrin serah & POS mock masih membaca tetapan mock). Bentuk `data` setiap laluan
 ada dalam 18.4–18.13; jadual ini ialah senarai semak Peringkat 2 — setiap baris mesti menjadi `api/v1/{laluan}.php` (nipis, tiada SQL)
 yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan CSRF, B14).
@@ -1644,11 +1702,11 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 | `owner/gateways/toggle` | POST | owner | B3 | — (B3) |
 | `owner/grades/list` | GET | owner | B3 | — (B3) |
 | `owner/grades/save` | POST | owner | B3 | — (B3) |
-| `owner/invoices/get` | GET | owner | B12 | `owner.js` |
-| `owner/invoices/issue` | POST | owner | B12 | `owner.js` |
-| `owner/invoices/list` | GET | owner | B12 | `owner.js` |
-| `owner/invoices/mark-paid` | POST | owner | B12 | `owner.js` |
-| `owner/invoices/void` | POST | owner | B12 | `owner.js` |
+| `owner/invoices/get` | GET | owner + owner_staff (baca) | B12 | — (B12) |
+| `owner/invoices/issue` | POST | owner | B12 | — (B12) |
+| `owner/invoices/list` | GET | owner + owner_staff (baca) | B12 | — (B12) |
+| `owner/invoices/mark-paid` | POST | owner | B12 | — (B12) |
+| `owner/invoices/void` | POST | owner | B12 | — (B12) |
 | `owner/modules/list` | GET | owner | B3 | — (B3) |
 | `owner/modules/save` | POST | owner | B3 | — (B3) |
 | `owner/plans/delete` | POST | owner | B3 | — (B3) |
@@ -1667,7 +1725,7 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 | `owner/staff/reset-2fa` | POST | owner | B2 | — (B2) |
 | `owner/staff/save` | POST | owner | B2 | — (B2) |
 | `owner/staff/set-active` | POST | owner | B2 | — (B2) |
-| `owner/subscriptions/list` | GET | owner | B12 | `owner.js` |
+| `owner/subscriptions/list` | GET | owner + owner_staff (baca) | B12 | — (B12) |
 | `owner/templates/list` | GET | owner | B3 | — (B3) |
 | `owner/templates/save` | POST | owner | B3 | — (B3) |
 | `owner/translations/list` | GET | owner | B14 | `owner.js` |
@@ -1728,11 +1786,11 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 
 | Laluan | Kaedah | Skop disahkan pelayan | Session | Mock |
 |---|---|---|---|---|
-| `vendor/activity-logs/list` | GET | vendor sesi + koperasi | B11 | `vendor-finance.js` |
-| `vendor/addons/cancel` | POST | vendor sesi + koperasi | B13 | `vendor-finance.js` |
-| `vendor/addons/catalog` | GET | vendor sesi + koperasi | B13 | `vendor-finance.js` |
-| `vendor/addons/quote` | GET | vendor sesi + koperasi | B13 | `vendor-finance.js` |
-| `vendor/addons/subscribe` | POST | vendor sesi + koperasi | B13 | `vendor-finance.js` |
+| `vendor/activity-logs/list` | GET | vendor sesi (+ koperasi bila `scope=current`; pengurus = koperasinya) | B12 (asal B11) | — (B12) |
+| `vendor/addons/cancel` | POST | vendor sesi + koperasi (admin) | B12 (asal B13) | — (B12) |
+| `vendor/addons/catalog` | GET | vendor sesi + koperasi (admin) | B12 (asal B13) | — (B12) |
+| `vendor/addons/quote` | GET | vendor sesi + koperasi (admin) | B12 (asal B13) | — (B12) |
+| `vendor/addons/subscribe` | POST | vendor sesi + koperasi (admin) | B12 (asal B13) | — (B12) |
 | `vendor/auth/login` | POST | awam | B2 | — (B2) |
 | `vendor/auth/verify-2fa` · `vendor/auth/logout` · `vendor/auth/forgot` · `vendor/auth/reset` | POST | awam | B2 | — (baharu B2) |
 | `vendor/calendar/delete` | POST | koperasi + modul `calendar` | B13 | `vendor-addons.js` |
@@ -1767,9 +1825,10 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 | `vendor/inventory/list` | GET | vendor sesi + koperasi | B4 | — (B4) |
 | `vendor/inventory/movements` | GET | vendor sesi + koperasi | B4 | — (B4) |
 | `vendor/inventory/stock-in` | POST | vendor sesi + koperasi | B4 | — (B4) |
-| `vendor/invoices/get` | GET | vendor sesi | B12 | `vendor-finance.js` |
-| `vendor/invoices/list` | GET | vendor sesi | B12 | `vendor-finance.js` |
-| `vendor/invoices/pay` | POST | vendor sesi | B12 | `vendor-finance.js` |
+| `vendor/invoices/check-payment` | POST | vendor sesi (admin) | B12 | — (baharu B12) |
+| `vendor/invoices/get` | GET | vendor sesi (admin) | B12 | — (B12) |
+| `vendor/invoices/list` | GET | vendor sesi (admin) | B12 | — (B12) |
+| `vendor/invoices/pay` | POST | vendor sesi (admin) | B12 | — (B12) |
 | `vendor/kits/copy-year` | POST | vendor sesi + koperasi | B5 | — (B5) |
 | `vendor/kits/delete` | POST | vendor sesi + koperasi | B5 | — (B5) |
 | `vendor/kits/get` | GET | vendor sesi + koperasi | B5 | — (B5) |
@@ -1848,10 +1907,10 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 | `vendor/stock-takes/list` | GET | vendor sesi + koperasi | B4 (asal B11) | — (B4) |
 | `vendor/stock-takes/save-counts` | POST | vendor sesi | B4 (asal B11) | — (B4) |
 | `vendor/stock-takes/start` | POST | vendor sesi + koperasi | B4 (asal B11) | — (B4) |
-| `vendor/subscription/cancel-change` | POST | vendor sesi | B12 | `vendor-finance.js` |
-| `vendor/subscription/change` | POST | vendor sesi | B12 | `vendor-finance.js` |
-| `vendor/subscription/get` | GET | vendor sesi | B12 | `vendor-finance.js` |
-| `vendor/subscription/plans` | GET | vendor sesi | B12 | `vendor-finance.js` |
+| `vendor/subscription/cancel-change` | POST | vendor sesi (admin) | B12 | — (B12) |
+| `vendor/subscription/change` | POST | vendor sesi (admin) | B12 | — (B12) |
+| `vendor/subscription/get` | GET | vendor sesi (admin) | B12 | — (B12) |
+| `vendor/subscription/plans` | GET | vendor sesi (admin) | B12 | — (B12) |
 | `vendor/suppliers/list` | GET | vendor sesi | B4 | — (B4) |
 | `vendor/suppliers/save` | POST | vendor sesi | B4 | — (B4) |
 | `vendor/templates/options` | GET | vendor sesi | B4 (asal B12) | — (B4) |

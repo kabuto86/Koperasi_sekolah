@@ -181,6 +181,28 @@ INSERT INTO cooperative_modules (vendor_id, cooperative_id, module_id, status, s
 (1, 1, 6, 'active', '2026-01-06', '2027-01-04'),
 (2, 3, 2, 'active', '2026-02-14', '2026-11-10');
 
+-- Invois langganan contoh (B12) — snapshot: penerangan & harga disalin. INV-{tahun}-{0001} dari pembilang invoice_seq_{tahun}
+INSERT INTO invoices (id, vendor_id, invoice_no, period_start, period_end, subtotal, sst_rate, tax, total, status, issued_at, due_at, paid_at, created_at) VALUES
+(1, 1, 'INV-2026-0001', '2026-01-05', '2027-01-04', 164000, 8.00, 13120, 177120, 'paid', '2026-01-05 09:00:00', '2026-01-12 23:59:59', '2026-01-06 10:12:00', '2026-01-05 09:00:00'),
+(2, 2, 'INV-2026-0002', '2026-10-11', '2026-11-10', 10800, 8.00, 864, 11664, 'paid', '2026-10-11 00:05:00', '2026-10-18 23:59:59', '2026-10-12 08:40:00', '2026-10-11 00:05:00');
+
+INSERT INTO invoice_lines (invoice_id, vendor_id, description, item_type, cooperative_id, qty, unit_price, amount, is_prorated) VALUES
+(1, 1, 'Pelan Pro (Tahunan)', 'plan', NULL, 1, 99000, 99000, 0),
+(1, 1, 'Modul Berita & pengumuman: SK Taman Melati', 'module', 1, 1, 15000, 15000, 0),
+(1, 1, 'Modul Kalendar cuti: SK Taman Melati', 'module', 1, 1, 5000, 5000, 0),
+(1, 1, 'Modul Pembukaan sekolah: SK Taman Melati', 'module', 1, 1, 20000, 20000, 0),
+(1, 1, 'Modul Notifikasi WhatsApp/SMS: SK Taman Melati', 'module', 1, 1, 25000, 25000, 0),
+(2, 2, 'Pelan Asas (Bulanan)', 'plan', NULL, 1, 4900, 4900, 0),
+(2, 2, 'Koperasi tambahan: SMK Seri Indah', 'cooperative', 3, 1, 4900, 4900, 0),
+(2, 2, 'Modul Jualan murah: SMK Seri Indah', 'module', 3, 1, 1000, 1000, 0);
+
+INSERT INTO platform_payments (vendor_id, invoice_id, method, gateway_code, gateway_ref, amount, status, paid_at, created_at) VALUES
+(1, 1, 'online', 'toyyibpay', 'TP-88812', 177120, 'paid', '2026-01-06 10:12:00', '2026-01-06 10:05:00'),
+(2, 2, 'online', 'toyyibpay', 'TP-90211', 11664, 'paid', '2026-10-12 08:40:00', '2026-10-12 08:35:00');
+
+INSERT INTO platform_settings (setting_key, setting_value) VALUES
+('invoice_seq_2026', '2');
+
 INSERT INTO vendor_users (id, vendor_id, email, password_hash, full_name, phone, role, pin_hash, language, is_active) VALUES
 (1, 1, 'ahmad@niagasekolah.my', '$argon2id$v=19$m=19456,t=2,p=1$c0l2bWhmUW91d1F3aG9Gdw$WKp1vojpA56zCffcfHNfLD6xpLDX/MxZl1F1b0sgFRw', 'Ahmad bin Ismail', '012-3456789', 'vendor_admin', '$argon2id$v=19$m=19456,t=2,p=1$NUpHQm9nZ3Zjbi4yNGVDSw$JrKzHMVwj/Nuc3AfilNztiI4V10rIWAg83Jnph1Ksl4', 'ms', 1),
 (2, 1, 'kasim@niagasekolah.my', '$argon2id$v=19$m=19456,t=2,p=1$c0l2bWhmUW91d1F3aG9Gdw$WKp1vojpA56zCffcfHNfLD6xpLDX/MxZl1F1b0sgFRw', 'Kasim bin Osman',  '013-4567890', 'cashier',      '$argon2id$v=19$m=19456,t=2,p=1$NUpHQm9nZ3Zjbi4yNGVDSw$JrKzHMVwj/Nuc3AfilNztiI4V10rIWAg83Jnph1Ksl4', 'ms', 1),

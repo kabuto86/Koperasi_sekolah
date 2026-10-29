@@ -92,6 +92,13 @@ class Request
         return is_string($value) && preg_match('/^\d{1,10}$/', $value) ? (int) $value : null;
     }
 
+    // Kod pendek dari query string sahaja (cth. ?gateway=toyyibpay pada URL webhook platform — B12)
+    public static function queryCode($key)
+    {
+        $value = $_GET[$key] ?? null;
+        return is_string($value) && preg_match('/^[a-z0-9_]{1,20}$/', $value) ? $value : '';
+    }
+
     // Panggilan balik gateway (B8): badan mentah + medan borang/JSON + query + header tandatangan
     public static function webhook()
     {

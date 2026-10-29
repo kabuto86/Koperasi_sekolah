@@ -4,9 +4,9 @@
 > Kemas kini fail ini di HUJUNG setiap session, sebelum commit & push.
 > Reka bentuk: [PELAN.md](PELAN.md) · Prompt kerja: [PROMPT-SESSION.md](PROMPT-SESSION.md)
 
-**Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · **Peringkat 2 berjalan** — skema & core (B1), auth sebenar (B2), panel owner (B3), katalog & inventori vendor (B4), kit sekolah (B5), store ibu bapa: anak, katalog, kit, troli (B6), checkout tunai, pesanan & queue e-mel (B7), payment gateway + webhook (B8), pesanan vendor & serah barang (B9), POS kaunter & promosi (B10), refund & laporan (B11)
-**Session terakhir siap:** B11 — Laporan, refund, PO & stock take
-**Session seterusnya:** **B12 — Langganan & invois vendor + cron**
+**Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · **Peringkat 2 berjalan** — skema & core (B1), auth sebenar (B2), panel owner (B3), katalog & inventori vendor (B4), kit sekolah (B5), store ibu bapa: anak, katalog, kit, troli (B6), checkout tunai, pesanan & queue e-mel (B7), payment gateway + webhook (B8), pesanan vendor & serah barang (B9), POS kaunter & promosi (B10), refund & laporan (B11), langganan & invois vendor + cron (B12)
+**Session terakhir siap:** B12 — Langganan & invois vendor + cron
+**Session seterusnya:** **B13 — Modul add-on**
 
 Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 
@@ -47,7 +47,7 @@ Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 | B9 | Pengurusan pesanan & serah barang | ✅ | 28 Okt 2026 | `cdd17ba` | 16 endpoint vendor (pesanan, serah, ibu bapa, tetapan), pembantu `VendorOrders` + 16 job, `StockLedger::collect`, e-mel sedia/diambil/dibayar, kod 4 digit dikunci + buka oleh pengurus, `tools/verify-b9.php` 106/106 lulus |
 | B10 | POS kaunter | ✅ | 28 Okt 2026 | `a3417ed` | 15 endpoint (`vendor/pos/*` 12, `vendor/promotions/*` 3), `core/PosAuth`, 15 job + 3 pembantu `jobs/Pos/`, 3 job promosi, PIN Argon2id sebenar, QR gateway + webhook, `PaymentSettlement` cabang POS, mock POS dibuang, `tools/verify-b10.php` 97/97 lulus |
 | B11 | Laporan, refund, PO, stock take | ✅ | 28 Okt 2026 | `0733853` | 4 endpoint (`vendor/refunds/*` 3, `vendor/reports/run`), `jobs/Refund/` 3 job + `Refunds`, `jobs/Report/` 9 job + 3 pembantu, refund Stripe (`GatewayInterface::refund`), migrasi 005 (`refunds.pos_shift_id`), refund tunai ditolak dari laci syif, mock refund/laporan & `vendor-orders.js` dibuang, `tools/verify-b11.php` 78/78 lulus |
-| B12 | Langganan & invois vendor + cron | ⬜ | | | |
+| B12 | Langganan & invois vendor + cron | ✅ | 29 Okt 2026 | `92400a1` | 21 laluan + `webhooks/platform`, `jobs/Billing/` 33 fail baharu (+ `ModuleAccess`, `ListActivityLogsJob`), 2 cron, invois snapshot `INV-{tahun}-{0001}`, prorata, kitaran draf → pusingan, tunggakan → digantung → store "ditutup sementara", bayar online gateway owner + webhook, `mock/vendor-finance.js` dibuang, `tools/verify-b12.php` 98/98 lulus |
 | B13 | Modul add-on | ⬜ | | | |
 | B14 | Modul terjemahan + pengerasan keselamatan | ⬜ | | | |
 | B15 | API token Flutter + push | ⬜ | | | |
@@ -1142,6 +1142,86 @@ Tertangguh / peralihan:
 - Refund gateway `pending` yang tersangkut (proses mati selepas gateway menerima) perlu disemak manual — tiada cron semakan lagi
 - ToyyibPay / Billplz / SenangPay / iPay88 tiada refund API dalam driver → tunai / pindahan bank manual
 - `MockFinance` masih untuk langganan, bil, kedai modul & log aktiviti (B12/B13)
+
+---
+
+### B12 — Langganan & invois vendor + cron (29 Okt 2026)
+
+Dibuat:
+- **Pembantu (`jobs/Billing/`):** `BillingPeriod` (tempoh bulanan/tahunan, hari, prorata), `Subscriptions` (langganan semasa + kunci vendor, harga kitaran,
+  SST, penggunaan & had), `Invoices` (cipta snapshot, terbit + e-mel, nombor `INV-{tahun}-{0001}` atom, bentuk ringkasan/butiran), `RenewalLines` (baris
+  pembaharuan = anggaran = draf = invois), `AddonItems`, `VendorBillingStatus` (pulih selepas bayar), `PlatformGateway` (gateway owner),
+  `PlatformPaymentSettlement` (paid hanya selepas semakan API + amaun, idempotent)
+- **Job:** `SubscribeJob`, `ChangePlanJob`, `CancelPlanChangeJob`, `GetVendorSubscriptionJob`, `ListVendorPlansJob`, `AddCooperativeSubscriptionJob`,
+  `SubscribeModuleJob`, `SubscribeTemplateJob`, `CancelModuleJob`, `GetAddonCatalogJob`, `GetAddonQuoteJob`, `CalculateProrataJob`, `GenerateInvoiceJob`
+  (draf pembaharuan), `RenewSubscriptionJob` (pusingan tempoh), `RunBillingCycleJob`, `SuspendOverdueJob`, `ListInvoicesJob`, `GetInvoiceJob`,
+  `IssueInvoiceJob`, `VoidInvoiceJob`, `MarkInvoicePaidJob`, `PayInvoiceJob`, `CheckInvoicePaymentJob`, `HandlePlatformCallbackJob`,
+  `ListSubscriptionsJob` · `jobs/Module/ModuleAccess` (`codes/has/require`) · `jobs/Vendor/ListActivityLogsJob`
+- **API (21 + webhook, tiada SQL):** `owner/subscriptions/list`, `owner/invoices/{list,get,issue,void,mark-paid}`, `vendor/subscription/{get,plans,change,
+  cancel-change}`, `vendor/addons/{catalog,quote,subscribe,cancel}`, `vendor/invoices/{list,get,pay,check-payment}`, `vendor/activity-logs/list`,
+  `webhooks/platform.php?gateway=` · `core/Request::queryCode`
+- **Cron:** `cron/generate-invoices.php` (harian — draf 7 hari awal, pusingan + invois diterbitkan), `cron/suspend-overdue.php` (setiap jam)
+- **Ubah:** `SaveCooperativeJob` → `AddCooperativeSubscriptionJob` (invois prorata koperasi tambahan); `ListTemplateOptionsJob` + `ResolveStoreTemplateJob`
+  + `vendor/templates/options` — template premium **per koperasi**; `ListActiveModulesJob` & `StoreSchool::modules` → `ModuleAccess` (kini menyemak
+  `ends_at` & modul aktif katalog); `StoreSchool::require/isClosed` + `store/index.php` → 503 "Koperasi ditutup sementara" (vendor digantung /
+  dibatalkan atau koperasi digantung)
+- **JS:** `Api.livePrefixes` + `owner/subscriptions/`, `owner/invoices/`, `vendor/subscription/`, `vendor/addons/`, `vendor/invoices/`, `vendor/activity-logs/`;
+  `mock/vendor-finance.js` dibuang (pembantu tarikh dipindah ke `mock/vendor-addons.js`); `mock/owner.js` tinggal terjemahan; `invoices.js` — bayar →
+  gateway, `?paid_return=` → `check-payment`; `addon-store.js` — nota & toast trial; `subscription.js` — keadaan "tiada langganan aktif" + pilih pelan;
+  `owner/invoice.js` — butang tindakan pilihan (owner_staff baca sahaja); store `storeShowError(mesej, isNotice)` (amaran kuning bila ditutup sementara);
+  `cooperative-form.js` hantar `cooperative_id` ke `templates/options`; `asset_version` → 13
+- **Halaman:** `vendor/subscription.php` (+ amaran tiada langganan), `owner/invoice.php` (owner_staff tanpa butang terbit/batal/tanda dibayar)
+- 22 kunci bahasa baharu × 4 (`billing.line_plan|line_coop|no_subscription|already_subscribed|gateway_unavailable|bill_description|auto_suspend_note|
+  payment_pending|payment_failed|no_plan_title|no_plan_help|subscribe_started`, `addon.subscribed_free|quote_note_trial`, `invoice.cannot_issue|cannot_void|
+  paid_future|reference_used`, `store.school_closed`, `activity.action.staff_send_reset`, `email.invoice_issued.subject|body`); `billing.renewal_help`
+  dikemas kini (diterbitkan pada tarikh pembaharuan) — jumlah 1872
+- **DB:** tiada perubahan skema. Seed: 2 invois contoh dibayar (`INV-2026-0001` VENDOR01 tahunan, `INV-2026-0002` VENDOR02 Okt) + baris + bayaran +
+  `invoice_seq_2026`
+- `tools/verify-b12.php` (98 semakan; pelayan 4 pekerja + gateway palsu; jadual diubah dipulihkan); `verify-b4.php` turut memulihkan invois/e-mel
+  (koperasi baharu kini mencipta invois); `verify-b6.php` — store digantung kini 503 (bukan 404)
+
+Disahkan (MariaDB 10.11, PHP 8.3, pemasangan baharu schema + seed — `verify-b12` **98 lulus, 0 gagal** (dua kali berturut); `verify-b11` 78/78; `verify-b10`
+97/97; `verify-b9` 106/106; `verify-b8` 95/95; `verify-b7` 92/92; `verify-b6` 85/85; `verify-b5` 59/59; `verify-b4` 118/118; `verify-b3` 101/101; `verify-b2` 94/94;
+`verify-b1` 42/42; `check-ui` OK; Playwright 1366px: Mei Ling → Langganan & bil → Kedai modul → langgan Berita (prorata 13/31 hari, RM 6.79) → Invois
+(butiran + Bayar sekarang) → Tukar pelan; owner → Langganan & invois → INV-2026-0001; store vendor digantung → amaran "Koperasi ditutup sementara" —
+0 ralat JS):
+- **Peranan:** tanpa sesi 401; juruwang & pengurus → bil/langganan/kedai add-on 403; owner_staff baca 200, terbit/batal/tanda dibayar 403 (butang tidak
+  dipapar); CSRF 419; ibu bapa → laluan bil 401
+- **Langganan & tukar pelan:** anggaran pembaharuan = baris sebenar (V01 164000 + SST 8% = 177120); tukar Asas bulanan dijadualkan 2027-01-05 & dihargakan
+  semula; kitaran/pelan tidak sah ditolak; turun taraf melebihi had → `billing.downgrade_blocked`; batal jadual
+- **Add-on:** prorata = harga × baki hari / hari tempoh + SST; aktif serta-merta (menu & store), invois `issued` +7 hari + e-mel; langgan semula ditolak;
+  dua klik serentak → satu; henti/undo; template per koperasi; trial → tiada invois
+- **ModuleAccess:** tidak dilanggan → 403 `module_locked`; vendor salah → tiada akses; `ends_at` lepas → hilang dari menu & store
+- **Bayar online (ToyyibPay palsu):** tiada kunci → `billing.gateway_unavailable`; bil diguna semula; redirect palsu tidak mengubah status; webhook →
+  semakan API → paid (unsigned); berganda → already_paid; rujukan tidak dikenali → 200 tanpa perubahan; gateway lain → 404; amaun lain → `amount_mismatch`
+- **Owner:** tapis langganan/invois; tanda dibayar (tarikh hadapan, tiada rujukan, cara tidak sah, rujukan berganda ditolak); batal; terbit draf
+- **Kitaran bil:** draf 7 hari awal (tiada berganda, vendor tidak nampak); pusingan → pertukaran dijadualkan, modul dihentikan `expired`, template tidak
+  dipakai berhenti, harga semula tahunan, draf dikira semula & diterbitkan; trial → active + invois pertama; tempoh terlepas tidak dicaj; draf
+  diterbitkan awal oleh owner → tiada invois kedua
+- **Tunggakan:** past_due (store masih dibuka) → suspended selepas tempoh tangguh (nota + audit) → store 503 "ditutup sementara", panel ke langganan,
+  API operasi 403 `billing_only` → tanda dibayar → pulih automatik; gantung **manual** owner tidak dibuka automatik
+- **Langganan semula:** dibatalkan → `plan: null`; pilih pelan → langganan baharu + invois penuh, item lama dihargakan semula
+- **Koperasi tambahan:** item harga peringkat + invois prorata
+- **VENDOR01 ↔ VENDOR02:** katalog/anggaran/langgan/henti koperasi lain → 404; invois lain (get/pay/check-payment) → 404; templates/options koperasi lain
+  → 404; log aktiviti tidak bercampur; pengurus hanya koperasinya
+- **Ibu bapa A ↔ B:** tiada akses laluan bil; store kedua-duanya ditutup / dibuka ikut status vendor
+
+Keputusan kecil (dicatat dalam PELAN 9 B, 10.2, 14, 18.7, 18.10, 18.14):
+- Invois pembaharuan **diterbitkan pada tarikh pembaharuan** (bayar dalam 7 hari); draf dicipta 7 hari awal untuk semakan owner dan dikira semula
+  semasa diterbitkan — elak invois basi bila modul ditambah/dihentikan dalam minggu terakhir (teks `billing.renewal_help` dikemas kini)
+- `past_due` = selepas `due_at` (store masih dibuka); `suspended` = selepas `due_at + grace_days`
+- `PlanLimit` & `ModuleAccess` dalam `jobs/` (bukan `core/`) kerana membaca DB
+- Item langganan = sumber bil (snapshot); tukar pelan/kitaran → harga semula ikut katalog semasa
+- Template premium per koperasi; template yang tidak dipakai pada hujung tempoh berhenti automatik (tiada UI henti template)
+- Log aktiviti (`vendor/activity-logs/list`, asal B11) & kedai add-on (asal B13) disiapkan dalam B12 supaya `mock/vendor-finance.js` boleh dibuang
+- Trial: add-on percuma hingga invois pertama; tiada langganan hidup → pilih pelan = langganan baharu serta-merta
+
+Tertangguh / peralihan:
+- E-mel peringatan tunggakan / digantung kepada vendor (templat baharu) — kemudian
+- Gateway borang POST (iPay88) untuk yuran langganan
+- Kredit / refund bila turun taraf atau henti di tengah kitaran — sengaja tiada (PELAN 18.10)
+- Data modul (`mock/vendor-addons.js`, `MockVendor.activeModules`) masih mock → B13; modul yang baru dilanggan menggunakan semakan pelayan sebenar
+  untuk menu & store, tetapi halaman modul mock masih membaca senarai mock sehingga B13
 
 ---
 

@@ -90,9 +90,12 @@ function storeRequireLogin() {
     return true;
 }
 
-function storeShowError(message) {
+// isNotice = koperasi ditutup sementara (vendor digantung) → amaran kuning, bukan ralat
+function storeShowError(message, isNotice) {
     var box = document.getElementById('store-error');
     box.textContent = message;
+    box.classList.toggle('alert-danger', !isNotice);
+    box.classList.toggle('alert-warning', Boolean(isNotice));
     box.classList.remove('d-none');
 }
 

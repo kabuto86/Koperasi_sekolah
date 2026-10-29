@@ -49,7 +49,7 @@ Setiap prompt di bawah bermula dengan "Ikut peraturan umum". Maksudnya:
    Sejak B1: skema sebenar = `database/schema.sql` (75 jadual, PELAN 9 J); lajur baharu → fail `database/migrations/NNN-nama.sql`
    **dan** kemas kini `schema.sql` + PELAN 9. Konvensyen job & core dalam PELAN 10.2 (constructor menerima id dari sesi + input, `run()`,
    `Database::fetchOne/fetchAll/execute/insert`, `Response::ok/fail/notFound`). Data demo & akaun: kepala `database/seed.sql`.
-   Semakan asas sebelum commit: `php tools/verify-b1.php` + `verify-b2.php` + `verify-b3.php` + `verify-b4.php` + `verify-b5.php` + `verify-b6.php` + `verify-b7.php` + `verify-b8.php` + `verify-b9.php` + `verify-b10.php` + `verify-b11.php` (mesti 0 gagal) + `php tools/check-ui.php`; tambah skrip semakan
+   Semakan asas sebelum commit: `php tools/verify-b1.php` + `verify-b2.php` + `verify-b3.php` + `verify-b4.php` + `verify-b5.php` + `verify-b6.php` + `verify-b7.php` + `verify-b8.php` + `verify-b9.php` + `verify-b10.php` + `verify-b11.php` + `verify-b12.php` (mesti 0 gagal) + `php tools/check-ui.php`; tambah skrip semakan
    session sendiri `tools/verify-bN.php` dengan ujian kebocoran VENDOR01↔VENDOR02 dan ibu bapa A↔B (contoh HTTP sebenar: kelas `Browser`
    dalam `tools/test-helpers.php` sejak B3 — pelayan `php -S` sendiri, cookie, CSRF; `require __DIR__ . '/test-helpers.php'`).
    Sejak B4: skop koperasi melalui `VendorAuth::requireCooperative()`; stok HANYA melalui `StockLedger::move()` dalam transaksi DB;
@@ -62,6 +62,13 @@ Setiap prompt di bawah bermula dengan "Ikut peraturan umum". Maksudnya:
    gateway = pending → `driver->refund()` di luar transaksi → completed/failed; refund tunai → `pos_shift_id` syif terbuka, ditolak dari laci);
    laporan HANYA `RunReportJob` → satu job setiap jenis (`jobs/Report/`, pembantu `ReportRange`) — PELAN 10.2 "Konvensyen B11", 13 "Pelaksanaan B11".
    `mock/vendor-orders.js` sudah dibuang; `MockFinance` tinggal langganan, bil, kedai modul & log aktiviti.
+   Sejak B12: bil dalam `jobs/Billing/` — langganan semasa HANYA `Subscriptions::current()` (kunci `Subscriptions::lockVendor()`), invois HANYA
+   `Invoices::create/issue` (snapshot, `INV-{tahun}-{0001}`), baris pembaharuan HANYA `RenewalLines::build`, prorata HANYA `CalculateProrataJob`,
+   akses modul HANYA `ModuleAccess::codes/has/require($vendorId, $cooperativeId, $kod)` (`jobs/Module/`), bayaran yuran HANYA
+   `PlatformPaymentSettlement` (gateway owner `PlatformGateway`, webhook `webhooks/platform.php?gateway=`); status vendor ikut tunggakan HANYA
+   `SuspendOverdueJob` / `VendorBillingStatus::restore`. Cron: `generate-invoices.php` (harian) & `suspend-overdue.php` (setiap jam) — PELAN 10.2
+   "Konvensyen B12", 14 "Pelaksanaan B12". `mock/vendor-finance.js` dibuang; `mock/owner.js` tinggal terjemahan (B14); `mock/vendor-addons.js`
+   (data modul B13) kini memegang `mockToday`/`mockDaysFromToday` dan `mockActivity()` kosong (log aktiviti sebenar).
    Sejak B6: store menyelesaikan koperasi dengan `StoreSchool::require($slug)` (baris koperasi → job; tiada id dari input); harga/stok/had
    store HANYA melalui `StorePricing`; troli melalui `Carts` (`quote` = CartQuote), anak melalui `Children` — PELAN 10.2 "Konvensyen B6", 18.12 "B6 (sebenar)".
    Ujian HTTP dengan parameter: `$browser->status($laluan, $params)` (`tools/test-helpers.php`).
@@ -517,7 +524,7 @@ laporan sebenar: buang `MockOrders` (mock/vendor-orders.js) & `MockFinance.gatew
 > Tertangguh: e-mel "refund diproses" kepada ibu bapa; semakan semula refund gateway `pending` yang tersangkut (jika proses mati selepas gateway
 > menerima) — kini kekal `pending` dan menempah baki; refund automatik ToyyibPay/Billplz (API tiada / manual).
 
-## B12 — Langganan & invois vendor
+## B12 — Langganan & invois vendor ✅ (29 Okt 2026 — lihat PROSES.md)
 
 ```
 Ikut peraturan umum. Session: B12. Prasyarat: B11 ✅.
@@ -530,6 +537,14 @@ SubscribeTemplateJob, CalculateProrataJob, GenerateInvoiceJob (snapshot), PayInv
 cron/generate-invoices.php, cron/suspend-overdue.php.
 Sahkan: modul tidak dilanggan → endpoint modul 403; vendor suspended → store papar ditutup.
 ```
+> Hasil B12: 21 laluan sebenar (`owner/subscriptions/list`, `owner/invoices/{list,get,issue,void,mark-paid}`, `vendor/subscription/{get,plans,change,
+> cancel-change}`, `vendor/addons/{catalog,quote,subscribe,cancel}` — asal B13, `vendor/invoices/{list,get,pay}` + baharu `check-payment`,
+> `vendor/activity-logs/list` — asal B11) + `webhooks/platform.php`; `jobs/Billing/` (pembantu `BillingPeriod`, `Subscriptions`, `Invoices`,
+> `RenewalLines`, `AddonItems`, `VendorBillingStatus`, `PlatformGateway`, `PlatformPaymentSettlement` + job), `jobs/Module/ModuleAccess`,
+> `jobs/Vendor/ListActivityLogsJob`, 2 cron. `core/PlanLimit` kekal dalam `jobs/Billing/PlanLimit.php` (sejak B4) dan `ModuleAccess` dalam `jobs/Module/`
+> (kedua-duanya membaca DB — core tidak menulis SQL). Template premium kini per koperasi (`vendor/templates/options?cooperative_id=`). Store vendor
+> digantung → 503 "Koperasi ditutup sementara". Tiada perubahan skema. Tertangguh: e-mel peringatan tunggakan / digantung; gateway borang POST
+> (iPay88) untuk yuran; pro-rata kredit bila turun taraf / henti di tengah kitaran (sengaja tiada refund).
 
 ## B13 — Modul add-on
 
@@ -537,7 +552,10 @@ Sahkan: modul tidak dilanggan → endpoint modul 403; vendor suspended → store
 Ikut peraturan umum. Session: B13. Prasyarat: B12 ✅.
 Job & API untuk news, clearance (harga khas dalam GetCartJob), calendar (blocks_orders
 disemak dalam CheckoutJob), school_opening (musim, slot ambil, kapasiti dalam transaction).
-Setiap endpoint memanggil ModuleAccess::require($cooperativeId, 'kod').
+Setiap endpoint memanggil ModuleAccess::require($vendorId, $cooperativeId, 'kod') (sejak B12, jobs/Module/ModuleAccess.php —
+403 + module_locked). Kedai add-on (vendor/addons/*) & ModuleAccess SUDAH siap dalam B12. Bila siap: buang mock/vendor-addons.js
+(termasuk pembantu mockToday/mockDaysFromToday/mockActivity yang dipindah ke situ dalam B12) & MockVendor.activeModules; job modul menulis
+WriteActivityLogJob (news_save, clearance_save, calendar_save, season_save, messaging_save … — label sudah ada dalam lang).
 ```
 
 ## B14 — Terjemahan & pengerasan keselamatan

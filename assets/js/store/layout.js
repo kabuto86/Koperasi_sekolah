@@ -100,7 +100,7 @@ function loadStoreLayout() {
 
         if (Store.slug) {
             if (!results[1].ok) {
-                storeShowError(results[1].error);
+                storeShowError(results[1].error, results[1].school_closed);
                 return;
             }
             Store.school = results[1].data;

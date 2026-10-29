@@ -1,7 +1,7 @@
 // Data mock modul add-on (U6): berita, jualan murah, kalendar cuti, pembukaan sekolah, WhatsApp/SMS.
 // Dikongsi panel vendor DAN store ibu bapa (dimuat sebelum store.js) — "pangkalan data" yang sama,
 // jadi berita / jualan murah / cuti / slot yang dicipta vendor terus kelihatan di store.
-// Bergantung pada mock/vendor.js, vendor-finance.js.
+// Bergantung pada mock/vendor.js. (vendor-finance.js dibuang dalam B12 — langganan, invois & log aktiviti kini sebenar.)
 //
 // Keselamatan (sama seperti Peringkat 2 — ModuleAccess::has($cooperativeId, $code)):
 // - Setiap laluan vendor mengesahkan koperasi milik vendor sesi DAN modul dilanggan koperasi itu.
@@ -92,6 +92,18 @@ var ADDON_PROVIDERS = ['whatsapp_cloud', 'twilio', 'isms'];
 // ---------- Pembantu ----------
 
 // ModuleAccess::has — koperasi milik vendor sesi + modul dilanggan. Pulangkan { coop } atau { error }
+// Tarikh mock (zon Asia/Kuala_Lumpur) — dahulu dalam vendor-finance.js
+function mockToday() {
+    return Mock.now().slice(0, 10);
+}
+
+function mockDaysFromToday(days) {
+    return new Date(Date.now() + days * 86400000 + 8 * 3600000).toISOString().slice(0, 10);
+}
+
+// Log aktiviti sebenar sejak B12 (activity_logs) — tindakan mock modul tidak direkod (job B13 akan menulisnya)
+function mockActivity() {}
+
 function addonRequire(params, code) {
     var coop = mockRequireCoop(params);
     if (!coop) {

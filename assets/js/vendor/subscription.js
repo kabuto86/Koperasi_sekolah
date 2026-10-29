@@ -14,6 +14,13 @@ function loadSubscription() {
             return;
         }
         subscriptionState.data = res.data;
+        // Tiada langganan hidup (dibatalkan) → pilih pelan untuk melanggan semula
+        document.getElementById('no-plan-alert').classList.toggle('d-none', Boolean(res.data.plan));
+        document.getElementById('sub-content').classList.toggle('d-none', !res.data.plan);
+        if (!res.data.plan) {
+            renderAlerts(res.data);
+            return;
+        }
         renderPlan(res.data);
         renderUsage(res.data);
         renderCooperatives(res.data);
@@ -118,7 +125,7 @@ function renderRenewal(data) {
 function renderAlerts(data) {
     document.getElementById('unpaid-alert').classList.toggle('d-none', data.unpaid_count === 0);
     document.getElementById('unpaid-text').textContent = T('billing.unpaid_alert', { n: data.unpaid_count, amount: formatRM(data.unpaid_total) });
-    var pending = data.pending_change;
+    var pending = data.pending_change || null;
     document.getElementById('pending-alert').classList.toggle('d-none', !pending);
     if (pending) {
         document.getElementById('pending-text').textContent = T('billing.pending_change', {
@@ -157,7 +164,7 @@ function renderPlanOptions() {
     });
 }
 
-document.getElementById('btn-change-plan').addEventListener('click', function () {
+function openPlanModal() {
     Api.get('vendor/subscription/plans').then(function (res) {
         if (!res.ok) {
             showToast(res.error, 'danger');
@@ -165,7 +172,7 @@ document.getElementById('btn-change-plan').addEventListener('click', function ()
         }
         subscriptionState.plans = res.data.plans;
         subscriptionState.current = res.data.current_plan_id;
-        var pending = subscriptionState.data.pending_change;
+        var pending = subscriptionState.data.pending_change || null;
         resetForm(planForm);
         document.getElementById('cycle-' + (pending ? pending.billing_cycle : res.data.billing_cycle)).checked = true;
         document.getElementById('plan-options').replaceChildren();
@@ -175,15 +182,19 @@ document.getElementById('btn-change-plan').addEventListener('click', function ()
         }
         showModal('plan-modal');
     });
-});
+}
+
+document.getElementById('btn-change-plan').addEventListener('click', openPlanModal);
+document.getElementById('btn-choose-plan').addEventListener('click', openPlanModal);
 
 planForm.querySelectorAll('[name="billing_cycle"]').forEach(function (input) {
     input.addEventListener('change', renderPlanOptions);
 });
 
 bindForm(planForm, 'vendor/subscription/change', function (data) {
+    var wasNone = !subscriptionState.data.plan;
     hideModal('plan-modal');
-    showToast(data.pending_change ? T('billing.change_scheduled') : T('common.saved'), 'success');
+    showToast(wasNone ? T('billing.subscribe_started') : (data.pending_change ? T('billing.change_scheduled') : T('common.saved')), 'success');
     loadSubscription();
 }, function (payload) {
     payload.plan_id = Number(payload.plan_id);
