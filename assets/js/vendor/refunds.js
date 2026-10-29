@@ -16,7 +16,13 @@ function loadRefunds() {
             { render: function (row) {
                 return createStack(createLink(row.order_no, pageUrl('vendor/order.php?id=' + row.order_id), 'fw-semibold'), row.short_code + ' · ' + (row.customer_name || T('pos.walk_in')));
             } },
-            { className: 'text-end fw-semibold', render: function (row) { return formatRM(row.amount); } },
+            { className: 'text-end', render: function (row) {
+                var wrap = createEl('div', 'fw-semibold', formatRM(row.amount));
+                if (row.status !== 'completed') {
+                    wrap.appendChild(createEl('div', 'badge ' + (row.status === 'failed' ? 'text-bg-danger' : 'text-bg-warning'), T('refund.status.' + row.status)));
+                }
+                return wrap;
+            } },
             { render: function (row) { return T('refund.method.' + row.method); } },
             { render: function (row) {
                 var wrap = createEl('div', 'small');
@@ -103,15 +109,33 @@ function renderRefundOrder(order) {
         } }
     ]);
 
+    document.getElementById('rf-pending').textContent = order.pending_amount ? T('refund.pending_note', { amount: formatRM(order.pending_amount) }) : '';
     var method = document.getElementById('rf-method');
     var gatewayOption = method.querySelector('option[value="gateway"]');
     gatewayOption.disabled = !order.gateway_supports_refund;
     method.value = order.payment_method === 'cash' ? 'cash' : (order.gateway_supports_refund ? 'gateway' : 'bank_transfer');
-    document.getElementById('rf-method-help').textContent = order.payment_method === 'online'
-        ? (order.gateway_supports_refund ? T('refund.gateway_auto', { name: order.gateway_name }) : T('refund.gateway_manual', { name: order.gateway_name || '—' }))
-        : '';
+    updateMethodHelp();
     updateRefundAmount();
 }
+
+// Nota cara refund: gateway automatik / manual, atau tunai dari laci syif POS yang terbuka
+function updateMethodHelp() {
+    var order = refundState.order;
+    var method = document.getElementById('rf-method').value;
+    var help = '';
+    if (method === 'cash' && order.drawer_shift) {
+        help = T('refund.cash_drawer');
+    } else if (method !== 'cash' && order.payment_method === 'online') {
+        help = order.gateway_supports_refund ? T('refund.gateway_auto', { name: order.gateway_name }) : T('refund.gateway_manual', { name: order.gateway_name || '—' });
+    }
+    document.getElementById('rf-method-help').textContent = help;
+}
+
+document.getElementById('rf-method').addEventListener('change', function () {
+    if (refundState.order) {
+        updateMethodHelp();
+    }
+});
 
 function returnLines() {
     return Array.prototype.map.call(refundForm.querySelectorAll('.js-return-qty'), function (input) {
@@ -145,6 +169,10 @@ refundForm.addEventListener('submit', function (event) {
             if (!res.ok) {
                 showFormErrors(refundForm, res.errors);
                 showToast(res.error, 'danger');
+                // Refund gateway yang ditolak tetap direkod (status gagal) — muat semula senarai
+                if (payload.method === 'gateway') {
+                    loadRefunds();
+                }
                 return;
             }
             hideModal('refund-modal');

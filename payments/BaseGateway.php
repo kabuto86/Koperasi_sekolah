@@ -27,6 +27,11 @@ abstract class BaseGateway implements GatewayInterface
         return false;
     }
 
+    public function refund($gatewayRef, $amount, $reference)
+    {
+        throw new GatewayException(static::CODE . ': refund tidak disokong');
+    }
+
     public function callbackResponse()
     {
         return 'OK';

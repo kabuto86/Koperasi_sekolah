@@ -399,12 +399,15 @@ Nama, harga dan maklumat anak **disalin** (snapshot) ke pesanan dan invois.
 - **`payment_gateways`** — code PK (`toyyibpay`, `billplz`, `senangpay`, `ipay88`, `stripe`), name, config_fields_json, is_enabled_for_vendors, is_enabled_for_platform
 - **`cooperative_gateways`** — id, vendor_id, cooperative_id, gateway_code, credentials_encrypted, mode ENUM(sandbox, live), is_active · UNIQUE(cooperative_id, gateway_code)
 - **`payments`** — id, vendor_id, cooperative_id, order_id, method ENUM(cash, online), gateway_code NULL, gateway_ref UNIQUE NULL, amount, status ENUM(pending, paid, failed, refunded), raw_payload, verified_at, received_by NULL (juruwang), created_at
-- **`refunds`** — id, vendor_id, cooperative_id, refund_no, order_id, payment_id, amount, reason, method ENUM(cash, bank_transfer, gateway), restock, status, vendor_user_id, created_at
+- **`refunds`** — id, vendor_id, cooperative_id, refund_no, order_id, payment_id, gateway_ref NULL, amount, reason, method ENUM(cash, bank_transfer, gateway), restock, status ENUM(pending, completed, failed), vendor_user_id, pos_shift_id NULL, created_at
   > Butiran barang: **`refund_items`** — id, vendor_id, refund_id, order_item_id, qty, cancelled_qty (U3c)
+  > **B11 (migrasi `005-refund-shift.sql`):** `refund_no` VARCHAR(40) = `RF-{order_no}-{n}` (n = turutan refund pesanan itu — pesanan dikunci, tiada
+  > kunci baris koperasi); `gateway_ref` = id refund di gateway; `pos_shift_id` = syif POS terbuka pengguna kaunter bagi refund **tunai** → ditolak dari laci.
 - **`pos_shifts`** — id, vendor_id, cooperative_id, vendor_user_id, opened_at, opening_cash, closed_at, closing_cash, expected_cash, variance, note, status ENUM(open, closed)
   > U4: satu syif terbuka setiap juruwang setiap koperasi. Jangkaan tunai = tunai permulaan + jualan tunai POS syif itu
   > B10: + tunai pesanan store yang diterima juruwang yang sama di koperasi itu sepanjang syif (`payments.received_by`, skrin serah) —
-  > PosShift `order_cash_count`, `order_cash_total`. `expected_cash` dibekukan semasa tutup. Refund tunai belum ditolak (B11)
+  > PosShift `order_cash_count`, `order_cash_total`. `expected_cash` dibekukan semasa tutup.
+  > B11: − refund tunai selesai yang `refunds.pos_shift_id` = syif itu → PosShift `refund_count`, `refund_total`
 - **`webhook_logs`** — id, gateway_code, cooperative_id NULL, payload, signature_valid, processed, result (B8, migrasi `003-webhook-result.sql`), created_at
   > **B8:** `payments.raw_payload` = JSON `{ reference, redirect_url, form, verified }` (rujukan kami `{order_no}-{n}`, pautan / borang gateway,
   > jawapan semakan semula). `gateway_ref` = id bil di gateway (BillCode ToyyibPay, id Billplz, id sesi Stripe; SenangPay & iPay88 = rujukan kami).
@@ -636,6 +639,20 @@ tiada e-mel); semakan semula dari kaunter `PosSales::recheckPayment` (had `pos_p
 `pos_payment_expiry_minutes` (15) melalui cron B8 yang sama. Tunai / serah di skrin serah merekod `PosAuth::counterUserId` (juruwang PIN jika ada).
 Promosi panel: `Promotions::find/shape/STATE_SQL` (`jobs/Promotion/`). Had kadar: `pos_checkout:{juruwang}` 120/minit.
 
+**Konvensyen B11 (refund & laporan):** refund HANYA melalui `RefundOrderJob` (`jobs/Refund/`, pembantu `Refunds`) — pesanan melalui
+`VendorOrders::require` (vendor sesi + koperasi disahkan; store **dan** POS), pesanan dikunci `FOR UPDATE`. Pelayan mengira semula:
+boleh direfund = `payments` paid/refunded − refund `completed` − refund `pending`; unit boleh dipulang = qty − cancelled − returned − unit refund pending.
+Kesan HANYA oleh `Refunds::apply` (dalam transaksi): unit belum diambil → `cancelled_qty` (+ `StockLedger::release` jika pesanan masih menahan stok —
+`CustomerOrders::HOLDING_STATUSES`, store sahaja); unit sudah diambil → `returned_qty` (+ `StockLedger::move('refund', +qty, ref_type 'refund')` jika
+`restock`); stok dikunci ikut (produk, varian) menaik. Refund penuh (jumlah refund ≥ dibayar) → `refunded`, baki unit dibatalkan, `payments.status
+refunded`; tiada baki unit → `collected` (ada yang diambil) / `cancelled`. Log status bernota `refund.log` + log aktiviti `refund_create` /
+`refund_failed`. Gateway: (1) transaksi `pending` + `refund_items` (menempah baki), (2) `driver->refund()` di luar transaksi, (3) transaksi
+`completed` + `gateway_ref` + `apply`, atau `failed` (tiada kesan). Refund tunai → `pos_shift_id` = syif terbuka `PosAuth::counterUserId`
+→ `PosShifts::summary` menolaknya dari jangkaan laci. Laporan HANYA melalui `RunReportJob` → satu job setiap jenis (`jobs/Report/`
+`DailySalesReportJob`, `MonthlySalesReportJob`, `PaymentMethodReportJob`, `ProductSalesReportJob`, `ProfitReportJob`, `StockValueReportJob`,
+`GradeSalesReportJob`, `ClassSalesReportJob` + pembantu `ReportRange`, `PeriodSales`, `ChildSales`); setiap pertanyaan menapis vendor_id +
+cooperative_id; julat wajib (kecuali stok), maks 366 hari. CSV kekal dijana di pelayar — tiada `ExportCsvJob`.
+
 ### 10.3 Kontrak API
 
 - Format jawapan: `{ "ok": true, "data": ... }` atau `{ "ok": false, "error": "mesej", "errors": { "field": "mesej" } }`
@@ -744,6 +761,12 @@ Owner hanya mengutip yuran langganan (melalui gateway owner sendiri).
 - Luput `pending_payment`: `expires_at` = masa checkout + `online_payment_expiry_minutes` (config, lalai 60). `cron/expire-online-orders.php` (setiap
   10 minit) menyemak semula bil dahulu (panggilan balik hilang → `paid`), gateway rosak → cuba lagi sehingga 24 jam, kemudian `expired` + lepas tahanan
 - Wang diterima selepas pesanan dibatal / luput (atau bil kedua) → `payments.paid`, pesanan kekal, log nota `payment.paid_after_close` → refund B11
+  (sejak B11: boleh direfund = jumlah `payments` paid/refunded − refund, jadi pesanan `cancelled`/`expired` yang dibayar lewat muncul di borang refund)
+
+**Pelaksanaan B11 (refund gateway):** `refund($gatewayRef, $amount, $reference) → { refund_ref }` ditambah pada `GatewayInterface`; `BaseGateway`
+melempar `GatewayException` (tidak disokong). **Stripe** sahaja: `GET /v1/checkout/sessions/{id}` → `payment_intent` → `POST /v1/refunds`
+(`amount`, `metadata[reference]`, header `Idempotency-Key` = no. refund). Refund gateway dibenarkan bila `payment_gateways.supports_refund = 1`
+**dan** driver `supportsRefund()`, menggunakan baris `cooperative_gateways` gateway bil itu (aktif atau tidak). Gateway lain → tunai / pindahan bank manual.
 - Bil `pending` yang sama diguna semula 30 minit (`StartOnlinePaymentJob::REUSE_MINUTES`); gateway gagal mencipta bil → pesanan tetap disimpan,
   `payment: null` + `payment_error`; ibu bapa tekan "Bayar" semula
 
@@ -861,7 +884,8 @@ Dalam mock: `Mock.paginate(rows, params, ['medan_carian', ...])`.
   `Mock.beforeFirst`, checkout mock mengira promosi/cukai/slot atas baris itu (pesanan mock bertanda `live_cart`, stok mock tidak ditahan) dan
   mengosongkan troli sebenar (`store/cart/clear`, `fetch keepalive`). Sekolah yang tiada dalam mock (`smk-seri-indah`) → checkout gagal sehingga B7. **Sejak B4** laluan koperasi, kelas, kategori, produk, inventori, pembekal, PO,
   stock take, papan pemuka, `templates/options` & `modules/active` sebenar; `mock/vendor.js` hanya menyimpan data contoh (`MockVendor`, `sessionVendorId = 1`)
-  untuk mock modul lain (refund & laporan B11, add-on B13) — id mock tidak sepadan dengan DB. **Sejak B10** POS & promosi sebenar (`mock/vendor-pos.js` dibuang). **Sejak B7** checkout & pesanan ibu bapa
+  untuk mock modul lain (add-on B13, langganan B12) — id mock tidak sepadan dengan DB. **Sejak B10** POS & promosi sebenar (`mock/vendor-pos.js` dibuang).
+  **Sejak B11** refund & laporan sebenar — `mock/vendor-orders.js` (`MockOrders`) dibuang; `MockFinance.gateways/drivers/refunds` dibuang. **Sejak B7** checkout & pesanan ibu bapa
   sebenar; pesanan store TIDAK lagi muncul dalam panel vendor mock sehingga B9 (`vendor/orders/*` sebenar). **Sejak B5** `vendor/kits/*` sebenar;
   `MockOrders.kits` dibuang dalam B6 (store/kit sebenar).
   Sejak B3 `mock/owner.js` hanya mengandungi langganan & invois (B12) dan terjemahan (B14); data vendor/pelan di dalamnya hanya untuk
@@ -1271,13 +1295,18 @@ values: { medan_bukan_rahsia }, secrets_set: ['secret_key'] }` — **rahsia tida
 > Rekod bayaran dari jadual `payments` (online sejak B8; tunai ditulis bila dibayar di kaunter — B9/B10); `paid_at` = `verified_at`;
 > `refunded_amount` = jumlah `refunds` selesai. Pautan rekod ke `vendor/order.php` masih panel pesanan mock sehingga B9.
 
-**Refund** — `vendor/refunds/list` (tapis `q, method, date_from, date_to`; `data.total_amount`)
+**Refund** — `vendor/refunds/list` (tapis `q, method, date_from, date_to`, B11: `status`; `data.total_amount` = refund selesai sahaja)
 ```js
 { id, refund_no: 'RF-1001', order_id, order_no, short_code, customer_name, amount, method: 'cash|bank_transfer|gateway', reason, restock, item_count, user_name, created_at }
 ```
 - `vendor/refunds/order { q | order_id }` → pesanan dibayar sahaja: `{ id, order_no, short_code, status, customer_name, payment_method, gateway_name,
   gateway_supports_refund, total, refunded_amount, refundable_amount, items: [{ id, product_name, variant_label, child_name, unit_price, qty, collected_qty,
   cancelled_qty, returned_qty, returnable_qty }] }`
+> **B11 (sebenar — `jobs/Refund/`):** Refund + `channel, status: 'pending|completed|failed', pos_shift_id`; `refund_no` = `RF-{order_no}-{n}`.
+> `order` (cari tepat no. pesanan / kod pendek, huruf besar/kecil; store **dan** POS; pesanan `cancelled`/`expired` yang dibayar lewat turut boleh) +
+> `channel, paid_amount, pending_amount, drawer_shift: { id, opened_at } | null`; `refundable_amount` = dibayar − selesai − pending.
+> `create` — amaun sen; item boleh kosong (refund amaun sahaja); baris item berganda dicantum; `gateway` amaun ≤ baki bil itu; gateway gagal →
+> 422 `refund.gateway_failed` (baris `failed` kekal dalam senarai). Admin + pengurus sahaja (juruwang 403). Refund penuh → baki unit dibatalkan.
 - `vendor/refunds/create { order_id, items: [{ item_id, qty }], restock, amount, method, reason }` — `0 < amount ≤ refundable`; `qty ≤ returnable`;
   `gateway` hanya jika driver `supports_refund`. Unit **belum diambil → dibatalkan** (`order_items.cancelled_qty`, `qty_reserved` dilepas, pergerakan `release`);
   unit **sudah diambil → dipulang** (`returned_qty`; `restock` → pergerakan `refund` +qty). Refund penuh → status `refunded`. Skrin serah & picking list
@@ -1320,6 +1349,11 @@ perlu ≥ 1 koperasi milik vendor; PIN 4–6 digit (hash Argon2id); had pelan; t
 rows: [{…}], totals: {…}, chart: [{ label, value, format? }] | null }`. Satu pemapar untuk semua jenis. Jualan = pesanan `payment_status = paid` ikut tarikh bayar;
 refund ditolak dalam "Bersih"; kos = `cost_price` produk; darjah/kelas dari snapshot `order_items`. **CSV dijana di pelayar** dari data yang sama
 (`downloadCsv()`, BOM UTF-8, wang dalam RM 2 titik perpuluhan). Peringkat 2: `ReportJob` per jenis, julat tarikh maks 1 tahun.
+> **B11 (sebenar — `jobs/Report/`):** jualan = pesanan `paid_at` dalam julat (store + POS); refund = `refunds` selesai ikut **tarikh refund** (pesanan
+> yang pernah dibayar sahaja — refund bayaran lewat pesanan dibatal tidak dikira); bersih = jumlah − refund; tunai/online ikut kaedah pesanan.
+> Produk/untung/darjah/kelas guna **unit bersih** (qty − cancelled − returned) × harga unit; kos = unit bersih × `cost_price` semasa; produk tanpa kategori
+> → `report.no_category`. Stok: produk bervarian = baris varian sahaja. Saluran online = nama gateway bayaran dalam julat. Julat wajib (`date_from`,
+> `date_to`), tamat ≥ mula (`report.range_invalid`), ≤ 366 hari (`report.range_too_long`). Admin + pengurus sahaja.
 
 **Langganan** — `vendor/subscription/get` →
 ```js
@@ -1377,7 +1411,8 @@ Ia muncul dalam rekod bayaran, laporan, pergerakan stok (`pos_sale`) dan pemulan
 PosProduct = { id, category_id, name, display_name /* terjemahan bahasa semasa jika ada */, sku, barcode, price, unit, image_url, max_per_order,
                has_variants, stock_available, variants: [{ id, label, sku, barcode, price_delta, stock_available }] }
 PosShift   = { id, cooperative_id, user_id, user_name, status: 'open|closed', opened_at, closed_at, opening_cash, sale_count, item_count,
-               cash_count, cash_sales, online_count, online_sales, discount_total, tax_total, pending_count, expected_cash, closing_cash, variance, note }
+               cash_count, cash_sales, online_count, online_sales, discount_total, tax_total, pending_count, expected_cash, closing_cash, variance, note,
+               order_cash_count, order_cash_total /* B10 */, refund_count, refund_total /* B11: refund tunai syif, ditolak dari expected_cash */ }
 PosReceipt = { order_id, order_no, short_code, status, payment_status, created_at, paid_at, cashier_name, customer_name, shift_id,
                items: [{ product_name, variant_label, sku, qty, unit_price, line_total, returned_qty }],
                subtotal, promotion_name, promotion_code, promotion_discount, manual_discount, discount, tax_rate, tax, total, refunded_amount,
@@ -1791,10 +1826,10 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 | `vendor/purchase-orders/list` | GET | vendor sesi + koperasi | B4 (asal B11) | — (B4) |
 | `vendor/purchase-orders/receive` | POST | vendor sesi | B4 (asal B11) | — (B4) |
 | `vendor/purchase-orders/save` | POST | vendor sesi + koperasi | B4 (asal B11) | — (B4) |
-| `vendor/refunds/create` | POST | vendor sesi + koperasi | B11 | `vendor-finance.js` |
-| `vendor/refunds/list` | GET | vendor sesi + koperasi | B11 | `vendor-finance.js` |
-| `vendor/refunds/order` | GET | vendor sesi + koperasi | B11 | `vendor-finance.js` |
-| `vendor/reports/run` | GET | vendor sesi + koperasi | B11 | `vendor-finance.js` |
+| `vendor/refunds/create` | POST | vendor sesi + koperasi (admin + pengurus) | B11 | — (B11) |
+| `vendor/refunds/list` | GET | vendor sesi + koperasi (admin + pengurus) | B11 | — (B11) |
+| `vendor/refunds/order` | GET | vendor sesi + koperasi (admin + pengurus) | B11 | — (B11) |
+| `vendor/reports/run` | GET | vendor sesi + koperasi (admin + pengurus) | B11 | — (B11) |
 | `vendor/school-opening/season-delete` | POST | koperasi + modul `school_opening` | B13 | `vendor-addons.js` |
 | `vendor/school-opening/season-save` | POST | koperasi + modul `school_opening` | B13 | `vendor-addons.js` |
 | `vendor/school-opening/seasons` | GET | koperasi + modul `school_opening` | B13 | `vendor-addons.js` |

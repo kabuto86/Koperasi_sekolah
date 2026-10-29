@@ -83,6 +83,7 @@ require __DIR__ . '/_layout/header.php';
                             <div><?= e(t('field.total')) ?>: <span class="fw-semibold" id="rf-total"></span></div>
                             <div><?= e(t('refund.already_refunded')) ?>: <span id="rf-refunded"></span></div>
                             <div><?= e(t('refund.refundable')) ?>: <span class="fw-semibold text-success" id="rf-refundable"></span></div>
+                            <div class="text-warning-emphasis" id="rf-pending"></div>
                         </div>
                     </div>
 
