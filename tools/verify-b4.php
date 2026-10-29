@@ -75,7 +75,7 @@ usleep(700000);
 // Simpan keadaan asal jadual yang diubah (dipulihkan di hujung, FK dimatikan sementara)
 $tables = ['cooperatives', 'cooperative_settings', 'subscription_items', 'school_classes', 'categories', 'products', 'product_translations',
     'product_variants', 'product_grade_levels', 'stock_levels', 'stock_movements', 'suppliers', 'purchase_orders', 'purchase_order_items',
-    'stock_takes', 'stock_take_items', 'activity_logs', 'children', 'plans'];
+    'stock_takes', 'stock_take_items', 'activity_logs', 'children', 'plans', 'invoices', 'invoice_lines', 'email_queue', 'platform_settings'];
 $snapshot = [];
 foreach ($tables as $table) {
     $snapshot[$table] = Database::fetchAll("SELECT * FROM $table");

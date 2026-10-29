@@ -28,7 +28,7 @@ class ResolveStoreTemplateJob
             "SELECT code FROM templates WHERE id = ? AND is_active = 1",
             [(int) $this->cooperative['template_id']]
         );
-        if ($code === null || !ListTemplateOptionsJob::isUsable($this->cooperative['vendor_id'], $this->cooperative['template_id'])) {
+        if ($code === null || !ListTemplateOptionsJob::isUsable($this->cooperative['vendor_id'], $this->cooperative['template_id'], $this->cooperative['id'])) {
             return self::FALLBACK;
         }
         return self::folderReady($code) ? $code : self::FALLBACK;

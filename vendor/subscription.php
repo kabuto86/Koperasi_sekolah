@@ -20,6 +20,13 @@ require __DIR__ . '/_layout/header.php';
     <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-cancel-change"><?= e(t('billing.cancel_change')) ?></button>
 </div>
 
+<div class="alert alert-info d-flex flex-wrap align-items-center gap-2 d-none" id="no-plan-alert" role="status">
+    <i class="bi bi-info-circle" aria-hidden="true"></i>
+    <span class="flex-grow-1"><strong><?= e(t('billing.no_plan_title')) ?></strong> — <?= e(t('billing.no_plan_help')) ?></span>
+    <button type="button" class="btn btn-sm btn-brand" id="btn-choose-plan"><?= e(t('billing.change_plan')) ?></button>
+</div>
+
+<div id="sub-content">
 <div class="row g-3 mb-3">
     <div class="col-12 col-lg-7">
         <div class="card border-0 shadow-sm h-100">
@@ -94,6 +101,7 @@ require __DIR__ . '/_layout/header.php';
             </div>
         </div>
     </div>
+</div>
 </div>
 
 <div class="modal fade" id="plan-modal" tabindex="-1" aria-labelledby="plan-title" aria-hidden="true">

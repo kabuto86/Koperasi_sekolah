@@ -31,28 +31,40 @@ class StoreSchool
         return self::$cache[$slug];
     }
 
-    // Seperti findBySlug tetapi gagal dengan "Sekolah tidak dijumpai" (404)
+    // Seperti findBySlug tetapi gagal dengan "Sekolah tidak dijumpai" (404), atau "Koperasi ditutup sementara" (503)
+    // bila vendor digantung / dibatalkan atau koperasi digantung (PELAN 14 — data kekal)
     public static function require($slug)
     {
         $cooperative = self::findBySlug($slug);
+        if ($cooperative === null && self::isClosed($slug)) {
+            throw new ValidationException(t('store.school_closed'), [], 503, ['school_closed' => true]);
+        }
         if ($cooperative === null) {
             throw new ValidationException(t('store.school_not_found'), [], 404);
         }
         return $cooperative;
     }
 
-    // Kod modul store yang aktif untuk koperasi ini
+    // Slug wujud tetapi store ditutup sementara (bukan koperasi yang sudah ditutup terus)
+    public static function isClosed($slug)
+    {
+        $slug = (string) $slug;
+        if (!preg_match('/^[a-z0-9-]{1,80}$/', $slug)) {
+            return false;
+        }
+        $marks = implode(',', array_fill(0, count(self::OPEN_VENDOR_STATUSES), '?'));
+        return (bool) Database::fetchValue(
+            "SELECT 1 FROM cooperatives c JOIN vendors v ON v.id = c.vendor_id
+              WHERE c.slug = ? AND (c.status = 'suspended' OR (c.status = 'active' AND v.status NOT IN ($marks)))",
+            array_merge([$slug], self::OPEN_VENDOR_STATUSES)
+        );
+    }
+
+    // Kod modul store yang aktif untuk koperasi ini (ModuleAccess — sama seperti panel vendor)
     public static function modules(array $cooperative)
     {
-        $marks = implode(',', array_fill(0, count(self::STORE_MODULES), '?'));
-        $rows = Database::fetchAll(
-            "SELECT m.code FROM cooperative_modules cm JOIN modules m ON m.id = cm.module_id
-              WHERE cm.vendor_id = ? AND cm.cooperative_id = ? AND cm.status = 'active' AND m.is_active = 1
-                AND (cm.ends_at IS NULL OR cm.ends_at >= CURDATE()) AND m.code IN ($marks)
-              ORDER BY m.sort_order",
-            array_merge([(int) $cooperative['vendor_id'], (int) $cooperative['id']], self::STORE_MODULES)
-        );
-        return array_column($rows, 'code');
+        $codes = ModuleAccess::codes($cooperative['vendor_id'], $cooperative['id']);
+        return array_values(array_intersect($codes, self::STORE_MODULES));
     }
 
     public static function hasModule(array $cooperative, $code)

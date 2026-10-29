@@ -1,6 +1,6 @@
 <?php
 // Tambah / sunting koperasi vendor sesi (PELAN 5.2 #2, 18.8).
-// Koperasi baharu: had pelan (PlanLimit) + harga koperasi tambahan direkod dalam subscription_items (snapshot, B12 bil).
+// Koperasi baharu: had pelan (PlanLimit) + koperasi tambahan → AddCooperativeSubscriptionJob (item snapshot + invois prorata, B12).
 // Slug unik seluruh platform; template mesti dilanggan; sekurang-kurangnya satu kaedah bayaran; logo = data URL → Uploader.
 class SaveCooperativeJob
 {
@@ -90,7 +90,7 @@ class SaveCooperativeJob
         }
         // Template lama yang sudah tidak dilanggan kekal dibenarkan selagi tidak ditukar
         $templateUnchanged = $current !== null && (int) $current['template_id'] === $templateId;
-        if ($templateId > 0 && !$templateUnchanged && !ListTemplateOptionsJob::isUsable($this->vendorId, $templateId)) {
+        if ($templateId > 0 && !$templateUnchanged && !ListTemplateOptionsJob::isUsable($this->vendorId, $templateId, $current === null ? 0 : $current['id'])) {
             $v->addError('template_id', t('coop.template_not_subscribed'));
         }
         if (!Database::fetchValue("SELECT 1 FROM languages WHERE code = ? AND is_active = 1", [$language])) {
@@ -169,23 +169,8 @@ class SaveCooperativeJob
             'alert_emails'   => json_encode($vendorEmail !== '' ? [$vendorEmail] : []),
             'receipt_header' => $data['school_name'],
         ]);
-        $this->chargeExtraCooperative($id, $number);
+        (new AddCooperativeSubscriptionJob($this->vendorId, $id, $number, $data['school_name']))->run();
         return $id;
-    }
-
-    // Koperasi ke-2 dan seterusnya: harga peringkat disalin ke subscription_items (invois & prorata — B12)
-    private function chargeExtraCooperative($cooperativeId, $number)
-    {
-        $plan = PlanLimit::plan($this->vendorId);
-        if ($plan === null || $number < 2) {
-            return;
-        }
-        $price = GetCooperativePricingJob::priceFor($plan['plan_id'], $number, $plan['billing_cycle']);
-        Database::insert(
-            "INSERT INTO subscription_items (vendor_id, subscription_id, item_type, cooperative_id, ref_id, unit_price, started_at)
-             VALUES (?, ?, 'cooperative', ?, NULL, ?, CURDATE())",
-            [$this->vendorId, $plan['subscription_id'], $cooperativeId, $price]
-        );
     }
 
     private function update($id, $data)

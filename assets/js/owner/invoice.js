@@ -60,9 +60,24 @@ function renderInvoice(invoice) {
         { className: 'text-end', render: function (payment) { return formatRM(payment.amount); } }
     ]);
 
-    document.getElementById('btn-issue').classList.toggle('d-none', invoice.status !== 'draft');
-    document.getElementById('btn-mark-paid').classList.toggle('d-none', invoice.status !== 'issued');
-    document.getElementById('btn-void').classList.toggle('d-none', ['draft', 'issued'].indexOf(invoice.status) === -1);
+    toggleAction('btn-issue', invoice.status === 'draft');
+    toggleAction('btn-mark-paid', invoice.status === 'issued');
+    toggleAction('btn-void', ['draft', 'issued'].indexOf(invoice.status) !== -1);
+}
+
+// Butang tindakan tiada untuk owner_staff (baca sahaja)
+function toggleAction(id, show) {
+    var button = document.getElementById(id);
+    if (button) {
+        button.classList.toggle('d-none', !show);
+    }
+}
+
+function onAction(id, handler) {
+    var button = document.getElementById(id);
+    if (button) {
+        button.addEventListener('click', handler);
+    }
 }
 
 function invoiceAction(path, message, options, successText) {
@@ -89,17 +104,17 @@ document.getElementById('btn-print').addEventListener('click', function () {
     window.print();
 });
 
-document.getElementById('btn-issue').addEventListener('click', function () {
+onAction('btn-issue', function () {
     invoiceAction('owner/invoices/issue', T('invoice.issue_confirm', { no: invoiceData.invoice_no }),
         { okText: T('invoice.issue') }, T('invoice.issued'));
 });
 
-document.getElementById('btn-void').addEventListener('click', function () {
+onAction('btn-void', function () {
     invoiceAction('owner/invoices/void', T('invoice.void_confirm', { no: invoiceData.invoice_no }),
         { okText: T('invoice.void'), okClass: 'btn-danger' }, T('invoice.voided'));
 });
 
-document.getElementById('btn-mark-paid').addEventListener('click', function () {
+onAction('btn-mark-paid', function () {
     var form = document.getElementById('paid-form');
     resetForm(form);
     document.getElementById('paid-date').value = todayIso();

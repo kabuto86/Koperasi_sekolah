@@ -139,7 +139,8 @@ function openQuote(itemType, code) {
         document.getElementById('quote-sst-label').textContent = T('invoice.sst', { rate: quote.sst_rate });
         document.getElementById('quote-tax').textContent = formatRM(quote.tax);
         document.getElementById('quote-total').textContent = formatRM(quote.total);
-        document.getElementById('quote-note').textContent = T('addon.quote_note', { date: formatDate(quote.period_end + 'T00:00:00+08:00') });
+        document.getElementById('quote-note').textContent = T(quote.is_trial ? 'addon.quote_note_trial' : 'addon.quote_note',
+            { date: formatDate(quote.period_end + 'T00:00:00+08:00') });
         showModal('quote-modal');
     });
 }
@@ -154,7 +155,8 @@ document.getElementById('btn-confirm-subscribe').addEventListener('click', funct
             return;
         }
         hideModal('quote-modal');
-        showToast(T('addon.subscribed', { no: res.data.invoice_no, amount: formatRM(res.data.total) }), 'success');
+        showToast(res.data.invoice_no ? T('addon.subscribed', { no: res.data.invoice_no, amount: formatRM(res.data.total) })
+            : T('addon.subscribed_free'), 'success');
         // Menu sidebar: buka kunci modul yang baru dilanggan
         loadAddonMenu(currentCooperativeId());
         loadCatalog(currentCooperative());

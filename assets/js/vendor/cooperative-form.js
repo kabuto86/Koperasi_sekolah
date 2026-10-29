@@ -11,7 +11,8 @@ var DEFAULT_HOURS = {
 };
 
 function loadTemplates() {
-    return Api.get('vendor/templates/options').then(function (res) {
+    // Template premium dilanggan per koperasi (B12) — koperasi baharu: percuma sahaja
+    return Api.get('vendor/templates/options', coopId ? { cooperative_id: coopId } : {}).then(function (res) {
         var select = document.getElementById('coop-template');
         select.replaceChildren();
         (res.ok ? res.data : []).forEach(function (template) {

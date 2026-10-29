@@ -85,7 +85,7 @@ function openInvoice(id) {
     });
 }
 
-// Peringkat 1: simulasi. Peringkat 2: pelayan pulangkan redirect_url gateway pemilik; status "dibayar" hanya selepas webhook
+// Pelayan pulangkan redirect_url gateway pemilik; status "dibayar" hanya selepas gateway disahkan (webhook / semakan semula)
 function payInvoice(invoice) {
     confirmDialog(T('billing.pay_confirm', { no: invoice.invoice_no, amount: formatRM(invoice.total) }), { okText: T('billing.pay_now'), okClass: 'btn-brand' }).then(function (confirmed) {
         if (!confirmed) {
@@ -100,9 +100,7 @@ function payInvoice(invoice) {
                 window.location.href = res.data.redirect_url;
                 return;
             }
-            hideModal('invoice-modal');
-            showToast(T('billing.paid_toast', { no: invoice.invoice_no }), 'success');
-            loadInvoices();
+            showToast(T('billing.gateway_unavailable'), 'danger');
         });
     });
 }
@@ -113,6 +111,29 @@ document.getElementById('btn-pay').addEventListener('click', function () {
     }
 });
 
+// Kembali dari gateway (?paid_return={id}): pelayan bertanya sendiri ke gateway — parameter redirect tidak dipercayai
+function checkReturnedPayment() {
+    var invoiceId = Number(queryParam('paid_return'));
+    if (!invoiceId) {
+        return Promise.resolve();
+    }
+    window.history.replaceState(null, '', window.location.pathname);
+    return Api.post('vendor/invoices/check-payment', { id: invoiceId }).then(function (res) {
+        if (!res.ok) {
+            showToast(res.error, 'danger');
+            return;
+        }
+        var result = res.data.result.split(' ')[0];
+        if (result === 'paid' || result === 'already_paid') {
+            showToast(T('billing.paid_toast', { no: res.data.invoice.invoice_no }), 'success');
+        } else if (result === 'failed') {
+            showToast(T('billing.payment_failed'), 'danger');
+        } else {
+            showToast(T('billing.payment_pending'), 'warning');
+        }
+    });
+}
+
 document.getElementById('inv-status').value = invoiceList.status;
 bindListFilters('invoice-filters', invoiceList, loadInvoices);
-loadInvoices();
+checkReturnedPayment().then(loadInvoices);

@@ -10,8 +10,9 @@ if (!is_string($schoolSlug) || !preg_match('/^[a-z0-9-]{1,80}$/', $schoolSlug)) 
 }
 // Koperasi aktif diselesaikan di pelayan (StoreSchool). Slug tidak sah → halaman dipapar dengan ralat "Sekolah tidak dijumpai"
 $cooperative = $schoolSlug !== '' ? StoreSchool::findBySlug($schoolSlug) : null;
+// Vendor digantung (invois tertunggak) → "Koperasi ditutup sementara" (503); slug tidak wujud → 404
 if ($schoolSlug !== '' && $cooperative === null) {
-    http_response_code(404);
+    http_response_code(StoreSchool::isClosed($schoolSlug) ? 503 : 404);
 }
 
 // Pratonton ?template=kod: hanya owner, atau vendor pemilik koperasi ini (sesi panel masing-masing)

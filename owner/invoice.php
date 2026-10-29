@@ -11,6 +11,10 @@ $pageActions = [
     ['id' => 'btn-issue', 'label' => t('invoice.issue'), 'icon' => 'bi-send', 'class' => 'btn-brand d-none d-print-none'],
     ['id' => 'btn-mark-paid', 'label' => t('invoice.mark_paid'), 'icon' => 'bi-cash-coin', 'class' => 'btn-success d-none d-print-none'],
 ];
+// owner_staff: baca & cetak sahaja (terbit / batal / tanda dibayar → 403 di pelayan)
+if (PanelRole::current('owner') !== 'owner') {
+    $pageActions = array_slice($pageActions, 0, 1);
+}
 $pageScripts = [View::asset('js/owner/invoice.js')];
 $paymentMethods = ['bank_transfer', 'cash', 'cheque', 'other'];
 require __DIR__ . '/_layout/header.php';
