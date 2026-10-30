@@ -4,9 +4,9 @@
 > Kemas kini fail ini di HUJUNG setiap session, sebelum commit & push.
 > Reka bentuk: [PELAN.md](PELAN.md) · Prompt kerja: [PROMPT-SESSION.md](PROMPT-SESSION.md)
 
-**Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · **Peringkat 2 berjalan** — skema & core (B1), auth sebenar (B2), panel owner (B3), katalog & inventori vendor (B4), kit sekolah (B5), store ibu bapa: anak, katalog, kit, troli (B6), checkout tunai, pesanan & queue e-mel (B7), payment gateway + webhook (B8), pesanan vendor & serah barang (B9), POS kaunter & promosi (B10), refund & laporan (B11), langganan & invois vendor + cron (B12)
-**Session terakhir siap:** B12 — Langganan & invois vendor + cron
-**Session seterusnya:** **B13 — Modul add-on**
+**Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · **Peringkat 2 berjalan** — skema & core (B1), auth sebenar (B2), panel owner (B3), katalog & inventori vendor (B4), kit sekolah (B5), store ibu bapa: anak, katalog, kit, troli (B6), checkout tunai, pesanan & queue e-mel (B7), payment gateway + webhook (B8), pesanan vendor & serah barang (B9), POS kaunter & promosi (B10), refund & laporan (B11), langganan & invois vendor + cron (B12), modul add-on (B13)
+**Session terakhir siap:** B13 — Modul add-on
+**Session seterusnya:** **B14 — Terjemahan & pengerasan keselamatan**
 
 Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 
@@ -48,7 +48,7 @@ Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 | B10 | POS kaunter | ✅ | 28 Okt 2026 | `a3417ed` | 15 endpoint (`vendor/pos/*` 12, `vendor/promotions/*` 3), `core/PosAuth`, 15 job + 3 pembantu `jobs/Pos/`, 3 job promosi, PIN Argon2id sebenar, QR gateway + webhook, `PaymentSettlement` cabang POS, mock POS dibuang, `tools/verify-b10.php` 97/97 lulus |
 | B11 | Laporan, refund, PO, stock take | ✅ | 28 Okt 2026 | `0733853` | 4 endpoint (`vendor/refunds/*` 3, `vendor/reports/run`), `jobs/Refund/` 3 job + `Refunds`, `jobs/Report/` 9 job + 3 pembantu, refund Stripe (`GatewayInterface::refund`), migrasi 005 (`refunds.pos_shift_id`), refund tunai ditolak dari laci syif, mock refund/laporan & `vendor-orders.js` dibuang, `tools/verify-b11.php` 78/78 lulus |
 | B12 | Langganan & invois vendor + cron | ✅ | 29 Okt 2026 | `92400a1` | 21 laluan + `webhooks/platform`, `jobs/Billing/` 33 fail baharu (+ `ModuleAccess`, `ListActivityLogsJob`), 2 cron, invois snapshot `INV-{tahun}-{0001}`, prorata, kitaran draf → pusingan, tunggakan → digantung → store "ditutup sementara", bayar online gateway owner + webhook, `mock/vendor-finance.js` dibuang, `tools/verify-b12.php` 98/98 lulus |
-| B13 | Modul add-on | ⬜ | | | |
+| B13 | Modul add-on | ✅ | 30 Okt 2026 | (lihat log git) | 23 endpoint modul (`vendor/news|clearance|calendar|school-opening|messaging/*`), 5 folder job baharu (31 fail), driver WhatsApp/SMS `messaging/` (Twilio, WhatsApp Cloud, iSMS), cron `send-messages.php`, e-mel berita sekali sahaja + berjadual, peringatan tunai, migrasi 006, `mock/vendor-addons.js` & `mock/vendor.js` dibuang, `tools/verify-b13.php` 92/92 lulus |
 | B14 | Modul terjemahan + pengerasan keselamatan | ⬜ | | | |
 | B15 | API token Flutter + push | ⬜ | | | |
 
@@ -1221,7 +1221,75 @@ Tertangguh / peralihan:
 - Gateway borang POST (iPay88) untuk yuran langganan
 - Kredit / refund bila turun taraf atau henti di tengah kitaran — sengaja tiada (PELAN 18.10)
 - Data modul (`mock/vendor-addons.js`, `MockVendor.activeModules`) masih mock → B13; modul yang baru dilanggan menggunakan semakan pelayan sebenar
-  untuk menu & store, tetapi halaman modul mock masih membaca senarai mock sehingga B13
+  untuk menu & store, tetapi halaman modul mock masih membaca senarai mock sehingga B13 — **siap dalam B13**
+
+### B13 — Modul add-on (30 Okt 2026)
+
+Dibuat:
+- **Berita (`jobs/News/`):** `NewsPosts` (cari ikut vendor + koperasi, `STATE_SQL` draft/scheduled/published, penerima = ibu bapa dengan anak aktif +
+  e-mel disahkan, `queueEmail` atom — `UPDATE … WHERE email_sent_at IS NULL`), `ListNewsJob`, `CountNewsRecipientsJob`, `SaveNewsJob` (gambar melalui
+  `Uploader` → `uploads/{vendor}/{koperasi}/news/`, fail lama dibuang), `DeleteNewsJob`, `QueueDueNewsEmailsJob` (cron — berita berjadual yang kini terbit)
+- **Jualan murah (`jobs/Clearance/`):** `ClearanceSales` (`STATE_SQL`, bentuk ClearanceItem dengan harga biasa, diskaun %, baki stok), `ListClearanceSalesJob`,
+  `GetClearanceSaleJob`, `SaveClearanceSaleJob` (00:00:00 → 23:59:59), `DeleteClearanceSaleJob` (+ item, transaksi), `SaveClearanceItemJob` (produk koperasi,
+  varian produk itu, harga < biasa, unik + tangkap 1062), `DeleteClearanceItemJob`. Harga di store kekal melalui `StorePricing` (B6)
+- **Kalendar (`jobs/Calendar/`):** `CalendarEvents`, `ListCalendarEventsJob` (bertindih julat + `today_blocked`), `SaveCalendarEventJob` (jenis tetap, julat ≤ 366 hari),
+  `DeleteCalendarEventJob`. Tutup tempahan di store kekal `CheckoutQuote::ordersBlocked` (B7)
+- **Pembukaan sekolah (`jobs/SchoolOpening/`):** `PreorderSeasons` (musim DATETIME 00:00:00/23:59:59, ringkasan slot, `slotUsed`), `ListPreorderSeasonsJob`,
+  `SavePreorderSeasonJob` (tahun unik + 1062), `DeletePreorderSeasonJob` & `DeletePickupSlotJob` (slot dikunci FOR UPDATE; bertempah / pernah dalam pesanan
+  → ditolak), `ListPickupSlotsJob`, `SavePickupSlotJob` (tambah = satu slot setiap darjah; sunting dalam transaksi — kapasiti ≥ `booked` yang dikunci)
+- **WhatsApp/SMS (`jobs/Messaging/` + `messaging/`):** `MessagingSettings` (lalai, templat, nombor `60…`, topeng), `GetMessagingSettingsJob`,
+  `SaveMessagingSettingsJob` (kunci `ID:RAHSIA` disulitkan `Crypto`, kosong = kekal; pemegang tempat ditapis; iSMS = SMS sahaja), `SendTestMessageJob`,
+  `ListMessageLogJob`, `MessageNotifications` (order_ready / order_collected / cash_reminder / test → `notification_queue`), `SendQueuedMessagesJob` (cron,
+  3 cubaan → failed), `QueueCashRemindersJob` (luput < 24 jam, sekali setiap pesanan). Driver tanpa DB: `MessageSender` (asas + `make`), `TwilioSender`,
+  `WhatsappCloudSender`, `IsmsSender`, `MessagingException`; `KOPERASI_MESSAGING_TEST_URL` → `tools/fake-messaging.php`
+- **API (23, tiada SQL):** `vendor/news/{list,recipients,save,delete}`, `vendor/clearance/{list,get,save,delete,item-save,item-delete}`,
+  `vendor/calendar/{list,save,delete}`, `vendor/school-opening/{seasons,season-save,season-delete,slots,slot-save,slot-delete}`,
+  `vendor/messaging/{get,save,test,log}` — setiap satu: `requireRole(PANEL_ROLES)` → CSRF (POST) → `requireCooperative` → `ModuleAccess::require`
+- **Cron:** baharu `cron/send-messages.php` (setiap minit, `flock`); `send-emails.php` memanggil `QueueDueNewsEmailsJob` dahulu; `expire-cash-orders.php`
+  memanggil `QueueCashRemindersJob`
+- **Ubah:** `UpdateOrderStatusJob` (sedia kali pertama) → `MessageNotifications::orderReady`; `HandoverOrderJob` → `orderCollected`; `core/bootstrap.php`
+  autoload `messaging/`; `vendor/addons/whatsapp_sms.php` nota sebenar
+- **JS:** `Api.livePrefixes` + `vendor/news/`, `vendor/clearance/`, `vendor/calendar/`, `vendor/school-opening/`, `vendor/messaging/`; `mock/vendor-addons.js`
+  **dan** `mock/vendor.js` dibuang (tiada laluan tinggal — hanya pembantu modul); layout vendor & POS tidak memuat mock; `asset_version` → 14
+- 5 kunci bahasa baharu × 4 (`opening.slot_in_orders`, `messaging.key_format`, `messaging.isms_sms_only`, `email.news_post.subject|body`);
+  `messaging.ui_only_note` dikemas kini — jumlah 1877
+- **DB:** migrasi `006-notification-order.sql` (`notification_queue.order_id` + indeks `idx_notifications_order`) + `schema.sql`
+- `tools/verify-b13.php` (92 semakan; pelayan 4 pekerja + pembekal mesej palsu; jadual diubah & fail muat naik dipulihkan); `verify-b10.php` tidak lagi
+  memberi amaran bila `vendor-finance.js` tiada
+
+Disahkan (MariaDB 10.11, PHP 8.3, pemasangan baharu schema + seed + migrasi 006 — `verify-b13` **92 lulus, 0 gagal** (dua kali berturut); `verify-b12` 98/98;
+`verify-b11` 78/78; `verify-b10` 97/97; `verify-b9` 106/106; `verify-b8` 95/95; `verify-b7` 92/92; `verify-b6` 85/85; `verify-b5` 59/59; `verify-b4` 118/118;
+`verify-b3` 101/101; `verify-b2` 94/94; `verify-b1` 42/42; `check-ui` OK; Playwright 1366px: Ahmad → Berita / Kalendar / Pembukaan sekolah / WhatsApp-SMS
+memuat data sebenar, Jualan murah berkunci (tidak dilanggan); simpan tetapan Twilio → "Kunci tersimpan", mesej ujian → log "Menunggu"; musim 2031 + slot D2
+disimpan — 0 ralat JS):
+- **Peranan & modul:** tanpa sesi 401; juruwang 403; CSRF 419; GET ke POST 405; modul tidak dilanggan → 403 `module_locked`; koperasi vendor lain → 404
+- **Berita:** pengesahan; terbit + e-mel → 1 e-mel `news_post` (subjek tajuk + sekolah, pautan halaman berita store); sunting tidak menghantar semula;
+  berjadual tiada e-mel → cron menghantar sekali; gambar ke `uploads/1/1/news/`, kekal bila disunting, dibuang bila dipadam; store hanya berita terbit
+- **Jualan murah:** harga ≥ biasa, produk koperasi lain, varian produk lain, pendua → ditolak; diskaun %, semua saiz; store `clearance/list` & `product` =
+  harga jualan; padam jualan buang item
+- **WhatsApp/SMS:** kunci wajib / format / no. penghantar / pemegang tempat / iSMS + WhatsApp → ditolak; kunci disulitkan & tidak dipulangkan, kosong = kekal;
+  ujian → pending → cron → Twilio palsu (To/From/teks betul) → sent; log bertopeng `012-***6789`; sedia diambil (sekali sahaja), diambil, peringatan tunai
+  (sekali) → mesej templat vendor; peristiwa tidak ditanda / dimatikan → tiada mesej; kunci salah → 3 cubaan → failed + `last_error`
+- **Kalendar:** jenis / tarikh tidak sah ditolak; acara `blocks_orders` hari ini → `today_blocked`, banner store, checkout ditolak; padam → checkout dibuka
+- **Pembukaan sekolah:** ambil < tutup, tahun pendua ditolak; slot satu setiap darjah (darjah bukan SK diabaikan); slot sebelum tarikh ambil / masa terbalik /
+  kapasiti > 1000 ditolak; checkout memilih slot → booked; kapasiti < booked ditolak; padam slot / musim bertempah ditolak; slot pernah dalam pesanan
+  ditolak; banner pre-order store
+- **VENDOR01 ↔ VENDOR02:** walaupun modul dilanggan sementara oleh vendor lain — berita, jualan, item, musim, slot, tetapan & log mesej vendor lain → 404,
+  tiada perubahan data
+- **Ibu bapa A ↔ B:** laluan modul vendor 401; berita koperasi lain tidak kelihatan
+
+Keputusan kecil (dicatat dalam PELAN 9 H, 10.1, 10.2, 13, 18.13, 18.14):
+- Kunci API pembekal mesej satu rentetan `ID:RAHSIA` untuk ketiga-tiga pembekal (Twilio SID:token, WhatsApp Cloud phone_number_id:token, iSMS
+  pengguna:kata laluan) — borang U6 tidak perlu diubah
+- Nombor penerima disimpan antarabangsa `60…` (dipapar bertopeng dalam bentuk tempatan); mesej dihantar dengan saluran yang disalin semasa dimasukkan
+- E-mel berita hanya kepada ibu bapa dengan e-mel **disahkan** & akaun aktif; templat `news_post` dari fail bahasa (bukan templat owner)
+- Slot yang pernah dipilih dalam pesanan (walaupun dibatal, `booked` 0) tidak boleh dipadam — `orders.pickup_slot_id` merujuknya (FK); kurangkan kapasiti
+- Peristiwa item jualan murah & slot direkod sebagai `clearance_save` / `season_save` (label log sedia ada)
+
+Tertangguh / peralihan:
+- WhatsApp Cloud: mesej yang dimulakan perniagaan di luar tetingkap 24 jam memerlukan templat diluluskan Meta — driver kini menghantar teks biasa
+- Modul `advanced_report`, `mobile_app` (B15/F), `membership` — halaman "akan datang" kekal
+- `mock/owner.js` (terjemahan) → B14
 
 ---
 

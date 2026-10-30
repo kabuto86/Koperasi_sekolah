@@ -33,7 +33,7 @@ function autoloadAppClass($class)
         return;
     }
 
-    foreach (['/payments/', '/payments/drivers/'] as $folder) {
+    foreach (['/payments/', '/payments/drivers/', '/messaging/'] as $folder) {
         if (is_file(APP_ROOT . $folder . $class . '.php')) {
             require APP_ROOT . $folder . $class . '.php';
             return;

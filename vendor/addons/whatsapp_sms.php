@@ -1,6 +1,6 @@
 <?php
 // Modul add-on: Notifikasi WhatsApp/SMS — tetapan & templat mesej "sedia diambil" / "telah diambil" (PELAN 5.3).
-// Peringkat 1: UI sahaja; penghantaran sebenar (notification_queue + cron) dalam B13.
+// B13: tetapan sebenar (messaging_settings), mesej → notification_queue → cron/send-messages.php (driver messaging/).
 require __DIR__ . '/../../core/bootstrap.php';
 
 $moduleCode = 'whatsapp_sms';

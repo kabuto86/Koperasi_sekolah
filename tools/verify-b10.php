@@ -508,7 +508,7 @@ try {
     foreach (glob(APP_ROOT . '/assets/js/mock/*.js') as $file) {
         $mock .= file_get_contents($file);
     }
-    $finance = file_get_contents(APP_ROOT . '/assets/js/mock/vendor-finance.js');
+    $finance = (string) @file_get_contents(APP_ROOT . '/assets/js/mock/vendor-finance.js'); // dibuang B12
     check('Mock POS dibuang (vendor-pos.js, Mock.register vendor/pos|promotions, MockFinance.settings & promotions)',
         !is_file(APP_ROOT . '/assets/js/mock/vendor-pos.js') && !preg_match("#Mock\.register\('vendor/(pos|promotions)/#", $mock)
         && strpos($finance, '    settings: {') === false && strpos($finance, '    promotions: [') === false);

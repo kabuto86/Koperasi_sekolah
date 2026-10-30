@@ -5,7 +5,7 @@
 > tanpa bertanya. Status semasa: [PROSES.md](PROSES.md). Prompt kerja:
 > [PROMPT-SESSION.md](PROMPT-SESSION.md).
 
-Kemas kini terakhir: 26 Oktober 2026 (B1 — Skema, seed & core)
+Kemas kini terakhir: 30 Oktober 2026 (B13 — Modul add-on)
 Persekitaran sasaran: XAMPP · PHP 8.2 · MariaDB 10.4+ / MySQL 8 · Bootstrap 5
 
 ---
@@ -425,7 +425,8 @@ Nama, harga dan maklumat anak **disalin** (snapshot) ke pesanan dan invois.
 - **`calendar_events`** — id, vendor_id, cooperative_id, title, event_type ENUM(school_holiday, coop_closed, school_opening, other), starts_on, ends_on, blocks_orders
 - **`preorder_seasons`** — id, vendor_id, cooperative_id, school_year, opens_at, closes_at, pickup_starts_on, note
 - **`pickup_slots`** — id, vendor_id, cooperative_id, preorder_season_id, slot_date, time_start, time_end, grade_level_code NULL, capacity, booked
-- **`notification_queue`** — id, vendor_id, cooperative_id NULL, channel ENUM(push, whatsapp, sms), event, recipient, message, status ENUM(pending, sent, failed), attempts, created_at, sent_at
+- **`notification_queue`** — id, vendor_id, cooperative_id NULL, order_id NULL (B13, migrasi 006), channel ENUM(push, whatsapp, sms), event, recipient, message, status ENUM(pending, sent, failed), attempts, created_at, sent_at
+  > **B13:** `recipient` = nombor antarabangsa `60…`; `order_id` + `event` = peringatan tunai sekali setiap pesanan (indeks `idx_notifications_order`)
 - **`messaging_settings`** (U6) — id, vendor_id, cooperative_id UNIQUE, provider, channel ENUM(whatsapp, sms), sender, api_key_enc, is_enabled, events_json, templates_json, updated_at
   > Kunci API disulitkan (seperti gateway), tidak pernah dipulangkan; kosong semasa simpan = kekal
 
@@ -490,9 +491,10 @@ Koperasi_sekolah/
 │   ├── Customer/ Child/ Cart/ Store/ Order/ Pickup/ Payment/ Pos/ Report/   (Store/ = slug → koperasi, harga store, katalog, kit — B6)
 │   │   (Payment/ = gateway owner B3 + gateway koperasi, bayaran online, panggilan balik, luput — B8)
 │   │   (Order/ = checkout, pesanan ibu bapa, no. pesanan, e-mel pesanan, luput tunai — B7 · Promotion/ = pilih promosi — B7)
-│   └── News/ Clearance/ Calendar/ SchoolOpening/ Notification/ Language/ Setting/ Announcement/ (B3)
+│   └── News/ Clearance/ Calendar/ SchoolOpening/ Messaging/ (B13) · Notification/ Language/ Setting/ Announcement/ (B3)
 ├── payments/       GatewayInterface · GatewayFactory · BaseGateway (HTTP curl, URL sandbox/live) · GatewayException — B8 (dimuat automatik)
 │   └── drivers/    ToyyibPayGateway · BillplzGateway · SenangPayGateway · Ipay88Gateway · StripeGateway
+├── messaging/      MessageSender (asas + make) · TwilioSender · WhatsappCloudSender · IsmsSender · MessagingException — B13 (tanpa DB, dimuat automatik)
 ├── api/v1/
 │   ├── owner/  vendor/  store/  pos/
 │   └── webhooks/   toyyibpay.php · billplz.php · senangpay.php · ipay88.php · stripe.php (B8, ?coop={id}, tiada sesi/CSRF)
@@ -514,7 +516,7 @@ Koperasi_sekolah/
 ├── modules/        news/ · clearance/ · calendar/ · school_opening/
 ├── lang/           ms.php · en.php · zh.php · ta.php
 ├── cron/           send-emails · expire-cash-orders (B7, CLI sahaja, `.htaccess` halang web) · expire-online-orders (B8) · generate-invoices ·
-│                   suspend-overdue (B12) · promote-grades
+│                   suspend-overdue (B12) · send-messages (B13, WhatsApp/SMS setiap minit) · promote-grades
 ├── storage/        mail.log (mail_driver log) · fail kunci cron (.gitignore isi, `.htaccess` halang web) — B7
 ├── tools/          check-ui.php (tiada inline CSS + kunci 4 bahasa sama) · generate-secret.php · verify-b1.php · verify-b2.php
 │                   dev-totp.php (kod 2FA ujian) · ui-audit.js (pelayar, log masuk sebenar sejak B2) — CLI sahaja
@@ -669,6 +671,19 @@ modul B13 memanggil `require` (403 `module_locked`). Bayaran yuran: `PlatformGat
 `webhooks/platform.php?gateway=` atau `vendor/invoices/check-payment`. Status vendor ikut tunggakan HANYA `SuspendOverdueJob` (turun) &
 `VendorBillingStatus::restore` (naik, kecuali digantung manual oleh owner).
 
+**Konvensyen B13 (modul add-on):** setiap endpoint `vendor/{news|clearance|calendar|school-opening|messaging}/*` = `requireRole(PANEL_ROLES)` →
+CSRF (POST) → `VendorAuth::requireCooperative` → `ModuleAccess::require($vendorId, $koperasi, $kod)` (403 `module_locked`) → job dalam `jobs/News/`,
+`jobs/Clearance/`, `jobs/Calendar/`, `jobs/SchoolOpening/`, `jobs/Messaging/`; rekod sentiasa dicari `vendor_id` sesi + `cooperative_id` disahkan, dan
+setiap simpan/padam menulis `WriteActivityLogJob` (`news_*`, `clearance_*`, `calendar_*`, `season_*`, `messaging_save`). **Berita:** e-mel HANYA
+`NewsPosts::queueEmail` (atom `email_sent_at IS NULL` — sekali sahaja; berjadual → `QueueDueNewsEmailsJob` dalam `cron/send-emails.php`), gambar melalui
+`Uploader` (`{vendor}/{koperasi}/news/`). **Jualan murah:** harga di store HANYA `StorePricing` (B6). **Kalendar:** tutup tempahan HANYA
+`CheckoutQuote::ordersBlocked` (B7). **Pembukaan sekolah:** `booked` diubah HANYA oleh checkout / batal (B7); panel mengunci slot `FOR UPDATE` sebelum
+sunting kapasiti / padam (kapasiti ≥ booked yang dikunci; slot bertempah atau pernah dalam pesanan tidak dipadam). **WhatsApp/SMS:** mesej masuk
+baris gilir HANYA melalui `MessageNotifications` (modul + tetapan dihidupkan + peristiwa ditanda; `orderReady` dari `UpdateOrderStatusJob`, `orderCollected`
+dari `HandoverOrderJob`, `cashReminder` dari `QueueCashRemindersJob`, `test`), dihantar HANYA oleh `SendQueuedMessagesJob` (`cron/send-messages.php`,
+3 cubaan) melalui driver `messaging/` (`MessageSender::make` — tanpa DB). Kunci API `ID:RAHSIA` disulitkan `Crypto`, tidak pernah dipulangkan
+(`api_key_set`). Ujian: `KOPERASI_MESSAGING_TEST_URL` → `tools/fake-messaging.php`.
+
 ### 10.3 Kontrak API
 
 - Format jawapan: `{ "ok": true, "data": ... }` atau `{ "ok": false, "error": "mesej", "errors": { "field": "mesej" } }`
@@ -785,6 +800,11 @@ melempar `GatewayException` (tidak disokong). **Stripe** sahaja: `GET /v1/checko
 **dan** driver `supportsRefund()`, menggunakan baris `cooperative_gateways` gateway bil itu (aktif atau tidak). Gateway lain → tunai / pindahan bank manual.
 - Bil `pending` yang sama diguna semula 30 minit (`StartOnlinePaymentJob::REUSE_MINUTES`); gateway gagal mencipta bil → pesanan tetap disimpan,
   `payment: null` + `payment_error`; ibu bapa tekan "Bayar" semula
+
+**WhatsApp/SMS (modul `whatsapp_sms`, B13):** bukan gateway bayaran, tetapi corak sama — driver dalam `messaging/` tanpa DB, kunci vendor
+disulitkan per koperasi. Twilio `POST /2010-04-01/Accounts/{SID}/Messages.json` (basic auth; saluran WhatsApp = awalan `whatsapp:`), WhatsApp Cloud
+`POST /v19.0/{phone_number_id}/messages` (Bearer), iSMS `GET isms_send_all_id.php` (jawapan `2000 = SUCCESS`; SMS sahaja). Tertangguh: templat
+WhatsApp yang diluluskan Meta untuk mesej di luar tetingkap 24 jam.
 
 ## 14. Langganan & harga
 
@@ -1610,7 +1630,12 @@ diskaun automatik terbaik, cukai selepas diskaun. **Slip beg** (cara D): satu se
 > `store/payment-return.php?school=&order=` → `order-success&returned=1` → `store/orders/check-payment`. `gateway_ref` dalam StoreOrderDetail =
 > bil terkini.
 
-### 18.13 Objek modul add-on (U6) — `assets/js/mock/vendor-addons.js`
+### 18.13 Objek modul add-on (U6) — `assets/js/mock/vendor-addons.js` (mock dibuang B13)
+
+> **B13 (sebenar):** semua laluan di bawah ialah `api/v1/vendor/…` (Konvensyen B13, 10.2). Perbezaan dari mock: `messaging/test` masuk baris gilir
+> `pending` (dihantar cron, bukan terus "sent"); `messaging/save` menolak kunci bukan `ID:RAHSIA` (`messaging.key_format`) dan iSMS + WhatsApp
+> (`messaging.isms_sms_only`); slot yang pernah dipilih dalam pesanan → `opening.slot_in_orders`; `news/recipients` = ibu bapa dengan anak aktif +
+> e-mel disahkan. `mock/vendor-addons.js` & `mock/vendor.js` dibuang; layout vendor tidak memuat mock.
 
 Data modul (`MockAddons`: `news, clearanceSales, clearanceItems, calendarEvents, seasons, slots, messaging, notifications`) dikongsi panel vendor
 **dan** store (layout template1 memuat `vendor-addons.js` sebelum `store.js`) — apa yang vendor cipta terus kelihatan di store dalam tab yang sama.
@@ -1665,7 +1690,7 @@ vendor) → `booked--`. **Lencana "Jualan murah"** (sedia sejak U5) kini dari `M
 Senarai **semua** laluan yang didaftar dalam `assets/js/mock/*.js` (214 laluan, dijana dari kod mock pada U7; B2 menambah 9 laluan auth
 — jumlah **223**; B3 menambah `owner/plans/options` — **224**; B4, B5 & B6 tiada laluan baharu; B8 menambah `store/orders/check-payment` dan
 membuang `store/payment/simulate` — kekal **224**, + 5 webhook `webhooks/{gateway}` di luar jadual; B9 menambah `vendor/orders/unlock-code` — **225**; B10 tiada laluan baharu — kekal **225**; B11 tiada; B12 menambah
-`vendor/invoices/check-payment` — **226**, + webhook `webhooks/platform` (yuran langganan) di luar jadual). Lajur Mock `— (B2)` … `— (B5)` = sudah sebenar (`api/v1/`), mock dibuang.
+`vendor/invoices/check-payment` — **226**, + webhook `webhooks/platform` (yuran langganan) di luar jadual; B13 tiada laluan baharu — 23 laluan modul kini sebenar). Lajur Mock `— (B2)` … `— (B5)` = sudah sebenar (`api/v1/`), mock dibuang.
 **B4:** PO, stock take, `templates/options` & `modules/active` disiapkan lebih awal (prompt B4); `vendor/settings/*` ditangguh ke B9 (skrin serah & POS mock masih membaca tetapan mock). Bentuk `data` setiap laluan
 ada dalam 18.4–18.13; jadual ini ialah senarai semak Peringkat 2 — setiap baris mesti menjadi `api/v1/{laluan}.php` (nipis, tiada SQL)
 yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan CSRF, B14).
@@ -1793,9 +1818,9 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 | `vendor/addons/subscribe` | POST | vendor sesi + koperasi (admin) | B12 (asal B13) | — (B12) |
 | `vendor/auth/login` | POST | awam | B2 | — (B2) |
 | `vendor/auth/verify-2fa` · `vendor/auth/logout` · `vendor/auth/forgot` · `vendor/auth/reset` | POST | awam | B2 | — (baharu B2) |
-| `vendor/calendar/delete` | POST | koperasi + modul `calendar` | B13 | `vendor-addons.js` |
-| `vendor/calendar/list` | GET | koperasi + modul `calendar` | B13 | `vendor-addons.js` |
-| `vendor/calendar/save` | POST | koperasi + modul `calendar` | B13 | `vendor-addons.js` |
+| `vendor/calendar/delete` | POST | koperasi + modul `calendar` | B13 | — (B13) |
+| `vendor/calendar/list` | GET | koperasi + modul `calendar` | B13 | — (B13) |
+| `vendor/calendar/save` | POST | koperasi + modul `calendar` | B13 | — (B13) |
 | `vendor/categories/delete` | POST | vendor sesi + koperasi | B4 | — (B4) |
 | `vendor/categories/list` | GET | vendor sesi + koperasi | B4 | — (B4) |
 | `vendor/categories/save` | POST | vendor sesi + koperasi | B4 | — (B4) |
@@ -1803,12 +1828,12 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 | `vendor/classes/delete` | POST | vendor sesi | B4 | — (B4) |
 | `vendor/classes/list` | GET | vendor sesi + koperasi | B4 | — (B4) |
 | `vendor/classes/update` | POST | vendor sesi | B4 | — (B4) |
-| `vendor/clearance/delete` | POST | koperasi + modul `clearance` | B13 | `vendor-addons.js` |
-| `vendor/clearance/get` | GET | koperasi + modul `clearance` | B13 | `vendor-addons.js` |
-| `vendor/clearance/item-delete` | POST | koperasi + modul `clearance` | B13 | `vendor-addons.js` |
-| `vendor/clearance/item-save` | POST | koperasi + modul `clearance` | B13 | `vendor-addons.js` |
-| `vendor/clearance/list` | GET | koperasi + modul `clearance` | B13 | `vendor-addons.js` |
-| `vendor/clearance/save` | POST | koperasi + modul `clearance` | B13 | `vendor-addons.js` |
+| `vendor/clearance/delete` | POST | koperasi + modul `clearance` | B13 | — (B13) |
+| `vendor/clearance/get` | GET | koperasi + modul `clearance` | B13 | — (B13) |
+| `vendor/clearance/item-delete` | POST | koperasi + modul `clearance` | B13 | — (B13) |
+| `vendor/clearance/item-save` | POST | koperasi + modul `clearance` | B13 | — (B13) |
+| `vendor/clearance/list` | GET | koperasi + modul `clearance` | B13 | — (B13) |
+| `vendor/clearance/save` | POST | koperasi + modul `clearance` | B13 | — (B13) |
 | `vendor/cooperatives/check-slug` | GET | vendor sesi | B4 | — (B4) |
 | `vendor/cooperatives/get` | GET | vendor sesi | B4 | — (B4) |
 | `vendor/cooperatives/list` | GET | vendor sesi | B2 (baca) / B4 | — (B2) |
@@ -1836,15 +1861,15 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 | `vendor/kits/product-options` | GET | vendor sesi + koperasi | B5 | — (B5) |
 | `vendor/kits/save` | POST | vendor sesi + koperasi | B5 | — (B5) |
 | `vendor/kits/set-published` | POST | vendor sesi + koperasi | B5 | — (B5) |
-| `vendor/messaging/get` | GET | koperasi + modul `whatsapp_sms` | B13 | `vendor-addons.js` |
-| `vendor/messaging/log` | GET | koperasi + modul `whatsapp_sms` | B13 | `vendor-addons.js` |
-| `vendor/messaging/save` | POST | koperasi + modul `whatsapp_sms` | B13 | `vendor-addons.js` |
-| `vendor/messaging/test` | POST | koperasi + modul `whatsapp_sms` | B13 | `vendor-addons.js` |
+| `vendor/messaging/get` | GET | koperasi + modul `whatsapp_sms` | B13 | — (B13) |
+| `vendor/messaging/log` | GET | koperasi + modul `whatsapp_sms` | B13 | — (B13) |
+| `vendor/messaging/save` | POST | koperasi + modul `whatsapp_sms` | B13 | — (B13) |
+| `vendor/messaging/test` | POST | koperasi + modul `whatsapp_sms` | B13 | — (B13) |
 | `vendor/modules/active` | GET | vendor sesi + koperasi | B4 (asal B13) | — (B4) |
-| `vendor/news/delete` | POST | koperasi + modul `news` | B13 | `vendor-addons.js` |
-| `vendor/news/list` | GET | koperasi + modul `news` | B13 | `vendor-addons.js` |
-| `vendor/news/recipients` | GET | koperasi + modul `news` | B13 | `vendor-addons.js` |
-| `vendor/news/save` | POST | koperasi + modul `news` | B13 | `vendor-addons.js` |
+| `vendor/news/delete` | POST | koperasi + modul `news` | B13 | — (B13) |
+| `vendor/news/list` | GET | koperasi + modul `news` | B13 | — (B13) |
+| `vendor/news/recipients` | GET | koperasi + modul `news` | B13 | — (B13) |
+| `vendor/news/save` | POST | koperasi + modul `news` | B13 | — (B13) |
 | `vendor/orders/bulk-status` | POST | vendor sesi + koperasi (admin + pengurus) | B9 | — (B9) |
 | `vendor/orders/class-options` | GET | vendor sesi + koperasi (+ juruwang) | B9 | — (B9) |
 | `vendor/orders/get` | GET | vendor sesi + koperasi (admin + pengurus) | B9 | — (B9) |
@@ -1889,12 +1914,12 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 | `vendor/refunds/list` | GET | vendor sesi + koperasi (admin + pengurus) | B11 | — (B11) |
 | `vendor/refunds/order` | GET | vendor sesi + koperasi (admin + pengurus) | B11 | — (B11) |
 | `vendor/reports/run` | GET | vendor sesi + koperasi (admin + pengurus) | B11 | — (B11) |
-| `vendor/school-opening/season-delete` | POST | koperasi + modul `school_opening` | B13 | `vendor-addons.js` |
-| `vendor/school-opening/season-save` | POST | koperasi + modul `school_opening` | B13 | `vendor-addons.js` |
-| `vendor/school-opening/seasons` | GET | koperasi + modul `school_opening` | B13 | `vendor-addons.js` |
-| `vendor/school-opening/slot-delete` | POST | koperasi + modul `school_opening` | B13 | `vendor-addons.js` |
-| `vendor/school-opening/slot-save` | POST | koperasi + modul `school_opening` | B13 | `vendor-addons.js` |
-| `vendor/school-opening/slots` | GET | koperasi + modul `school_opening` | B13 | `vendor-addons.js` |
+| `vendor/school-opening/season-delete` | POST | koperasi + modul `school_opening` | B13 | — (B13) |
+| `vendor/school-opening/season-save` | POST | koperasi + modul `school_opening` | B13 | — (B13) |
+| `vendor/school-opening/seasons` | GET | koperasi + modul `school_opening` | B13 | — (B13) |
+| `vendor/school-opening/slot-delete` | POST | koperasi + modul `school_opening` | B13 | — (B13) |
+| `vendor/school-opening/slot-save` | POST | koperasi + modul `school_opening` | B13 | — (B13) |
+| `vendor/school-opening/slots` | GET | koperasi + modul `school_opening` | B13 | — (B13) |
 | `vendor/session/cooperative` | POST | vendor sesi + koperasi | B2 | — (B2) |
 | `vendor/settings/get` | GET | vendor sesi + koperasi (+ juruwang, tanpa `alert_emails`) | B9 (asal B4) | — (B9) |
 | `vendor/settings/save` | POST | vendor sesi + koperasi (`vendor_admin`) | B9 (asal B4) | — (B9) |

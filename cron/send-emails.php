@@ -14,6 +14,12 @@ if (!$lock || !flock($lock, LOCK_EX | LOCK_NB)) {
     exit(0);
 }
 
+// B13: berita berjadual yang kini terbit → e-mel ibu bapa masuk baris gilir dahulu
+$news = (new QueueDueNewsEmailsJob())->run();
+if ($news > 0) {
+    echo 'E-mel berita dimasukkan ke baris gilir: ' . $news . "\n";
+}
+
 $result = (new SendQueuedEmailsJob())->run();
 if (!$result['configured']) {
     echo "SMTP belum ditetapkan (Owner → Tetapan). E-mel kekal dalam queue.\n";

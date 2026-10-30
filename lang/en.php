@@ -1792,7 +1792,7 @@ return [
     'opening.state.open'                 => 'Open',
     'opening.state.upcoming'             => 'Upcoming',
     'opening.state.closed'               => 'Closed',
-    'messaging.ui_only_note'             => 'Settings are saved now; real sending through the provider is enabled in the backend phase. Messages are sent from a queue and never slow down the counter.',
+    'messaging.ui_only_note'             => 'Messages are sent from a queue every minute through the selected provider — they never slow down the counter. API key format ID:SECRET.',
     'messaging.settings'                 => 'Settings',
     'messaging.enabled'                  => 'Send notifications to parents',
     'messaging.channel'                  => 'Channel',
@@ -1941,4 +1941,10 @@ return [
     'activity.action.staff_send_reset' => 'Send password reset link',
     'email.invoice_issued.subject' => 'Invoice {invoice_no} — {app_name}',
     'email.invoice_issued.body' => "Dear {vendor_name},\n\nInvoice {invoice_no} for {total} is due by {due_date}.\n\nPay at: {pay_url}",
+    // B13 — modul add-on
+    'opening.slot_in_orders' => 'This slot has been chosen in orders — it cannot be deleted. Reduce the capacity instead.',
+    'messaging.key_format' => 'Key format: ID:SECRET (WhatsApp Cloud: phone number ID:access token · Twilio: Account SID:Auth Token · iSMS: username:password).',
+    'messaging.isms_sms_only' => 'iSMS supports SMS only.',
+    'email.news_post.subject' => '{title} — {school_name}',
+    'email.news_post.body' => "{body}\n\n— {school_name} cooperative",
 ];

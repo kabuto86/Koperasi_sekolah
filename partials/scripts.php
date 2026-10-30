@@ -1,6 +1,6 @@
 <?php
 // Skrip di hujung <body>. Susunan penting.
-// Pemboleh ubah: $mockFiles (cth. ['vendor.js']), $pageScripts (senarai URL penuh)
+// Pemboleh ubah: $mockFiles (cth. ['owner.js']), $pageScripts (senarai URL penuh)
 $mockFiles = $mockFiles ?? [];
 $pageScripts = $pageScripts ?? [];
 ?>
