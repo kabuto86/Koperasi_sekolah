@@ -503,7 +503,7 @@ try {
     check('Pentadbir: vendor/promotions.php 200; juruwang → dialih', $v1->page('vendor/promotions.php')['status'] === 200
         && $cashier1->page('vendor/promotions.php')['status'] === 302);
     $api = file_get_contents(APP_ROOT . '/assets/js/api.js');
-    check("Api.livePrefixes: 'vendor/pos/', 'vendor/promotions/'", strpos($api, "'vendor/pos/', 'vendor/promotions/'") !== false);
+    check("Api.livePrefixes: 'vendor/pos/', 'vendor/promotions/'", apiRouteLive($api, "'vendor/pos/', 'vendor/promotions/'"));
     $mock = '';
     foreach (glob(APP_ROOT . '/assets/js/mock/*.js') as $file) {
         $mock .= file_get_contents($file);

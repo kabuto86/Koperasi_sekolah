@@ -23,9 +23,26 @@ class Request
         }
     }
 
+    // IP pelanggan untuk had kadar & log. X-Forwarded-For HANYA dipercayai bila permintaan datang dari proksi dalam
+    // config trusted_proxies (cth. pengimbang beban) — alamat paling kanan yang bukan proksi dipercayai (B14)
     public static function ip()
     {
-        return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+        $remote = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+        if (!self::fromTrustedProxy()) {
+            return $remote;
+        }
+        $chain = array_reverse(array_map('trim', explode(',', self::header('X-Forwarded-For'))));
+        foreach ($chain as $address) {
+            if (filter_var($address, FILTER_VALIDATE_IP) && !in_array($address, (array) Config::get('trusted_proxies'), true)) {
+                return $address;
+            }
+        }
+        return $remote;
+    }
+
+    public static function fromTrustedProxy()
+    {
+        return in_array($_SERVER['REMOTE_ADDR'] ?? '', (array) Config::get('trusted_proxies'), true);
     }
 
     public static function userAgent()

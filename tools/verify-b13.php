@@ -428,7 +428,7 @@ try {
     echo "8. Mock dibuang & laluan sebenar\n";
     $api = file_get_contents(APP_ROOT . '/assets/js/api.js');
     check("Api.livePrefixes: vendor/news, clearance, calendar, school-opening, messaging",
-        strpos($api, "'vendor/news/', 'vendor/clearance/', 'vendor/calendar/', 'vendor/school-opening/', 'vendor/messaging/'") !== false);
+        apiRouteLive($api, "'vendor/news/', 'vendor/clearance/', 'vendor/calendar/', 'vendor/school-opening/', 'vendor/messaging/'"));
     $mock = '';
     foreach (glob(APP_ROOT . '/assets/js/mock/*.js') as $file) {
         $mock .= file_get_contents($file);

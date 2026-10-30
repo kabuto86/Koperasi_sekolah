@@ -1,6 +1,8 @@
 <?php
-// Terjemahan: lang/{kod}.php dimuat sekali.
+// Terjemahan: fail bahasa dimuat sekali.
 // Kunci hilang → nilai Bahasa Melayu → kunci itu sendiri (tidak pernah kosong).
+// Sejak B14: storage/lang/{kod}.php = lang/{kod}.php + nilai owner dalam jadual translations (dijana oleh LangFiles).
+// Fail jana lebih lama daripada lang/*.php (selepas deploy) → dijana semula; gagal → lang/*.php sahaja.
 class Lang
 {
     private static $code = 'ms';
@@ -40,6 +42,7 @@ class Lang
         setcookie('lang', $code, [
             'expires'  => time() + 365 * 24 * 3600,
             'path'     => View::baseUrl() . '/',
+            'secure'   => SecurityHeaders::isHttps(),
             'httponly' => true,
             'samesite' => 'Lax',
         ]);
@@ -51,15 +54,30 @@ class Lang
         return is_string($code) && in_array($code, Config::get('languages'), true);
     }
 
+    // Fail yang dipakai semasa berjalan: jana (jika terkini) atau sumber
     private static function loadFile($code)
     {
-        $file = APP_ROOT . '/lang/' . $code . '.php';
-        if (!is_file($file)) {
+        $source = LangFiles::sourcePath($code);
+        if (!is_file($source)) {
             return [];
         }
-
-        return require $file;
+        if (!LangFiles::isFresh($code) && !LangFiles::tryGenerate()) {
+            return require $source;
+        }
+        return require LangFiles::compiledPath($code);
     }
+
+    // lang/{kod}.php sahaja (tanpa nilai owner) — asas modul terjemahan
+    public static function sourceStrings($code)
+    {
+        if (!isset(self::$sources[$code])) {
+            $file = LangFiles::sourcePath($code);
+            self::$sources[$code] = self::isSupported($code) && is_file($file) ? require $file : [];
+        }
+        return self::$sources[$code];
+    }
+
+    private static $sources = [];
 
     public static function code()
     {
@@ -88,10 +106,10 @@ class Lang
         return self::$files[$code];
     }
 
-    // Nilai kunci dalam fail bahasa itu sahaja (tiada jatuh balik) atau null
+    // Nilai kunci dalam lang/{kod}.php sahaja (tiada jatuh balik, tiada nilai owner) atau null
     public static function fileValue($code, $key)
     {
-        $strings = self::fileFor($code);
+        $strings = self::sourceStrings($code);
         return $strings[$key] ?? null;
     }
 

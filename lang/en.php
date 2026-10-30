@@ -408,6 +408,7 @@ return [
     'translation.fallback_help'          => 'Bahasa Melayu is required. Empty languages show the Bahasa Melayu text.',
     'translation.complete'               => 'Complete',
     'translation.incomplete'             => 'Incomplete',
+    'translation.placeholder_unknown'    => 'Unknown placeholder: {list}. Use only placeholders found in the original Malay text.',
     // Darjah
     'grade.intro'                        => 'Master list of grades & forms. Codes are fixed; names can be edited in 4 languages.',
     'grade.edit'                         => 'Edit grade',
@@ -565,6 +566,7 @@ return [
     'upload.image_help'                   => 'JPG, PNG or WebP, up to 2MB.',
     'upload.invalid_type'                 => 'File type not allowed. Use JPG, PNG or WebP.',
     'upload.too_large'                    => 'File too large (max {max}).',
+    'upload.too_many_pixels'              => 'Image dimensions too large (max {max} pixels per side).',
     // Papan pemuka vendor
     'vendor_dashboard.sales_today'        => 'Sales today',
     'vendor_dashboard.transactions'       => '{n} transactions',
@@ -1286,6 +1288,7 @@ return [
     'activity.action.invoice_pay'          => 'Paid an invoice',
     'activity.action.cooperative_save'     => 'Saved a cooperative',
     'activity.action.product_save'         => 'Saved a product',
+    'activity.action.price_change'         => 'Changed a price',
     'activity.action.stock_in'             => 'Stock in',
     'activity.action.po_save'              => 'Saved a purchase order',
     'activity.action.po_cancel'            => 'Cancelled a purchase order',

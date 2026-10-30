@@ -408,6 +408,7 @@ return [
     'translation.fallback_help'          => '马来文必填。其他语言为空时显示马来文。',
     'translation.complete'               => '完整',
     'translation.incomplete'             => '未完成',
+    'translation.placeholder_unknown'    => '无法识别的占位符：{list}。只能使用马来语原文中的占位符。',
     // Darjah
     'grade.intro'                        => '年级主列表。代码固定；名称可用 4 种语言编辑。',
     'grade.edit'                         => '编辑年级',
@@ -565,6 +566,7 @@ return [
     'upload.image_help'                   => 'JPG、PNG 或 WebP，最大 2MB。',
     'upload.invalid_type'                 => '不允许的文件类型。请使用 JPG、PNG 或 WebP。',
     'upload.too_large'                    => '文件太大（最大 {max}）。',
+    'upload.too_many_pixels'              => '图片尺寸过大（每边最多 {max} 像素）。',
     // Papan pemuka vendor
     'vendor_dashboard.sales_today'        => '今日销售',
     'vendor_dashboard.transactions'       => '{n} 笔交易',
@@ -1286,6 +1288,7 @@ return [
     'activity.action.invoice_pay'          => '支付发票',
     'activity.action.cooperative_save'     => '保存合作社',
     'activity.action.product_save'         => '保存产品',
+    'activity.action.price_change'         => '更改价格',
     'activity.action.stock_in'             => '入库',
     'activity.action.po_save'              => '保存采购单',
     'activity.action.po_cancel'            => '取消采购单',

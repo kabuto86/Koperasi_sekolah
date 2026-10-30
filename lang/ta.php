@@ -408,6 +408,7 @@ return [
     'translation.fallback_help'          => 'மலாய் கட்டாயம். காலியான மொழிகள் மலாய் உரையைக் காட்டும்.',
     'translation.complete'               => 'முழுமையானது',
     'translation.incomplete'             => 'முழுமையற்றது',
+    'translation.placeholder_unknown'    => 'அறியப்படாத இடஒதுக்கி: {list}. மூல மலாய் உரையில் உள்ள இடஒதுக்கிகளை மட்டும் பயன்படுத்தவும்.',
     // Darjah
     'grade.intro'                        => 'வகுப்புகளின் முதன்மைப் பட்டியல். குறியீடுகள் நிலையானவை.',
     'grade.edit'                         => 'வகுப்பைத் திருத்து',
@@ -565,6 +566,7 @@ return [
     'upload.image_help'                   => 'JPG, PNG அல்லது WebP, அதிகபட்சம் 2MB.',
     'upload.invalid_type'                 => 'அனுமதிக்கப்படாத கோப்பு வகை.',
     'upload.too_large'                    => 'கோப்பு மிகப் பெரியது (அதிகபட்சம் {max}).',
+    'upload.too_many_pixels'              => 'படத்தின் அளவு மிகப் பெரியது (ஒவ்வொரு பக்கமும் அதிகபட்சம் {max} பிக்சல்).',
     // Papan pemuka vendor
     'vendor_dashboard.sales_today'        => 'இன்றைய விற்பனை',
     'vendor_dashboard.transactions'       => '{n} பரிவர்த்தனைகள்',
@@ -1286,6 +1288,7 @@ return [
     'activity.action.invoice_pay'          => 'விலைப்பட்டியலைச் செலுத்தினார்',
     'activity.action.cooperative_save'     => 'கூட்டுறவைச் சேமித்தார்',
     'activity.action.product_save'         => 'பொருளைச் சேமித்தார்',
+    'activity.action.price_change'         => 'விலையை மாற்றினார்',
     'activity.action.stock_in'             => 'இருப்பு உள்வரவு',
     'activity.action.po_save'              => 'கொள்முதல் ஆணையைச் சேமித்தார்',
     'activity.action.po_cancel'            => 'கொள்முதல் ஆணையை ரத்து செய்தார்',

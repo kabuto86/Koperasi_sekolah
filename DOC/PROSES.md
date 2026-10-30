@@ -4,9 +4,9 @@
 > Kemas kini fail ini di HUJUNG setiap session, sebelum commit & push.
 > Reka bentuk: [PELAN.md](PELAN.md) · Prompt kerja: [PROMPT-SESSION.md](PROMPT-SESSION.md)
 
-**Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · **Peringkat 2 berjalan** — skema & core (B1), auth sebenar (B2), panel owner (B3), katalog & inventori vendor (B4), kit sekolah (B5), store ibu bapa: anak, katalog, kit, troli (B6), checkout tunai, pesanan & queue e-mel (B7), payment gateway + webhook (B8), pesanan vendor & serah barang (B9), POS kaunter & promosi (B10), refund & laporan (B11), langganan & invois vendor + cron (B12), modul add-on (B13)
-**Session terakhir siap:** B13 — Modul add-on
-**Session seterusnya:** **B14 — Terjemahan & pengerasan keselamatan**
+**Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · **Peringkat 2 berjalan** — skema & core (B1), auth sebenar (B2), panel owner (B3), katalog & inventori vendor (B4), kit sekolah (B5), store ibu bapa: anak, katalog, kit, troli (B6), checkout tunai, pesanan & queue e-mel (B7), payment gateway + webhook (B8), pesanan vendor & serah barang (B9), POS kaunter & promosi (B10), refund & laporan (B11), langganan & invois vendor + cron (B12), modul add-on (B13), terjemahan & pengerasan keselamatan (B14) — **semua laluan web sebenar, mock dibuang**
+**Session terakhir siap:** B14 — Terjemahan & pengerasan keselamatan
+**Session seterusnya:** **B15 — API token Flutter & push**
 
 Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 
@@ -49,7 +49,7 @@ Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 | B11 | Laporan, refund, PO, stock take | ✅ | 28 Okt 2026 | `0733853` | 4 endpoint (`vendor/refunds/*` 3, `vendor/reports/run`), `jobs/Refund/` 3 job + `Refunds`, `jobs/Report/` 9 job + 3 pembantu, refund Stripe (`GatewayInterface::refund`), migrasi 005 (`refunds.pos_shift_id`), refund tunai ditolak dari laci syif, mock refund/laporan & `vendor-orders.js` dibuang, `tools/verify-b11.php` 78/78 lulus |
 | B12 | Langganan & invois vendor + cron | ✅ | 29 Okt 2026 | `92400a1` | 21 laluan + `webhooks/platform`, `jobs/Billing/` 33 fail baharu (+ `ModuleAccess`, `ListActivityLogsJob`), 2 cron, invois snapshot `INV-{tahun}-{0001}`, prorata, kitaran draf → pusingan, tunggakan → digantung → store "ditutup sementara", bayar online gateway owner + webhook, `mock/vendor-finance.js` dibuang, `tools/verify-b12.php` 98/98 lulus |
 | B13 | Modul add-on | ✅ | 30 Okt 2026 | `5bd56fe` | 23 endpoint modul (`vendor/news|clearance|calendar|school-opening|messaging/*`), 5 folder job baharu (31 fail), driver WhatsApp/SMS `messaging/` (Twilio, WhatsApp Cloud, iSMS), cron `send-messages.php`, e-mel berita sekali sahaja + berjadual, peringatan tunai, migrasi 006, `mock/vendor-addons.js` & `mock/vendor.js` dibuang, `tools/verify-b13.php` 92/92 lulus |
-| B14 | Modul terjemahan + pengerasan keselamatan | ⬜ | | | |
+| B14 | Modul terjemahan + pengerasan keselamatan | ✅ | 30 Okt 2026 | `a6e12ce` | `owner/translations/*` sebenar (`storage/lang/*.php` dijana dari `lang/*.php` + `translations`, `MissingKeysJob`), mock dibuang sepenuhnya, migrasi 007, senarai PELAN 15 disemak satu per satu (header, proksi, muat naik GD, rate limit kod ambil, PDPA nyahnama pesanan, audit `price_change`, backup harian), `tools/verify-b14.php` 112/112 lulus (sapuan 230 endpoint) |
 | B15 | API token Flutter + push | ⬜ | | | |
 
 ## Peringkat 3 — Apps Flutter (selepas Peringkat 1 & 2 siap)
@@ -1290,6 +1290,81 @@ Tertangguh / peralihan:
 - WhatsApp Cloud: mesej yang dimulakan perniagaan di luar tetingkap 24 jam memerlukan templat diluluskan Meta — driver kini menghantar teks biasa
 - Modul `advanced_report`, `mobile_app` (B15/F), `membership` — halaman "akan datang" kekal
 - `mock/owner.js` (terjemahan) → B14
+
+### B14 — Terjemahan & pengerasan keselamatan (30 Okt 2026)
+
+Dibuat:
+- **Terjemahan (`jobs/Language/`):** `LangFiles` (laluan sumber/jana, `isFresh`, `generate` — var_export → fail sementara → rename atomik, `opcache_invalidate`,
+  `tryGenerate` untuk `Lang`), `GenerateLangFilesJob`, `ListTranslationsJob` (semua kunci fail + kunci DB sahaja, tapis q/group/missing, `groups`,
+  `missing_counts`), `SaveTranslationJob` (kunci wujud sahaja, ms wajib, ≤ 5000, pemegang tempat ⊆ teks Melayu asal, audit `translation.update`),
+  `MissingKeysJob`; `TranslationValues::all()`; `TranslationValues::save` tidak menyimpan nilai sama dengan fail
+- **API (2):** `owner/translations/list` (GET), `owner/translations/save` (POST + CSRF) — owner sahaja
+- **core:** `Lang` memuat `storage/lang/{kod}.php` (jana semula sendiri bila sumber lebih baharu; gagal → sumber), `Lang::sourceStrings`, `fileValue` = sumber;
+  cookie bahasa `Secure` bila HTTPS. `SecurityHeaders`: `Permissions-Policy`, `Cross-Origin-Opener-Policy`, `X-Permitted-Cross-Domain-Policies`, buang
+  `X-Powered-By`, HTTPS dari proksi dipercayai. `Request::ip()` / `fromTrustedProxy()` (config `trusted_proxies`). `Uploader`: had 4000 px + kod semula GD
+- **Keselamatan lain:** rate limit `pickup_code:` (serah 300/10 min) & `pickup_search:` (600/10 min); `vendor/activity-logs/list` mengesahkan
+  `cooperative_id` bila dihantar; `SaveProductJob` → log `price_change`; `DeleteCustomerAccountJob` → `anonymizeOrders()` + audit `customer.delete_account`;
+  `.htaccess` akar (tiada senarai, `.git/.env` 404, `.md/.sql/.key` dihalang), `DOC/.htaccess`, `uploads/.htaccess` (hanya imej, CSP sandbox, nosniff)
+- **Backup:** `jobs/Maintenance/BackupDatabaseJob.php` + `cron/backup-db.php` (harian, `flock`); config `backup_dir`, `backup_keep_days`, `mysqldump_path`
+- **Mock dibuang:** `assets/js/mock/mock.js` & `owner.js`; `config use_mock`; `partials/scripts.php` & layout owner/template tidak memuat mock; `api.js`
+  tanpa `livePrefixes` / `Mock`; `asset_version` → 15. Semakan `Api.livePrefixes` lama (verify-b9/10/11/13) → `apiRouteLive()` (`test-helpers.php`)
+- **Alat:** `tools/generate-lang.php` (jana + kunci hilang, `--missing`); `Browser::raw()` (status + header + badan) dalam `test-helpers.php`
+- **Data:** migrasi `007-module-descriptions-zh-ta.sql` + `seed.sql` (keterangan 8 modul zh/ta → 0 kunci hilang). Tiada perubahan jadual
+- 3 kunci bahasa baharu × 4 (`translation.placeholder_unknown`, `activity.action.price_change`, `upload.too_many_pixels`) — jumlah 1880
+
+Senarai semak PELAN 15 — hasil (semua ✅):
+
+| Perkara | Hasil |
+|---|---|
+| `vendor_id`/`customer_id` dari sesi; setiap pertanyaan menapis | Statik: tiada `vendor_id`/`customer_id` dari input dalam `api/` (kecuali `customer_id` sasaran nota vendor — disahkan job). Dinamik: IDOR di bawah |
+| `cooperative_id` disahkan | 108 endpoint berskop koperasi: VENDOR02 + koperasi VENDOR01 → **404 semua** (dibaiki: `activity-logs/list` dahulu 200 tanpa kebocoran) |
+| Tiada SQL dalam `api/`; prepared; `EMULATE_PREPARES` off | Statik lulus (230 fail); jobs/ tiada superglobal / `$this->input` dalam SQL; pembolehubah SQL = pemalar / senarai putih |
+| `koperasi_user` akses `koperasi_saas` sahaja | `create-database.sql`: satu GRANT pada `koperasi_saas.*` |
+| Argon2id 19456/2/1, rehash, mesej sama, kunci 5 gagal | Disahkan (config, `needsRehash`, mesej ralat akaun wujud = tiada) |
+| 2FA owner wajib, vendor pilihan | Sejak B2 (verify-b2) |
+| Sesi: regenerate, cookie, idle | Id sesi bertukar selepas log masuk; `HttpOnly`, `SameSite=Lax`, `Secure` (HTTPS); idle owner/vendor 2 jam, ibu bapa 30 hari |
+| CSRF semua POST | 122 endpoint POST (sesi sah, tanpa token) → **419 semua**; webhook gateway dikecualikan (tandatangan + semakan semula, B8) |
+| Header & CSP | Halaman & API: CSP tanpa `unsafe-*`, DENY, nosniff, Referrer-Policy, Permissions-Policy, COOP, tiada X-Powered-By; HSTS hanya HTTPS |
+| `e()` / `textContent` | Statik: setiap `<?=` melalui `e()` atau pemalar; JS tiada `innerHTML`/`outerHTML`/`insertAdjacentHTML`/`eval` |
+| Muat naik | finfo, 2MB, ≤ 4000 px, kod semula GD (polyglot PHP/JS & EXIF GPS hilang), SVG/PHP ditolak, nama sha256, `uploads/{vendor}/{koperasi}/` |
+| Rate limit | log masuk (owner 20, vendor 30, ibu bapa 30 /15 min), daftar 10/j, lupa 10/j, kod ambil & carian (baharu) → 429 disahkan. API Flutter → B15 |
+| Harga/stok di pelayan, `FOR UPDATE` | Sejak B6–B10 (verify-b6/7/10) |
+| Webhook | Sejak B8/B10/B12 (verify-b8/10/12) |
+| Kredensial & TOTP disulitkan; `.gitignore` | Kredensial gateway & TOTP bukan teks mentah; `.gitignore` config/database.php, secret.key, uploads/*, storage/* |
+| Token hash SHA-256 + luput | 4 jadual token `CHAR(64)` + `expires_at`; e-mel reset = token mentah, DB = sha256; sekali guna; luput ditolak |
+| PDPA | Tiada lajur IC; persetujuan direkod (B2); padam akaun = nyahnama akaun, anak, snapshot pesanan, nota, mesej, e-mel, cubaan log masuk; jualan kekal |
+| Log audit | `price_change` (baharu), `refund`, `gateway_save`, `gateway.owner_update`, `vendor.suspend` (+ IP), `invoice.*`, `translation.update`, `customer.delete_account` |
+| Backup harian | `cron/backup-db.php` — diuji: fail 0600 sah gzip, tiada kata laluan, buang > 14 hari, **dipulihkan dengan `mysql`** di hujung verify-b14 |
+| Ujian kebocoran | Lihat ujian penembusan di bawah |
+
+Ujian penembusan asas (`tools/verify-b14.php`, pelayan sebenar `php -S` 4 pekerja, data dipulihkan dari backup selepas ujian):
+- **Tanpa sesi:** 199 endpoint berlog masuk → 401 · **Kaedah salah:** 230 → 405 · **CSRF:** 122 POST → 419 · **Kawasan lain:** vendor→owner,
+  ibu bapa→vendor, owner→store → 401 · **Peranan:** 162 gabungan (owner_staff, juruwang, pengurus) → 403
+- **IDOR VENDOR02 → VENDOR01:** 126 endpoint vendor × 42 set (koperasi 2 & 3 × id setiap jadual VENDOR01 sebagai `id` + semua `*_id`, `items[]`) ≈ 5300
+  permintaan — cap jari 54 jadual `vendor_id = 1` **tidak berubah**, tiada nama produk/anak/koperasi/syarikat/e-mel kakitangan VENDOR01 dalam jawapan, tiada 500
+- **IDOR ibu bapa B → A:** 30 endpoint store × 12 set (3 sekolah × id pesanan/anak/troli/item A) — data A tidak berubah, tiada nama anak/e-mel/telefon/no.
+  pesanan A dalam jawapan; `store/orders/get` pesanan A → 404
+- **SQLi:** 6 muatan (`' OR '1'='1' --`, `UNION SELECT password_hash`, `DROP TABLE`, `%`, `\` …) pada ± 30 parameter setiap GET (owner, vendor, store) +
+  POST vendor — 740 permintaan, tiada 500, tiada hash / ralat SQL dalam jawapan, jadual utuh
+- **XSS:** nama produk & anak `<img src=x onerror…><script>…` disimpan sebagai data; 5 halaman PHP tidak mencetaknya mentah; e-mel resit ber-escape;
+  terjemahan ber-HTML dipapar ber-escape dalam `data-lang`; JSON `application/json` + nosniff
+
+Disahkan (MariaDB 10.11, PHP 8.3, pemasangan baharu schema + seed + migrasi 007 — `verify-b14` **112 lulus, 0 gagal**; `verify-b13` 92/92; `verify-b12` 98/98;
+`verify-b11` 78/78; `verify-b10` 97/97; `verify-b9` 106/106; `verify-b8` 95/95; `verify-b7` 92/92; `verify-b6` 85/85; `verify-b5` 59/59; `verify-b4` 118/118;
+`verify-b3` 101/101; `verify-b2` 94/94; `verify-b1` 42/42; `check-ui` OK (1880 kunci × 4); Playwright 1366px: Owner → Bahasa & terjemahan memuat 1888 kunci
+sebenar (0 hilang × 4 bahasa), cari "Simpan produk" → 1 baris, simpan en → toast "Perubahan disimpan." & nilai muncul dalam `?lang=en` — 0 ralat JS)
+
+Keputusan kecil (dicatat dalam PELAN 10.1, 10.2, 12, 15, 18.3, 18.7, 18.14):
+- `lang/*.php` kekal sumber dalam git (kunci baharu oleh pembangun); fail jana dalam `storage/lang/` (bukan menulis semula `lang/` — folder kod tidak
+  perlu boleh ditulis oleh pelayan web)
+- Nilai owner yang sama dengan fail tidak disimpan, supaya pembetulan dalam `lang/*.php` terus berkuat kuasa
+- UI terjemahan tidak mencipta kunci baharu (kunci = kod). Pemegang tempat yang tertinggal dibenarkan (amaran sahaja); yang tidak dikenali ditolak
+- Backup tanpa `--databases` (boleh dipulihkan ke pangkalan data lain untuk ujian); kekal pada cakera yang sama — salinan luar pelayan tanggungjawab operator
+- `trusted_proxies` kosong secara lalai — X-Forwarded-* diabaikan sepenuhnya melainkan dikonfigurasi
+
+Tertangguh:
+- Rate limit API Flutter & token API (`api_tokens`) → B15
+- Templat WhatsApp diluluskan Meta (B13) — tidak berubah
 
 ---
 

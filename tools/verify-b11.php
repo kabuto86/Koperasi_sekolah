@@ -448,7 +448,7 @@ try {
 
     echo "17. Frontend\n";
     $api = file_get_contents(APP_ROOT . '/assets/js/api.js');
-    check("Api.livePrefixes: 'vendor/refunds/', 'vendor/reports/'", strpos($api, "'vendor/refunds/', 'vendor/reports/'") !== false);
+    check("Api.livePrefixes: 'vendor/refunds/', 'vendor/reports/'", apiRouteLive($api, "'vendor/refunds/', 'vendor/reports/'"));
     $mock = '';
     foreach (glob(APP_ROOT . '/assets/js/mock/*.js') as $file) {
         $mock .= file_get_contents($file);

@@ -13,16 +13,16 @@ return [
     // Produksi: WAJIB diisi — elak pautan reset kata laluan dipalsukan melalui header Host
     'app_url'           => null,
 
+    // IP proksi songsang / pengimbang beban yang dipercayai (B14). Hanya dari alamat ini X-Forwarded-For & X-Forwarded-Proto
+    // diterima (had kadar ikut IP sebenar, cookie Secure). Kosong = sambungan terus (XAMPP / VPS tanpa proksi)
+    'trusted_proxies'   => [],
+
     // URL store cantik /{slug}/{halaman} (B6). Perlu Apache mod_rewrite + .htaccess di akar projek.
     // false = store/index.php?school={slug}&page=... (berfungsi di semua pelayan, termasuk php -S)
     'pretty_store_urls' => false,
 
     // Naikkan nombor ini bila CSS/JS berubah supaya pelayar tidak guna cache lama
-    'asset_version'     => '14',
-
-    // Peringkat 1: data dari assets/js/mock/*.js. Peringkat 2: laluan yang sudah siap guna fetch() (Api.livePrefixes
-    // dalam api.js); selebihnya masih mock sehingga session masing-masing. Tukar ke false bila semua B siap
-    'use_mock'          => true,
+    'asset_version'     => '15',
 
     // Peringkat 2 (B1): true = ralat penuh dipapar (pembangunan sahaja). Produksi: false
     'debug'             => false,
@@ -41,6 +41,12 @@ return [
 
     // POS (B10): bayaran QR di kaunter yang tidak dibayar dalam tempoh ini diluputkan oleh cron yang sama (stok dilepas)
     'pos_payment_expiry_minutes' => 15,
+
+    // Backup harian (B14): cron/backup-db.php → backup_dir/koperasi_saas-YYYYmmdd-HHiiss.sql.gz. Windows XAMPP:
+    // mysqldump_path = 'C:/xampp/mysql/bin/mysqldump.exe'
+    'backup_dir'        => 'storage/backups',
+    'backup_keep_days'  => 14,
+    'mysqldump_path'    => 'mysqldump',
 
     // Kunci penyulitan (sodium secretbox) — dijana oleh: php tools/generate-secret.php
     'secret_key_file'   => 'config/secret.key',

@@ -491,7 +491,9 @@ Koperasi_sekolah/
 │   ├── Customer/ Child/ Cart/ Store/ Order/ Pickup/ Payment/ Pos/ Report/   (Store/ = slug → koperasi, harga store, katalog, kit — B6)
 │   │   (Payment/ = gateway owner B3 + gateway koperasi, bayaran online, panggilan balik, luput — B8)
 │   │   (Order/ = checkout, pesanan ibu bapa, no. pesanan, e-mel pesanan, luput tunai — B7 · Promotion/ = pilih promosi — B7)
-│   └── News/ Clearance/ Calendar/ SchoolOpening/ Messaging/ (B13) · Notification/ Language/ Setting/ Announcement/ (B3)
+│   ├── News/ Clearance/ Calendar/ SchoolOpening/ Messaging/ (B13) · Notification/ Language/ Setting/ Announcement/ (B3)
+│   │   (Language/ sejak B14: LangFiles · GenerateLangFilesJob · ListTranslationsJob · SaveTranslationJob · MissingKeysJob)
+│   └── Maintenance/  BackupDatabaseJob (B14 — mysqldump → gzip)
 ├── payments/       GatewayInterface · GatewayFactory · BaseGateway (HTTP curl, URL sandbox/live) · GatewayException — B8 (dimuat automatik)
 │   └── drivers/    ToyyibPayGateway · BillplzGateway · SenangPayGateway · Ipay88Gateway · StripeGateway
 ├── messaging/      MessageSender (asas + make) · TwilioSender · WhatsappCloudSender · IsmsSender · MessagingException — B13 (tanpa DB, dimuat automatik)
@@ -516,24 +518,25 @@ Koperasi_sekolah/
 ├── modules/        news/ · clearance/ · calendar/ · school_opening/
 ├── lang/           ms.php · en.php · zh.php · ta.php
 ├── cron/           send-emails · expire-cash-orders (B7, CLI sahaja, `.htaccess` halang web) · expire-online-orders (B8) · generate-invoices ·
-│                   suspend-overdue (B12) · send-messages (B13, WhatsApp/SMS setiap minit) · promote-grades
+│                   suspend-overdue (B12) · send-messages (B13, WhatsApp/SMS setiap minit) · backup-db (B14, harian) · promote-grades
 ├── storage/        mail.log (mail_driver log) · fail kunci cron (.gitignore isi, `.htaccess` halang web) — B7
+│                   lang/{ms,en,zh,ta}.php (DIJANA: lang/*.php + jadual translations — B14) · backups/ (koperasi_saas-*.sql.gz, 0700 — B14)
 ├── tools/          check-ui.php (tiada inline CSS + kunci 4 bahasa sama) · generate-secret.php · verify-b1.php · verify-b2.php
 │                   dev-totp.php (kod 2FA ujian) · ui-audit.js (pelayar, log masuk sebenar sejak B2) — CLI sahaja
 │                   verify-b3.php · test-helpers.php (Browser HTTP dikongsi — B3) · verify-b4.php (B4) · verify-b5.php (B5) · verify-b6.php (B6)
 │                   verify-b7.php · fake-smtp.php (pelayan SMTP palsu untuk ujian) — B7
-│                   verify-b8.php · fake-gateway.php (gateway palsu 5 driver, `php -S` router) — B8 · verify-b9 … verify-b12.php
+│                   verify-b8.php · fake-gateway.php (gateway palsu 5 driver, `php -S` router) — B8 · verify-b9 … verify-b13.php
+│                   verify-b14.php (pengerasan + sapuan penembusan semua endpoint) · generate-lang.php (jana fail bahasa + kunci hilang) — B14
 ├── assets/
 │   ├── lib/        bootstrap/ (5.3.3) · bootstrap-icons/ (1.11.3) · qrcode/ (qrcode-generator 1.4.4, MIT — sejak U2)
 │   ├── css/        app.css · print-label.css · print-slip.css · receipt.css
 │   ├── js/         api.js · lang.js · helpers.js · login.js · vendor-layout.js
 │   │   ├── owner/  satu fail per halaman owner (dashboard.js, vendors.js, …)
 │   │   ├── vendor/ satu fail per halaman vendor (dashboard.js, …) · addon-common.js · addons/{code}.js (U6)
-│   │   └── mock/   mock.js · owner.js (terjemahan sahaja sejak B12) · vendor.js · vendor-addons.js (Peringkat 1 sahaja; store.js dibuang B7,
-│   │               vendor-orders.js B11, vendor-finance.js B12)
+│   │   (mock/ DIBUANG sepenuhnya dalam B14 — semua laluan sebenar; config use_mock tiada lagi)
 │   ├── img/
 │   └── fonts/      noto-sans-sc/ · noto-sans-tamil/ (woff2 400 & 700, unicode-range — dimuat bila perlu)
-├── uploads/        {vendor_id}/{cooperative_id}/… (.gitignore isi, .htaccess halang PHP)
+├── uploads/        {vendor_id}/{cooperative_id}/… (.gitignore isi; .htaccess: halang PHP, hanya jpg/png/webp, CSP sandbox — B14)
 └── database/       create-database.sql (DB + koperasi_user) · schema.sql (75 jadual) · seed.sql · migrations/ (`.htaccess` halang akses web; juga `config/ core/ jobs/ lang/ tools/`)
 ```
 
@@ -684,6 +687,16 @@ dari `HandoverOrderJob`, `cashReminder` dari `QueueCashRemindersJob`, `test`), d
 3 cubaan) melalui driver `messaging/` (`MessageSender::make` — tanpa DB). Kunci API `ID:RAHSIA` disulitkan `Crypto`, tidak pernah dipulangkan
 (`api_key_set`). Ujian: `KOPERASI_MESSAGING_TEST_URL` → `tools/fake-messaging.php`.
 
+**Konvensyen B14 (terjemahan & keselamatan):** teks paparan dibaca dari `storage/lang/{kod}.php` = `lang/{kod}.php` (sumber dalam git) + nilai owner
+dalam `translations` — DIJANA HANYA oleh `LangFiles::generate()` (`GenerateLangFilesJob`, var_export → fail sementara → rename). Job yang menyimpan
+terjemahan (`SaveTranslationJob`, `SaveGradeJob`, `SaveModuleJob`) memanggil `GenerateLangFilesJob` **selepas commit**. `TranslationValues::save` tidak
+menyimpan nilai yang sama dengan `lang/*.php` (fail kekal sumber). `Lang::fileValue` = sumber sahaja; `Lang::get/getFor` = fail jana. Fail jana lebih lama
+daripada sumber (deploy) → `Lang` menjana semula sendiri (gagal → sumber sahaja); deploy juga boleh jalankan `php tools/generate-lang.php`.
+Muat naik HANYA `Uploader::saveImage` (finfo + ≤ 2MB + ≤ 4000 px + **kod semula GD** — EXIF/bait tersembunyi dibuang). IP pelanggan HANYA
+`Request::ip()` (X-Forwarded-For dipercayai hanya dari `config trusted_proxies`). Tukar harga produk → `WriteActivityLogJob` `price_change`.
+Endpoint baharu: `requireMethod` → auth → CSRF (POST) → `requireCooperative` bila menerima `cooperative_id` (walaupun pilihan — cth.
+`vendor/activity-logs/list`) — `tools/verify-b14.php` menyapu SETIAP fail `api/v1` secara automatik, jadi endpoint baharu diuji tanpa kod tambahan.
+
 ### 10.3 Kontrak API
 
 - Format jawapan: `{ "ok": true, "data": ... }` atau `{ "ok": false, "error": "mesej", "errors": { "field": "mesej" } }`
@@ -759,6 +772,18 @@ dari `HandoverOrderJob`, `cashReminder` dari `QueueCashRemindersJob`, `test`), d
 - E-mel kepada ibu bapa ikut bahasa ibu bapa; resit ikut `default_language` koperasi
 - Fon Noto Sans SC dan Noto Sans Tamil dimuatkan supaya aksara Cina & Tamil dipapar betul
 - Peringkat 1: `lang/*.php` ditulis tangan. Peringkat 2: dijana dari jadual `translations`
+
+**Pelaksanaan B14:**
+- `lang/*.php` kekal ditulis tangan & dalam git (kunci baharu oleh pembangun). Owner menyunting nilai di Owner → Bahasa & terjemahan; nilai disimpan
+  dalam `translations` HANYA bila berbeza dari fail. `storage/lang/{kod}.php` = gabungan (dijana, di luar git, `storage/.htaccess` halang web)
+- `owner/translations/list` — semua kunci fail + kunci DB sahaja (cth. keterangan modul), tapis `q` (kunci atau teks, tanpa huruf besar/kecil),
+  `group` (awalan sebelum titik pertama), `missing` (`any` / kod); `missing_counts` dari `MissingKeysJob` (kosong dalam fail DAN DB)
+- `owner/translations/save` — owner sahaja; kunci mesti wujud (tiada kunci baharu dari UI); `values.ms` wajib (`translation.ms_required`); ≤ 5000 aksara;
+  pemegang tempat `{x}` mesti wujud dalam teks Melayu asal (`translation.placeholder_unknown`) — tertinggal dibenarkan (amaran UI sahaja);
+  kosong / sama dengan fail = buang baris; log audit `translation.update`
+- Nama darjah & modul (B3) kini terpakai di SEMUA halaman (dahulu hanya `lang/*.php` di luar halaman owner)
+- E-mel (`Lang::getFor`) memakai nilai owner. Templat e-mel owner (`email_templates`) kekal mengatasi `email.*` (B7)
+- Migrasi `007-module-descriptions-zh-ta.sql`: keterangan 8 modul dalam zh/ta → **0 kunci hilang** dalam 4 bahasa
 
 ## 13. Payment gateway
 
@@ -851,26 +876,44 @@ WhatsApp yang diluluskan Meta untuk mesej di luar tetingkap 24 jam.
 
 ## 15. Keselamatan — senarai semak wajib
 
-- [ ] `vendor_id` & `customer_id` dari sesi/token sahaja; setiap pertanyaan menapis
-- [ ] `cooperative_id` disahkan milik vendor (`ValidateCooperativeJob`)
-- [ ] Tiada SQL dalam `api/`; PDO prepared statement, `EMULATE_PREPARES` dimatikan
-- [ ] Pengguna MySQL `koperasi_user` dengan akses `koperasi_saas` sahaja (bukan root)
-- [ ] Argon2id 19456/2/1; `password_needs_rehash`; mesej ralat sama; kunci selepas 5 gagal
-- [ ] 2FA TOTP wajib owner, pilihan vendor_admin
-- [ ] `session_regenerate_id(true)`; cookie `HttpOnly`, `Secure`, `SameSite=Lax`; sesi idle tamat (vendor 2 jam, ibu bapa 30 hari "ingat saya")
-- [ ] CSRF pada semua POST
-- [ ] Header: `Content-Security-Policy` (tiada inline script/style — sebab lain larangan inline CSS), `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Strict-Transport-Security`
-- [ ] `e()` (`htmlspecialchars`) pada setiap output PHP; JS guna `textContent`, bukan `innerHTML` untuk data
-- [ ] Muat naik: `finfo` (bukan sambungan), maks 2MB, nama hash rawak, folder per vendor, `.htaccess` halang PHP
-- [ ] Rate limit: log masuk, daftar, lupa kata laluan, kod ambil, API Flutter
-- [ ] Harga, promosi, kit, stok dikira semula di pelayan; stok `SELECT … FOR UPDATE` dalam DB transaction
-- [ ] Webhook: tandatangan + semakan semula + amaun + idempotent
-- [ ] Kredensial gateway & TOTP disulitkan; `config/database.php` & `secret.key` dalam `.gitignore`
-- [ ] Token (reset, verify, API) disimpan sebagai hash SHA-256, ada tarikh luput
-- [ ] **PDPA**: data anak minimum (tiada IC), persetujuan direkod, padam akaun = nyahnama data peribadi tetapi rekod jualan vendor kekal
-- [ ] Log audit untuk tindakan sensitif (tukar harga, refund, tukar gateway, gantung vendor)
-- [ ] Backup DB harian (cron `mysqldump`)
-- [ ] Ujian kebocoran **setiap session backend**: rekod VENDOR01 dicapai sebagai VENDOR02 → 403/404; pesanan ibu bapa A dicapai ibu bapa B → 404
+- [x] `vendor_id` & `customer_id` dari sesi/token sahaja; setiap pertanyaan menapis
+- [x] `cooperative_id` disahkan milik vendor (`ValidateCooperativeJob`)
+- [x] Tiada SQL dalam `api/`; PDO prepared statement, `EMULATE_PREPARES` dimatikan
+- [x] Pengguna MySQL `koperasi_user` dengan akses `koperasi_saas` sahaja (bukan root)
+- [x] Argon2id 19456/2/1; `password_needs_rehash`; mesej ralat sama; kunci selepas 5 gagal
+- [x] 2FA TOTP wajib owner, pilihan vendor_admin
+- [x] `session_regenerate_id(true)`; cookie `HttpOnly`, `Secure`, `SameSite=Lax`; sesi idle tamat (vendor 2 jam, ibu bapa 30 hari "ingat saya")
+- [x] CSRF pada semua POST
+- [x] Header: `Content-Security-Policy` (tiada inline script/style — sebab lain larangan inline CSS), `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Strict-Transport-Security`
+- [x] `e()` (`htmlspecialchars`) pada setiap output PHP; JS guna `textContent`, bukan `innerHTML` untuk data
+- [x] Muat naik: `finfo` (bukan sambungan), maks 2MB, nama hash rawak, folder per vendor, `.htaccess` halang PHP
+- [x] Rate limit: log masuk, daftar, lupa kata laluan, kod ambil, API Flutter
+- [x] Harga, promosi, kit, stok dikira semula di pelayan; stok `SELECT … FOR UPDATE` dalam DB transaction
+- [x] Webhook: tandatangan + semakan semula + amaun + idempotent
+- [x] Kredensial gateway & TOTP disulitkan; `config/database.php` & `secret.key` dalam `.gitignore`
+- [x] Token (reset, verify, API) disimpan sebagai hash SHA-256, ada tarikh luput
+- [x] **PDPA**: data anak minimum (tiada IC), persetujuan direkod, padam akaun = nyahnama data peribadi tetapi rekod jualan vendor kekal
+- [x] Log audit untuk tindakan sensitif (tukar harga, refund, tukar gateway, gantung vendor)
+- [x] Backup DB harian (cron `mysqldump`)
+- [x] Ujian kebocoran **setiap session backend**: rekod VENDOR01 dicapai sebagai VENDOR02 → 403/404; pesanan ibu bapa A dicapai ibu bapa B → 404
+
+**Semakan B14 (semua di atas ✅, diuji `tools/verify-b14.php` — butiran PROSES.md B14):**
+- Header (`SecurityHeaders`): CSP tanpa `unsafe-*`, `X-Frame-Options DENY`, `nosniff`, `Referrer-Policy`, HSTS (HTTPS sahaja) + sejak B14
+  `Permissions-Policy` (kamera/mikrofon/lokasi/payment/usb dimatikan), `Cross-Origin-Opener-Policy: same-origin`, `X-Permitted-Cross-Domain-Policies: none`,
+  `X-Powered-By` dibuang. API JSON `Cache-Control: no-store`
+- Cookie sesi & bahasa `HttpOnly` + `SameSite=Lax` + `Secure` bila HTTPS (di belakang proksi: `trusted_proxies` + `X-Forwarded-Proto`)
+- Rate limit sedia ada + B14: kod ambil `pickup_code:{pengguna}` 300/10 min (serah), carian `pickup_search:{pengguna}` 600/10 min. API Flutter → B15
+- Muat naik: kod semula GD (EXIF lokasi dibuang — PDPA; polyglot PHP/HTML hilang), ≤ 4000 px; `uploads/.htaccess` hanya imej + CSP sandbox
+- `.htaccess` akar: `Options -Indexes`, `.git/.env` → 404, `.md/.sql/.log/.key` dihalang; `DOC/.htaccess` baharu
+- PDPA (`DeleteCustomerAccountJob`): juga nyahnama snapshot pesanan (`customer_name`, `pickup_by_name`, `order_items.child_name`, `order_pickups.picked_by_name`,
+  nama dalam `order_status_logs.note`), mesej WhatsApp/SMS (pending dibuang, terhantar tanpa nombor & teks), `email_queue` (pending dibuang, terhantar
+  dikosongkan), `login_attempts` e-mel/telefon; log audit `customer.delete_account`. Jumlah, produk, harga, darjah & kelas kekal (laporan vendor sama)
+- Audit: `price_change` (harga asas & varian, "RM lama → RM baharu"), selain `refund`, `gateway_save`, `gateway.owner_update`, `vendor.suspend`, `invoice.*`
+- Backup: `cron/backup-db.php` (harian, `flock`) → `BackupDatabaseJob`: `mysqldump --single-transaction --quick --no-tablespaces --skip-triggers --hex-blob`
+  → gzip → `storage/backups/koperasi_saas-YYYYmmdd-HHiiss.sql.gz` (0600; `.part` → rename bila berjaya), kata laluan dalam fail pilihan sementara 0600
+  (bukan baris arahan), simpan `backup_keep_days` (14). Salin ke luar pelayan. `mysqldump_path` untuk XAMPP Windows
+- Ujian penembusan asas: setiap endpoint (230) — tanpa sesi 401, kaedah salah 405, POST tanpa CSRF 419, sesi kawasan lain 401, peranan 403, IDOR
+  VENDOR02 → rekod VENDOR01 (± 5300 permintaan, 54 jadual tidak berubah), ibu bapa B → A, SQLi semua parameter, XSS nama produk/anak/terjemahan
 
 ## 16. Perkara yang mudah tersilap
 
@@ -934,6 +977,9 @@ dan tapisan khusus modul. Jawapan:
 Dalam mock: `Mock.paginate(rows, params, ['medan_carian', ...])`.
 
 ### 18.3 Mock (Peringkat 1 sahaja)
+
+> **Sejak B14 mock DIBUANG sepenuhnya:** `assets/js/mock/` (mock.js, owner.js) dipadam, `config use_mock` dibuang, `Api.get/post` sentiasa
+> `fetch()` (tiada `livePrefixes`). Huraian di bawah ialah sejarah Peringkat 1.
 
 - `assets/js/mock/mock.js` — `Mock.register(path, handler)`, `Mock.ok(data)`, `Mock.fail(msg, errors)`,
   `Mock.paginate()`. `Mock.handle()` memulangkan **salinan dalam** supaya halaman tidak mengubah data mock
@@ -1088,6 +1134,7 @@ fields: [{ name, secret }] }], owner_gateway: { driver_code, sandbox, values: { 
 
 **Translation** — `owner/translations/list` (senarai; tapis `q, group, missing: ''|any|ms|en|zh|ta`)
 → item `{ key, group, values: { ms, en, zh, ta }, missing: ['ta'] }`; `data` juga ada `groups: []`, `missing_counts: { ms, en, zh, ta }`
+(**sebenar sejak B14** — `save` memulangkan item yang sama; ralat `values.{kod}` untuk pemegang tempat tidak dikenali, 404 kunci tiada)
 
 **Grade** — `owner/grades/list` → `{ code: 'PRA|D1…D6|T1…T6', level_type: 'preschool|primary|secondary', sort_order, names: { ms, en, zh, ta } }`
 
@@ -1135,7 +1182,7 @@ QR dijana dalam pelayar (`assets/lib/qrcode/`) — rahsia tidak dihantar ke perk
 
 Mock demo: kata laluan semasa `salah` → ralat; kod 2FA `000000` → ditolak.
 
-**Sejak B3 (sebenar):** semua laluan owner di atas kecuali `subscriptions/*`, `invoices/*` (B12) dan `translations/*` (B14).
+**Sejak B3 (sebenar):** semua laluan owner di atas kecuali `subscriptions/*`, `invoices/*` (B12) dan `translations/*` (B14 — kini sebenar).
 **Sejak B12 (sebenar):** `owner/subscriptions/list` (semua langganan termasuk sejarah, terkini dahulu) & `owner/invoices/list|get` — owner + owner_staff;
 `issue` (draft sahaja → `invoice.cannot_issue`), `void` (draft/issued → `invoice.cannot_void`), `mark-paid` (`method: bank_transfer|cash|cheque|other`,
 `reference` unik → `invoice.reference_used`, `paid_at` ≤ hari ini → `invoice.paid_future`, `note` ≤ 255) — owner sahaja, log audit `invoice.*`.
@@ -1690,7 +1737,8 @@ vendor) → `booked--`. **Lencana "Jualan murah"** (sedia sejak U5) kini dari `M
 Senarai **semua** laluan yang didaftar dalam `assets/js/mock/*.js` (214 laluan, dijana dari kod mock pada U7; B2 menambah 9 laluan auth
 — jumlah **223**; B3 menambah `owner/plans/options` — **224**; B4, B5 & B6 tiada laluan baharu; B8 menambah `store/orders/check-payment` dan
 membuang `store/payment/simulate` — kekal **224**, + 5 webhook `webhooks/{gateway}` di luar jadual; B9 menambah `vendor/orders/unlock-code` — **225**; B10 tiada laluan baharu — kekal **225**; B11 tiada; B12 menambah
-`vendor/invoices/check-payment` — **226**, + webhook `webhooks/platform` (yuran langganan) di luar jadual; B13 tiada laluan baharu — 23 laluan modul kini sebenar). Lajur Mock `— (B2)` … `— (B5)` = sudah sebenar (`api/v1/`), mock dibuang.
+`vendor/invoices/check-payment` — **226**, + webhook `webhooks/platform` (yuran langganan) di luar jadual; B13 tiada laluan baharu — 23 laluan modul kini sebenar; B14 tiada laluan baharu — `owner/translations/*` sebenar, **semua 226 laluan sebenar**,
+mock dibuang). Lajur Mock `— (B2)` … `— (B5)` = sudah sebenar (`api/v1/`), mock dibuang.
 **B4:** PO, stock take, `templates/options` & `modules/active` disiapkan lebih awal (prompt B4); `vendor/settings/*` ditangguh ke B9 (skrin serah & POS mock masih membaca tetapan mock). Bentuk `data` setiap laluan
 ada dalam 18.4–18.13; jadual ini ialah senarai semak Peringkat 2 — setiap baris mesti menjadi `api/v1/{laluan}.php` (nipis, tiada SQL)
 yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan CSRF, B14).
@@ -1753,8 +1801,8 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 | `owner/subscriptions/list` | GET | owner + owner_staff (baca) | B12 | — (B12) |
 | `owner/templates/list` | GET | owner | B3 | — (B3) |
 | `owner/templates/save` | POST | owner | B3 | — (B3) |
-| `owner/translations/list` | GET | owner | B14 | `owner.js` |
-| `owner/translations/save` | POST | owner | B14 | `owner.js` |
+| `owner/translations/list` | GET | owner | B14 | — (B14) |
+| `owner/translations/save` | POST | owner | B14 | — (B14) |
 | `owner/two-factor/enable` | POST | owner | B2 | — (B2) |
 | `owner/two-factor/regenerate-codes` | POST | owner | B2 | — (B2) |
 | `owner/two-factor/setup` | GET | owner | B2 | — (B2) |

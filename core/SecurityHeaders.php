@@ -9,10 +9,15 @@ class SecurityHeaders
             return;
         }
 
+        header_remove('X-Powered-By');
         header('Content-Security-Policy: ' . self::policy());
         header('X-Content-Type-Options: nosniff');
         header('X-Frame-Options: DENY');
         header('Referrer-Policy: strict-origin-when-cross-origin');
+        // B14: tiada kamera/mikrofon/lokasi (pengimbas POS = papan kekunci USB), tetingkap lain tidak boleh mencapai tetingkap ini
+        header('Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()');
+        header('Cross-Origin-Opener-Policy: same-origin');
+        header('X-Permitted-Cross-Domain-Policies: none');
 
         // HSTS hanya bila sambungan HTTPS (XAMPP tempatan biasanya HTTP)
         if (self::isHttps()) {
@@ -44,8 +49,12 @@ class SecurityHeaders
         header('Content-Security-Policy: ' . $csp);
     }
 
+    // Di belakang proksi dipercayai (config trusted_proxies) X-Forwarded-Proto diterima; selain itu diabaikan (boleh dipalsukan)
     public static function isHttps()
     {
+        if (Request::fromTrustedProxy() && strtolower(Request::header('X-Forwarded-Proto')) === 'https') {
+            return true;
+        }
         return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
             || (int) ($_SERVER['SERVER_PORT'] ?? 0) === 443;
     }
