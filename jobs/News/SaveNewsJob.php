@@ -45,7 +45,9 @@ class SaveNewsJob
                     array_merge([$this->vendorId, $this->cooperativeId], $values, [$data['send_email']])
                 );
             }
-            $queued = NewsPosts::queueEmail(NewsPosts::find($this->vendorId, $this->cooperativeId, $id));
+            $saved = NewsPosts::find($this->vendorId, $this->cooperativeId, $id);
+            $queued = NewsPosts::queueEmail($saved);
+            PushNotifications::news($saved);
             (new WriteActivityLogJob($this->vendorId, $this->cooperativeId, $this->userId, 'news_save', 'news_post', $id, $data['title']))->run();
             Database::commit();
         } catch (Throwable $exception) {

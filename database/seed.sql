@@ -446,8 +446,8 @@ INSERT INTO payment_gateways (code, name, config_fields_json, supports_refund, i
 -- H. Modul add-on — contoh kecil
 -- ---------------------------------------------------------------------
 
-INSERT INTO news_posts (id, vendor_id, cooperative_id, title, body, published_at, send_email, is_active) VALUES
-(1, 1, 1, 'Jualan kit sekolah 2027 dibuka', 'Ibu bapa boleh menempah kit Darjah 1 dan Darjah 4 mulai hari ini.', '2026-10-20 08:00:00', 0, 1);
+INSERT INTO news_posts (id, vendor_id, cooperative_id, title, body, published_at, send_email, push_sent_at, is_active) VALUES
+(1, 1, 1, 'Jualan kit sekolah 2027 dibuka', 'Ibu bapa boleh menempah kit Darjah 1 dan Darjah 4 mulai hari ini.', '2026-10-20 08:00:00', 0, '2026-10-20 08:00:00', 1);
 
 INSERT INTO calendar_events (id, vendor_id, cooperative_id, title, event_type, starts_on, ends_on, blocks_orders) VALUES
 (1, 1, 1, 'Cuti akhir tahun', 'school_holiday', '2026-12-19', '2027-01-10', 0),

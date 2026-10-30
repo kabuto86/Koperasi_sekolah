@@ -49,7 +49,7 @@ Setiap prompt di bawah bermula dengan "Ikut peraturan umum". Maksudnya:
    Sejak B1: skema sebenar = `database/schema.sql` (75 jadual, PELAN 9 J); lajur baharu → fail `database/migrations/NNN-nama.sql`
    **dan** kemas kini `schema.sql` + PELAN 9. Konvensyen job & core dalam PELAN 10.2 (constructor menerima id dari sesi + input, `run()`,
    `Database::fetchOne/fetchAll/execute/insert`, `Response::ok/fail/notFound`). Data demo & akaun: kepala `database/seed.sql`.
-   Semakan asas sebelum commit: `php tools/verify-b1.php` + `verify-b2.php` + `verify-b3.php` + `verify-b4.php` + `verify-b5.php` + `verify-b6.php` + `verify-b7.php` + `verify-b8.php` + `verify-b9.php` + `verify-b10.php` + `verify-b11.php` + `verify-b12.php` + `verify-b13.php` + `verify-b14.php` (mesti 0 gagal) + `php tools/check-ui.php`; tambah skrip semakan
+   Semakan asas sebelum commit: `php tools/verify-b1.php` + `verify-b2.php` + `verify-b3.php` + `verify-b4.php` + `verify-b5.php` + `verify-b6.php` + `verify-b7.php` + `verify-b8.php` + `verify-b9.php` + `verify-b10.php` + `verify-b11.php` + `verify-b12.php` + `verify-b13.php` + `verify-b14.php` + `verify-b15.php` (mesti 0 gagal) + `php tools/check-ui.php`; tambah skrip semakan
    session sendiri `tools/verify-bN.php` dengan ujian kebocoran VENDOR01↔VENDOR02 dan ibu bapa A↔B (contoh HTTP sebenar: kelas `Browser`
    dalam `tools/test-helpers.php` sejak B3 — pelayan `php -S` sendiri, cookie, CSRF; `require __DIR__ . '/test-helpers.php'`).
    Sejak B4: skop koperasi melalui `VendorAuth::requireCooperative()`; stok HANYA melalui `StockLedger::move()` dalam transaksi DB;
@@ -78,6 +78,11 @@ Setiap prompt di bawah bermula dengan "Ikut peraturan umum". Maksudnya:
    `GenerateLangFilesJob` selepas commit. Gambar HANYA `Uploader` (kod semula GD). IP HANYA `Request::ip()`. Endpoint yang menerima `cooperative_id`
    SENTIASA `requireCooperative`. `tools/verify-b14.php` menyapu setiap fail `api/v1` (401/405/419/403/IDOR/SQLi) — endpoint baharu ikut serta
    automatik; backup harian `cron/backup-db.php` — PELAN 10.2 "Konvensyen B14", 12 "Pelaksanaan B14", 15.
+   Sejak B15: apps Flutter guna endpoint `store/` yang sama dengan token Bearer (`core/ApiTokenAuth`, tiada cookie / CSRF) — **endpoint store baharu
+   mesti melalui `CustomerAuth::requireLogin()` + `Csrf::verifyRequest()` (kedua-duanya menerima token) dan `StoreSchool::require()` (gerbang
+   `mobile_app`)**; laluan khas apps `ApiTokenAuth::requireToken()`. Token dikeluarkan HANYA `IssueApiTokenJob`, dibatal HANYA `ApiTokens::revoke/revokeAll`.
+   Push HANYA `PushNotifications` → `notification_queue` (channel push) → `cron/send-push.php` (`SendPushJob` + `messaging/FcmSender`; ujian FCM palsu
+   dalam `tools/fake-messaging.php`). Rujukan apps lengkap: `DOC/API.md` (kemas kini bila laluan store berubah) — PELAN 10.2 "Konvensyen B15".
    Sejak B6: store menyelesaikan koperasi dengan `StoreSchool::require($slug)` (baris koperasi → job; tiada id dari input); harga/stok/had
    store HANYA melalui `StorePricing`; troli melalui `Carts` (`quote` = CartQuote), anak melalui `Children` — PELAN 10.2 "Konvensyen B6", 18.12 "B6 (sebenar)".
    Ujian HTTP dengan parameter: `$browser->status($laluan, $params)` (`tools/test-helpers.php`).
@@ -588,7 +593,7 @@ Tulis hasil dalam PROSES.md.
 > kod ambil, PDPA nyahnama snapshot pesanan & baris gilir, audit `price_change`, backup harian `BackupDatabaseJob`; `tools/verify-b14.php`
 > 112 semakan (sapuan automatik 230 endpoint). Tertangguh: rate limit API Flutter & token API (B15).
 
-## B15 — API token Flutter & push
+## B15 — API token Flutter & push ✅ (30 Okt 2026 — lihat PROSES.md)
 
 ```
 Ikut peraturan umum. Session: B15. Prasyarat: B14 ✅.
@@ -598,6 +603,10 @@ RegisterPushDeviceJob, SendPushJob (notification_queue). Endpoint store/ menerim
 ATAU token. Hanya koperasi dengan modul mobile_app.
 Dokumentasi API lengkap untuk Flutter dalam DOC/API.md.
 ```
+> Hasil B15: `core/ApiTokenAuth` + `CustomerAuth`/`Csrf`/`StoreSchool` menerima token (semua endpoint store sedia ada berfungsi untuk apps), 6 laluan
+> baharu (`store/auth/token|token-revoke`, `store/devices/list|revoke`, `store/push/register|unregister`), `jobs/ApiToken/` 5 fail, `jobs/Push/` 4 fail,
+> `messaging/FcmSender` (FCM HTTP v1, JWT RS256), cron `send-push.php`, migrasi 008 (`push_devices.api_token_id`, `news_posts.push_sent_at`), push sedia
+> diambil / telah diambil / berita, `DOC/API.md`; `tools/verify-b15.php` 68 semakan. Peringkat 2 ✅ — seterusnya F1.
 
 ---
 
@@ -617,13 +626,17 @@ Cipta folder mobile/ (projek Flutter). Skrin sama seperti Template 1 (U5) dengan
 Ikut peraturan umum. Session: F2. Prasyarat: F1 ✅.
 Sambung ke API B15 (DOC/API.md): log masuk token (simpan dalam secure storage), anak,
 katalog, kit, troli, checkout, gateway (webview), rekod pembelian, QR pesanan.
+Hanya sekolah dengan app_enabled (store/session.schools); 401 token_invalid → log masuk semula; 403 app_unavailable → pautan laman web.
+Gateway: payment.form (iPay88) → borang POST dalam webview; webview ke store/payment-return.php → tutup → store/orders/check-payment.
 ```
 
 ## F3 — Push notification
 
 ```
 Ikut peraturan umum. Session: F3. Prasyarat: F2 ✅.
-Firebase Cloud Messaging: daftar peranti, notifikasi sedia diambil / telah diambil / berita.
+Firebase Cloud Messaging: daftar peranti (store/push/register, onTokenRefresh daftar semula), notifikasi sedia diambil / telah diambil / berita
+(data.event order_ready | order_collected | news → buka skrin berkaitan — DOC/API.md §6). Projek Firebase apps = projek akaun perkhidmatan
+pelayan (config/firebase-service-account.json, cron/send-push.php).
 ```
 
 ## F4 — Terbit

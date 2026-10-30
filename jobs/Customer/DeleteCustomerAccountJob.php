@@ -2,7 +2,7 @@
 // Padam akaun ibu bapa (PDPA — PELAN 15): data peribadi dinyahnamakan, rekod jualan vendor kekal.
 // Pesanan yang belum selesai menghalang pemadaman.
 // Sejak B14 nyahnama juga snapshot dalam pesanan (nama pelanggan, nama anak, pengambil, nota status yang memuat nama itu),
-// baris gilir e-mel / WhatsApp / SMS, dan cubaan log masuk (e-mel / telefon). Jumlah, produk, darjah & kelas kekal untuk laporan.
+// baris gilir e-mel / WhatsApp / SMS / push apps (B15), dan cubaan log masuk (e-mel / telefon). Jumlah, produk, darjah & kelas kekal untuk laporan.
 class DeleteCustomerAccountJob
 {
     const OPEN_STATUSES = ['pending_payment', 'paid', 'unpaid_cash', 'preparing', 'ready', 'partially_collected'];
@@ -115,6 +115,18 @@ class DeleteCustomerAccountJob
         Database::execute("UPDATE children SET is_active = 0, full_name = '-' WHERE customer_id = ?", [$id]);
         Database::execute("DELETE FROM carts WHERE customer_id = ?", [$id]);
         Database::execute("DELETE FROM customer_tokens WHERE customer_id = ?", [$id]);
+        // Push apps (B15) — termasuk berita (tiada order_id): baris ikut token FCM peranti ibu bapa ini
+        Database::execute(
+            "DELETE q FROM notification_queue q JOIN push_devices d ON d.push_token = q.recipient
+              WHERE d.customer_id = ? AND q.channel = 'push' AND q.status = 'pending'",
+            [$id]
+        );
+        Database::execute(
+            "UPDATE notification_queue q JOIN push_devices d ON d.push_token = q.recipient
+                SET q.recipient = '-', q.message = '-'
+              WHERE d.customer_id = ? AND q.channel = 'push'",
+            [$id]
+        );
         Database::execute("DELETE FROM api_tokens WHERE customer_id = ?", [$id]);
         Database::execute("DELETE FROM push_devices WHERE customer_id = ?", [$id]);
         Database::execute("DELETE FROM vendor_customer_notes WHERE customer_id = ?", [$id]);

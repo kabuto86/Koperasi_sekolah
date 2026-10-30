@@ -1950,4 +1950,14 @@ return [
     'messaging.isms_sms_only' => 'iSMS supports SMS only.',
     'email.news_post.subject' => '{title} — {school_name}',
     'email.news_post.body' => "{body}\n\n— {school_name} cooperative",
+    // B15 — API token apps & push
+    'api.token_invalid' => 'Your app session has expired. Please log in again.',
+    'api.token_required' => 'This action is only available in the mobile app.',
+    'api.device_default' => 'Mobile app',
+    'store.app_unavailable' => 'The mobile app is not available for this school yet. Please use the website.',
+    'push.order_ready.title' => 'Order ready for pickup',
+    'push.order_ready.body' => 'Order {order_no} ({child_name}) at {school_name} is ready for pickup. Pickup code: {short_code}.',
+    'push.order_collected.title' => 'Items collected',
+    'push.order_collected.body' => 'Order {order_no}: collected by {picked_by} at {time}.',
+    'push.news.title' => '{school_name}: {title}',
 ];

@@ -4,9 +4,9 @@
 > Kemas kini fail ini di HUJUNG setiap session, sebelum commit & push.
 > Reka bentuk: [PELAN.md](PELAN.md) · Prompt kerja: [PROMPT-SESSION.md](PROMPT-SESSION.md)
 
-**Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · **Peringkat 2 berjalan** — skema & core (B1), auth sebenar (B2), panel owner (B3), katalog & inventori vendor (B4), kit sekolah (B5), store ibu bapa: anak, katalog, kit, troli (B6), checkout tunai, pesanan & queue e-mel (B7), payment gateway + webhook (B8), pesanan vendor & serah barang (B9), POS kaunter & promosi (B10), refund & laporan (B11), langganan & invois vendor + cron (B12), modul add-on (B13), terjemahan & pengerasan keselamatan (B14) — **semua laluan web sebenar, mock dibuang**
-**Session terakhir siap:** B14 — Terjemahan & pengerasan keselamatan
-**Session seterusnya:** **B15 — API token Flutter & push**
+**Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · **Peringkat 2 siap** (B1–B15) — skema & core (B1), auth sebenar (B2), panel owner (B3), katalog & inventori vendor (B4), kit sekolah (B5), store ibu bapa: anak, katalog, kit, troli (B6), checkout tunai, pesanan & queue e-mel (B7), payment gateway + webhook (B8), pesanan vendor & serah barang (B9), POS kaunter & promosi (B10), refund & laporan (B11), langganan & invois vendor + cron (B12), modul add-on (B13), terjemahan & pengerasan keselamatan (B14), API token apps Flutter & push (B15) — **semua laluan web sebenar, mock dibuang; API apps sedia ([API.md](API.md))**
+**Session terakhir siap:** B15 — API token Flutter & push
+**Session seterusnya:** **F1 — UI Flutter** (Peringkat 3)
 
 Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 
@@ -50,7 +50,7 @@ Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 | B12 | Langganan & invois vendor + cron | ✅ | 29 Okt 2026 | `92400a1` | 21 laluan + `webhooks/platform`, `jobs/Billing/` 33 fail baharu (+ `ModuleAccess`, `ListActivityLogsJob`), 2 cron, invois snapshot `INV-{tahun}-{0001}`, prorata, kitaran draf → pusingan, tunggakan → digantung → store "ditutup sementara", bayar online gateway owner + webhook, `mock/vendor-finance.js` dibuang, `tools/verify-b12.php` 98/98 lulus |
 | B13 | Modul add-on | ✅ | 30 Okt 2026 | `5bd56fe` | 23 endpoint modul (`vendor/news|clearance|calendar|school-opening|messaging/*`), 5 folder job baharu (31 fail), driver WhatsApp/SMS `messaging/` (Twilio, WhatsApp Cloud, iSMS), cron `send-messages.php`, e-mel berita sekali sahaja + berjadual, peringatan tunai, migrasi 006, `mock/vendor-addons.js` & `mock/vendor.js` dibuang, `tools/verify-b13.php` 92/92 lulus |
 | B14 | Modul terjemahan + pengerasan keselamatan | ✅ | 30 Okt 2026 | `a6e12ce` | `owner/translations/*` sebenar (`storage/lang/*.php` dijana dari `lang/*.php` + `translations`, `MissingKeysJob`), mock dibuang sepenuhnya, migrasi 007, senarai PELAN 15 disemak satu per satu (header, proksi, muat naik GD, rate limit kod ambil, PDPA nyahnama pesanan, audit `price_change`, backup harian), `tools/verify-b14.php` 112/112 lulus (sapuan 230 endpoint) |
-| B15 | API token Flutter + push | ⬜ | | | |
+| B15 | API token Flutter + push | ✅ | 30 Okt 2026 | `c0b679b` | `core/ApiTokenAuth` (Bearer, SHA-256, luput bergerak 90 hari, ≤ 10 token), semua endpoint store menerima token (tiada cookie/CSRF), gerbang modul `mobile_app`, 6 laluan baharu, `jobs/ApiToken/` + `jobs/Push/`, `messaging/FcmSender` (FCM HTTP v1), cron `send-push.php`, migrasi 008, `DOC/API.md`, `tools/verify-b15.php` 68/68 lulus |
 
 ## Peringkat 3 — Apps Flutter (selepas Peringkat 1 & 2 siap)
 
@@ -71,7 +71,7 @@ Dibuat:
 - `CLAUDE.md` — konvensyen, susunan kerja, peraturan dokumen & push
 - `DOC/PELAN.md` — reka bentuk penuh, 68 jadual
 - `DOC/PROSES.md` — fail ini
-- `DOC/PROMPT-SESSION.md` — prompt U1–U7, B1–B15, F1–F4
+- `DOC/PROMPT-SESSION.md` — prompt U1–U7, B1–B15, F1–F4 (`DOC/API.md` ditambah dalam B15)
 
 ### U1 — Kerangka UI (24 Okt 2026)
 
@@ -1363,7 +1363,56 @@ Keputusan kecil (dicatat dalam PELAN 10.1, 10.2, 12, 15, 18.3, 18.7, 18.14):
 - `trusted_proxies` kosong secara lalai — X-Forwarded-* diabaikan sepenuhnya melainkan dikonfigurasi
 
 Tertangguh:
-- Rate limit API Flutter & token API (`api_tokens`) → B15
+- Rate limit API Flutter & token API (`api_tokens`) → B15 ✅
+- Templat WhatsApp diluluskan Meta (B13) — tidak berubah
+
+### B15 — API token Flutter & push (30 Okt 2026)
+
+Dibuat:
+- **core:** `ApiTokenAuth` (`Authorization: Bearer {64 hex}` → `AuthenticateApiTokenJob`; 401 `auth_required` + `token_invalid`; `requireToken` 403
+  `token_required`; rate limit setiap token & token salah). `CustomerAuth::customer()` menyemak Bearer dahulu — tiada sesi dimulakan, token salah tidak
+  jatuh balik ke cookie; `logout()` tidak menyentuh sesi untuk token. `Csrf::verifyRequest()` melangkau bila token sudah disahkan. `StoreSchool::require()`
+  → 403 `app_unavailable` untuk permintaan Bearer ke koperasi tanpa modul `mobile_app`; `StoreSchool::appEnabled()`
+- **Token (`jobs/ApiToken/`):** `IssueApiTokenJob` (mentah sekali sahaja, DB SHA-256, nama peranti ≤ 100 tanpa aksara kawalan, kunci baris ibu bapa,
+  had 10 aktif — paling lama digunakan dibatal), `AuthenticateApiTokenJob` (luput bergerak 90 hari, tulis ≤ sekali / 5 minit), `RevokeApiTokenJob`,
+  `ListApiTokensJob`, `ApiTokens` (`revoke`, `revokeAll`, `shape`). `ChangeCustomerPasswordJob` → token lain dibatal (token semasa kekal);
+  `ResetPasswordJob` (ibu bapa) → semua token dibatal
+- **Push (`jobs/Push/`):** `RegisterPushDeviceJob` (satu peranti setiap token apps, token FCM akaun lain dipindah), `UnregisterPushDeviceJob`,
+  `PushNotifications` (`orderReady` dari `UpdateOrderStatusJob`, `orderCollected` dari `HandoverOrderJob`, `news` dari `SaveNewsJob` &
+  `QueueDueNewsEmailsJob` — atom `push_sent_at`), `SendPushJob` (FCM, 3 cubaan, `UNREGISTERED` → peranti dibuang, peranti tiada / modul tamat → failed,
+  tiada akaun perkhidmatan → kekal pending). `messaging/FcmSender` (FCM HTTP v1, JWT RS256 openssl → OAuth, cache token) + `PushTokenInvalidException`
+- **API (6):** `store/auth/token` (awam, tiada CSRF — tiada cookie; rate limit IP + kunci akaun), `store/auth/token-revoke`, `store/devices/list|revoke`,
+  `store/push/register|unregister`. `store/school` & `store/session.schools` + `app_enabled`; `payment.form` (iPay88) untuk webview apps
+- **Cron:** `cron/send-push.php` (setiap minit, `flock`). **Config:** `fcm_service_account_file` (`config/firebase-service-account.json`, `.gitignore`).
+  **`.htaccess`:** salin header `Authorization` (Apache CGI/FastCGI)
+- **Data:** migrasi `008-push-devices-token.sql` + `schema.sql` (`push_devices.api_token_id` FK CASCADE + `updated_at`, indeks `api_tokens` aktif,
+  `news_posts.push_sent_at` + `push_recipients`; berita lama ditanda supaya tidak dihantar). Tiada jadual baharu (76)
+- **PDPA:** `DeleteCustomerAccountJob` juga membuang push tertunda (berita tanpa `order_id`) & menyahnama push terhantar ikut token FCM ibu bapa
+- **Dokumen:** `DOC/API.md` — rujukan lengkap apps (pengepala, kod status & penanda, had kadar, token, `mobile_app`, push & muatan, endpoint, webview bayaran)
+- **Alat:** `tools/verify-b15.php`; FCM palsu dalam `tools/fake-messaging.php` (sahkan tandatangan JWT dengan kunci awam); `Browser::$bearer` &
+  `clearTestLocks` (bucket token) dalam `test-helpers.php`; `verify-b14` mengecualikan `store/auth/token` daripada semakan CSRF (`token_issue`)
+- 9 kunci bahasa baharu × 4 (`api.*`, `store.app_unavailable`, `push.*`) — jumlah 1889
+
+Disahkan (MariaDB 10.11, PHP 8.3, pemasangan baharu schema + seed + migrasi 007 + 008 — `verify-b15` **68 lulus, 0 gagal**; `verify-b14` 112/112 (sapuan
+**236** endpoint: 204 → 401 tanpa sesi, 236 → 405, 126 POST → 419, IDOR VENDOR02 5292 permintaan, ibu bapa B 408 permintaan); `verify-b13` 92/92;
+`verify-b12` 98/98; `verify-b11` 78/78; `verify-b10` 97/97; `verify-b9` 106/106; `verify-b8` 95/95; `verify-b7` 92/92; `verify-b6` 85/85; `verify-b5` 59/59;
+`verify-b4` 118/118; `verify-b3` 101/101; `verify-b2` 94/94; `verify-b1` 42/42; `check-ui` OK (1889 kunci × 4)). Tiada perubahan UI web.
+
+Ujian kebocoran (verify-b15): token B → pesanan A 404, senarai pesanan B tanpa pesanan A; A membatal token B → 404 (token B kekal sah); B tidak nampak
+peranti A; push hanya ke peranti ibu bapa pesanan / ibu bapa yang ada anak di koperasi berita; VENDOR02 tiada baris push koperasi VENDOR01, log mesej
+koperasi 1 → 404; token apps → laluan vendor/owner 401, POST vendor tanpa CSRF sesi vendor tetap 419.
+
+Keputusan kecil (dicatat dalam PELAN 9, 10.2, 11, 15, 18.12, 18.14 dan DOC/API.md):
+- Tiada laluan `api/v1/app/` berasingan — apps guna endpoint `store/` yang sama (satu kod, ujian B6–B14 meliputi apps)
+- Gerbang `mobile_app` diletak dalam `StoreSchool::require` (setiap laluan slug) dan hanya untuk permintaan Bearer — laman web tidak terjejas
+- Luput bergerak 90 hari (seperti "ingat saya" web 30 hari) dan had 10 token; daftar akaun / lupa kata laluan / sahkan e-mel kekal di laman web
+- Satu peranti push setiap token apps (`push_devices.api_token_id`) supaya log keluar / batal token menghentikan push ke telefon itu
+- Push berita dihantar tanpa mengira `send_email` (modul `mobile_app` = ibu bapa mahu notifikasi apps); sekali sahaja melalui `push_sent_at`
+- Akaun perkhidmatan Firebase = milik owner (satu apps untuk semua koperasi), fail JSON di luar git — bukan tetapan vendor
+- `notification_queue.recipient` = token FCM; `message` = JSON `{title, body, data}`; log WhatsApp/SMS vendor tidak memaparkan push
+
+Tertangguh:
+- Halaman vendor `vendor/addons/mobile_app.php` kekal "akan datang" sehingga apps diterbitkan (F4)
 - Templat WhatsApp diluluskan Meta (B13) — tidak berubah
 
 ---

@@ -152,6 +152,7 @@ class HandoverOrderJob
         CustomerOrders::logStatus($order, $status, 'vendor_user', $this->userId, $name);
         OrderEmails::queueCollected($order, $name, array_keys($children));
         MessageNotifications::orderCollected($this->cooperative, $order, $name, array_keys($children));
+        PushNotifications::orderCollected($this->cooperative, $order, $name, array_keys($children));
         (new WriteActivityLogJob($this->vendorId, $this->cooperative['id'], $this->userId, 'handover_collect', 'order', $orderId,
             $order['order_no'] . ' — ' . $name))->run();
         return $status;

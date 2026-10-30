@@ -1,6 +1,7 @@
 <?php
-// Cron (cron/send-emails.php): berita berjadual yang kini sudah terbit dan menanti e-mel → email_queue.
-// Hanya koperasi yang masih melanggan modul news. Setiap berita dalam transaksi sendiri (NewsPosts::queueEmail atom).
+// Cron (cron/send-emails.php): berita berjadual yang kini sudah terbit dan menanti e-mel → email_queue,
+// dan push apps → notification_queue (B15 — PushNotifications::news, modul mobile_app).
+// Hanya koperasi yang masih melanggan modul news. Setiap berita dalam transaksi sendiri (queueEmail / news atom).
 class QueueDueNewsEmailsJob
 {
     private $limit;
@@ -15,7 +16,8 @@ class QueueDueNewsEmailsJob
     {
         $rows = Database::fetchAll(
             "SELECT id, vendor_id, cooperative_id FROM news_posts
-              WHERE send_email = 1 AND email_sent_at IS NULL AND is_active = 1 AND published_at IS NOT NULL AND published_at <= NOW()
+              WHERE ((send_email = 1 AND email_sent_at IS NULL) OR push_sent_at IS NULL)
+                AND is_active = 1 AND published_at IS NOT NULL AND published_at <= NOW()
               ORDER BY published_at LIMIT " . $this->limit
         );
         $count = 0;
@@ -27,6 +29,9 @@ class QueueDueNewsEmailsJob
             try {
                 $post = NewsPosts::find($row['vendor_id'], $row['cooperative_id'], $row['id']);
                 $count += $post === null ? 0 : NewsPosts::queueEmail($post);
+                if ($post !== null) {
+                    PushNotifications::news($post);
+                }
                 Database::commit();
             } catch (Throwable $error) {
                 Database::rollBack();

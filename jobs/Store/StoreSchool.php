@@ -42,7 +42,17 @@ class StoreSchool
         if ($cooperative === null) {
             throw new ValidationException(t('store.school_not_found'), [], 404);
         }
+        // Apps Flutter (B15): hanya koperasi yang melanggan modul mobile_app
+        if (ApiTokenAuth::hasBearer() && !self::appEnabled($cooperative)) {
+            throw new ValidationException(t('store.app_unavailable'), [], 403, ['app_unavailable' => true]);
+        }
         return $cooperative;
+    }
+
+    // Apps mudah alih tersedia untuk koperasi ini (modul mobile_app aktif)
+    public static function appEnabled(array $cooperative)
+    {
+        return ModuleAccess::has($cooperative['vendor_id'], $cooperative['id'], 'mobile_app');
     }
 
     // Slug wujud tetapi store ditutup sementara (bukan koperasi yang sudah ditutup terus)

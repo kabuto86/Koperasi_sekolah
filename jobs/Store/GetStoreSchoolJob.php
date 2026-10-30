@@ -25,6 +25,7 @@ class GetStoreSchoolJob
         $data['grades'] = StoreSchool::grades($coop);
         $data['modules'] = $modules;
         $data['payment_methods'] = StoreSchool::paymentMethods($coop);
+        $data['app_enabled'] = StoreSchool::appEnabled($coop);
         $data['notices'] = [
             'closure'  => in_array('calendar', $modules, true) ? $this->closure() : null,
             'preorder' => in_array('school_opening', $modules, true) ? $this->preorder() : null,

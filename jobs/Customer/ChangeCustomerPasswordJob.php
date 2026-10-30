@@ -1,16 +1,19 @@
 <?php
 // Tukar kata laluan ibu bapa sesi (kata laluan semasa wajib, baharu ≥ 8 aksara).
+// B15: token apps lain dibatal (kecuali token apps yang membuat perubahan ini — $keepTokenId).
 class ChangeCustomerPasswordJob
 {
     const PASSWORD_MIN = 8;
 
     private $customerId;
     private $input;
+    private $keepTokenId;
 
-    public function __construct($customerId, array $input)
+    public function __construct($customerId, array $input, $keepTokenId = 0)
     {
         $this->customerId = (int) $customerId;
         $this->input = $input;
+        $this->keepTokenId = (int) $keepTokenId;
     }
 
     public function run()
@@ -31,6 +34,7 @@ class ChangeCustomerPasswordJob
         ValidationException::throwIfFails($v);
 
         Database::execute("UPDATE customers SET password_hash = ? WHERE id = ?", [Password::hash($password), $this->customerId]);
+        ApiTokens::revokeAll($this->customerId, $this->keepTokenId);
         return ['changed' => true];
     }
 }

@@ -1950,4 +1950,14 @@ return [
     'messaging.isms_sms_only' => 'iSMS 仅支持短信。',
     'email.news_post.subject' => '{title} — {school_name}',
     'email.news_post.body' => "{body}\n\n— {school_name} 合作社",
+    // B15 — API token apps & push
+    'api.token_invalid' => '应用登录已过期。请重新登录。',
+    'api.token_required' => '此操作仅限手机应用。',
+    'api.device_default' => '手机应用',
+    'store.app_unavailable' => '本校暂未开放手机应用。请使用网站。',
+    'push.order_ready.title' => '订单可领取',
+    'push.order_ready.body' => '{school_name} 的订单 {order_no}（{child_name}）可以领取了。领取码：{short_code}。',
+    'push.order_collected.title' => '物品已领取',
+    'push.order_collected.body' => '订单 {order_no}：由 {picked_by} 于 {time} 领取。',
+    'push.news.title' => '{school_name}：{title}',
 ];

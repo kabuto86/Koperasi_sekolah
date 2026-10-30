@@ -1950,4 +1950,14 @@ return [
     'messaging.isms_sms_only' => 'iSMS SMS-ஐ மட்டுமே ஆதரிக்கிறது.',
     'email.news_post.subject' => '{title} — {school_name}',
     'email.news_post.body' => "{body}\n\n— {school_name} கூட்டுறவு",
+    // B15 — API token apps & push
+    'api.token_invalid' => 'ஆப் அமர்வு காலாவதியானது. மீண்டும் உள்நுழையவும்.',
+    'api.token_required' => 'இந்தச் செயல் கைபேசி ஆப்பில் மட்டுமே.',
+    'api.device_default' => 'கைபேசி ஆப்',
+    'store.app_unavailable' => 'இந்தப் பள்ளிக்குக் கைபேசி ஆப் இன்னும் கிடைக்கவில்லை. இணையதளத்தைப் பயன்படுத்தவும்.',
+    'push.order_ready.title' => 'ஆர்டர் பெறத் தயார்',
+    'push.order_ready.body' => '{school_name} இல் ஆர்டர் {order_no} ({child_name}) பெறத் தயார். பெறும் குறியீடு: {short_code}.',
+    'push.order_collected.title' => 'பொருட்கள் பெறப்பட்டன',
+    'push.order_collected.body' => 'ஆர்டர் {order_no}: {time} மணிக்கு {picked_by} பெற்றார்.',
+    'push.news.title' => '{school_name}: {title}',
 ];

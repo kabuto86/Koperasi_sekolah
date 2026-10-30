@@ -10,6 +10,9 @@ RedirectMatch 404 /\.(git|svn|hg|env)(/|$)
 # Folder & fail sebenar (owner/, vendor/, api/, assets/ …) tidak terjejas. Perlu Apache mod_rewrite.
 <IfModule mod_rewrite.c>
     RewriteEngine On
+    # Apps Flutter (B15): Apache CGI/FastCGI membuang header Authorization — salin supaya token Bearer sampai ke PHP
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule ^([a-z0-9-]{1,80})/?$ store/index.php?school=$1 [QSA,L]

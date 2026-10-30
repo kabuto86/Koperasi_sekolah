@@ -1965,4 +1965,14 @@ return [
     'messaging.isms_sms_only' => 'iSMS hanya menyokong SMS.',
     'email.news_post.subject' => '{title} — {school_name}',
     'email.news_post.body' => "{body}\n\n— Koperasi {school_name}",
+    // B15 — API token apps & push
+    'api.token_invalid' => 'Sesi apps telah tamat. Sila log masuk semula.',
+    'api.token_required' => 'Tindakan ini hanya untuk apps mudah alih.',
+    'api.device_default' => 'Apps mudah alih',
+    'store.app_unavailable' => 'Apps mudah alih belum tersedia untuk sekolah ini. Sila guna laman web.',
+    'push.order_ready.title' => 'Pesanan sedia diambil',
+    'push.order_ready.body' => 'Pesanan {order_no} ({child_name}) di {school_name} sedia diambil. Kod ambil: {short_code}.',
+    'push.order_collected.title' => 'Barang telah diambil',
+    'push.order_collected.body' => 'Pesanan {order_no}: diambil oleh {picked_by} pada {time}.',
+    'push.news.title' => '{school_name}: {title}',
 ];
