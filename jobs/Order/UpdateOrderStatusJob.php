@@ -62,6 +62,7 @@ class UpdateOrderStatusJob
         // E-mel hanya kali pertama sedia (ready → preparing → ready tidak menghantar semula)
         if ($this->status === 'ready' && !$this->wasReadyBefore($order)) {
             OrderEmails::queueReady($this->cooperative, $order);
+            MessageNotifications::orderReady($this->cooperative, $order);
         }
         (new WriteActivityLogJob($this->vendorId, $this->cooperative['id'], $this->userId, 'order_status', 'order', (int) $order['id'],
             $order['order_no'] . ': ' . $order['status'] . ' → ' . $this->status))->run();

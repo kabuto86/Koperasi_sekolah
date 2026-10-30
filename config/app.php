@@ -18,7 +18,7 @@ return [
     'pretty_store_urls' => false,
 
     // Naikkan nombor ini bila CSS/JS berubah supaya pelayar tidak guna cache lama
-    'asset_version'     => '13',
+    'asset_version'     => '14',
 
     // Peringkat 1: data dari assets/js/mock/*.js. Peringkat 2: laluan yang sudah siap guna fetch() (Api.livePrefixes
     // dalam api.js); selebihnya masih mock sehingga session masing-masing. Tukar ke false bila semua B siap

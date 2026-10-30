@@ -1,4 +1,4 @@
-// Modul notifikasi WhatsApp/SMS — tetapan, templat & log mesej koperasi semasa (UI sahaja, B13 menghantar)
+// Modul notifikasi WhatsApp/SMS — tetapan, templat & log mesej koperasi semasa (B13: sebenar — mesej dihantar oleh cron/send-messages.php)
 
 var msgForm = document.getElementById('msg-form');
 var msgLog = { page: 1, per_page: 10, status: '' };

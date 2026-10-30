@@ -1324,6 +1324,7 @@ CREATE TABLE notification_queue (
     id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     vendor_id       INT UNSIGNED NOT NULL,
     cooperative_id  INT UNSIGNED NULL,
+    order_id        INT UNSIGNED NULL COMMENT 'B13: pesanan berkaitan (order_ready, order_collected, cash_reminder)',
     channel         ENUM('push','whatsapp','sms') NOT NULL,
     event           VARCHAR(50)  NOT NULL,
     recipient       VARCHAR(255) NOT NULL,
@@ -1335,7 +1336,8 @@ CREATE TABLE notification_queue (
     sent_at         DATETIME     NULL,
     PRIMARY KEY (id),
     KEY idx_notifications_vendor (vendor_id, cooperative_id, created_at),
-    KEY idx_notifications_pending (status, created_at)
+    KEY idx_notifications_pending (status, created_at),
+    KEY idx_notifications_order (vendor_id, order_id, event)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE messaging_settings (

@@ -1792,7 +1792,7 @@ return [
     'opening.state.open'                 => 'திறந்துள்ளது',
     'opening.state.upcoming'             => 'வரவிருக்கிறது',
     'opening.state.closed'               => 'மூடப்பட்டது',
-    'messaging.ui_only_note'             => 'அமைப்புகள் இப்போது சேமிக்கப்படும்; வழங்குநர் மூலம் உண்மையான அனுப்புதல் பின்னணி கட்டத்தில் இயக்கப்படும். செய்திகள் வரிசையிலிருந்து அனுப்பப்படுவதால் கவுண்டர் தாமதமாகாது.',
+    'messaging.ui_only_note'             => 'செய்திகள் ஒவ்வொரு நிமிடமும் வரிசையிலிருந்து தேர்ந்தெடுத்த வழங்குநர் மூலம் அனுப்பப்படும் — கவுண்டர் தாமதமாகாது. API விசை வடிவம் ID:இரகசியம்.',
     'messaging.settings'                 => 'அமைப்புகள்',
     'messaging.enabled'                  => 'பெற்றோருக்கு அறிவிப்புகளை அனுப்பு',
     'messaging.channel'                  => 'வழி',
@@ -1941,4 +1941,10 @@ return [
     'activity.action.staff_send_reset' => 'கடவுச்சொல் மீட்டமைப்பு இணைப்பை அனுப்பு',
     'email.invoice_issued.subject' => 'விலைப்பட்டியல் {invoice_no} — {app_name}',
     'email.invoice_issued.body' => "{vendor_name} அவர்களுக்கு,\n\n{total} மதிப்புள்ள விலைப்பட்டியல் {invoice_no} {due_date} க்குள் செலுத்தப்பட வேண்டும்.\n\nசெலுத்த: {pay_url}",
+    // B13 — modul add-on
+    'opening.slot_in_orders' => 'இந்த நேர இடம் ஆர்டர்களில் தேர்ந்தெடுக்கப்பட்டுள்ளது — நீக்க முடியாது. கொள்ளளவைக் குறைக்கவும்.',
+    'messaging.key_format' => 'விசை வடிவம்: ID:இரகசியம் (WhatsApp Cloud: phone number ID:access token · Twilio: Account SID:Auth Token · iSMS: பயனர்பெயர்:கடவுச்சொல்).',
+    'messaging.isms_sms_only' => 'iSMS SMS-ஐ மட்டுமே ஆதரிக்கிறது.',
+    'email.news_post.subject' => '{title} — {school_name}',
+    'email.news_post.body' => "{body}\n\n— {school_name} கூட்டுறவு",
 ];

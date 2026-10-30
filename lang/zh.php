@@ -1792,7 +1792,7 @@ return [
     'opening.state.open'                 => '进行中',
     'opening.state.upcoming'             => '即将开始',
     'opening.state.closed'               => '已截止',
-    'messaging.ui_only_note'             => '设置现已保存；通过服务商实际发送将在后端阶段启用。消息经队列发送，不会拖慢柜台。',
+    'messaging.ui_only_note'             => '消息每分钟经队列通过所选服务商发送——不会拖慢柜台。API 密钥格式为 ID:密钥。',
     'messaging.settings'                 => '设置',
     'messaging.enabled'                  => '向家长发送通知',
     'messaging.channel'                  => '渠道',
@@ -1941,4 +1941,10 @@ return [
     'activity.action.staff_send_reset' => '发送重设密码链接',
     'email.invoice_issued.subject' => '发票 {invoice_no} — {app_name}',
     'email.invoice_issued.body' => "{vendor_name} 您好：\n\n发票 {invoice_no}（{total}）须于 {due_date} 前付款。\n\n付款：{pay_url}",
+    // B13 — modul add-on
+    'opening.slot_in_orders' => '此时段已被订单选用——无法删除。请改为减少容量。',
+    'messaging.key_format' => '密钥格式：ID:密钥（WhatsApp Cloud：phone number ID:access token · Twilio：Account SID:Auth Token · iSMS：用户名:密码）。',
+    'messaging.isms_sms_only' => 'iSMS 仅支持短信。',
+    'email.news_post.subject' => '{title} — {school_name}',
+    'email.news_post.body' => "{body}\n\n— {school_name} 合作社",
 ];

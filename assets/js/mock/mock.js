@@ -1,5 +1,5 @@
 // Pendaftaran laluan mock (Peringkat 1 sahaja — dibuang dalam Peringkat 2).
-// Fail mock/owner.js, vendor.js, vendor-*.js mendaftar laluan dengan Mock.register().
+// Fail mock/owner.js mendaftar laluan dengan Mock.register() (sejak B13 tinggal terjemahan owner — B14).
 
 var Mock = {
     routes: {},

@@ -49,7 +49,7 @@ Setiap prompt di bawah bermula dengan "Ikut peraturan umum". Maksudnya:
    Sejak B1: skema sebenar = `database/schema.sql` (75 jadual, PELAN 9 J); lajur baharu → fail `database/migrations/NNN-nama.sql`
    **dan** kemas kini `schema.sql` + PELAN 9. Konvensyen job & core dalam PELAN 10.2 (constructor menerima id dari sesi + input, `run()`,
    `Database::fetchOne/fetchAll/execute/insert`, `Response::ok/fail/notFound`). Data demo & akaun: kepala `database/seed.sql`.
-   Semakan asas sebelum commit: `php tools/verify-b1.php` + `verify-b2.php` + `verify-b3.php` + `verify-b4.php` + `verify-b5.php` + `verify-b6.php` + `verify-b7.php` + `verify-b8.php` + `verify-b9.php` + `verify-b10.php` + `verify-b11.php` + `verify-b12.php` (mesti 0 gagal) + `php tools/check-ui.php`; tambah skrip semakan
+   Semakan asas sebelum commit: `php tools/verify-b1.php` + `verify-b2.php` + `verify-b3.php` + `verify-b4.php` + `verify-b5.php` + `verify-b6.php` + `verify-b7.php` + `verify-b8.php` + `verify-b9.php` + `verify-b10.php` + `verify-b11.php` + `verify-b12.php` + `verify-b13.php` (mesti 0 gagal) + `php tools/check-ui.php`; tambah skrip semakan
    session sendiri `tools/verify-bN.php` dengan ujian kebocoran VENDOR01↔VENDOR02 dan ibu bapa A↔B (contoh HTTP sebenar: kelas `Browser`
    dalam `tools/test-helpers.php` sejak B3 — pelayan `php -S` sendiri, cookie, CSRF; `require __DIR__ . '/test-helpers.php'`).
    Sejak B4: skop koperasi melalui `VendorAuth::requireCooperative()`; stok HANYA melalui `StockLedger::move()` dalam transaksi DB;
@@ -67,8 +67,12 @@ Setiap prompt di bawah bermula dengan "Ikut peraturan umum". Maksudnya:
    akses modul HANYA `ModuleAccess::codes/has/require($vendorId, $cooperativeId, $kod)` (`jobs/Module/`), bayaran yuran HANYA
    `PlatformPaymentSettlement` (gateway owner `PlatformGateway`, webhook `webhooks/platform.php?gateway=`); status vendor ikut tunggakan HANYA
    `SuspendOverdueJob` / `VendorBillingStatus::restore`. Cron: `generate-invoices.php` (harian) & `suspend-overdue.php` (setiap jam) — PELAN 10.2
-   "Konvensyen B12", 14 "Pelaksanaan B12". `mock/vendor-finance.js` dibuang; `mock/owner.js` tinggal terjemahan (B14); `mock/vendor-addons.js`
-   (data modul B13) kini memegang `mockToday`/`mockDaysFromToday` dan `mockActivity()` kosong (log aktiviti sebenar).
+   "Konvensyen B12", 14 "Pelaksanaan B12". `mock/vendor-finance.js` dibuang; `mock/owner.js` tinggal terjemahan (B14).
+   Sejak B13: modul add-on dalam `jobs/News/`, `jobs/Clearance/`, `jobs/Calendar/`, `jobs/SchoolOpening/`, `jobs/Messaging/` — setiap endpoint modul
+   `requireCooperative` → `ModuleAccess::require`; e-mel berita HANYA `NewsPosts::queueEmail` (sekali sahaja); mesej WhatsApp/SMS HANYA
+   `MessageNotifications` → `notification_queue` → `cron/send-messages.php` (`SendQueuedMessagesJob`, driver `messaging/` tanpa DB; ujian
+   `KOPERASI_MESSAGING_TEST_URL` + `tools/fake-messaging.php`); `booked` slot HANYA checkout/batal, panel mengunci slot `FOR UPDATE` — PELAN 10.2
+   "Konvensyen B13". `mock/vendor-addons.js` & `mock/vendor.js` dibuang; satu-satunya mock yang tinggal = `mock/owner.js` (terjemahan, B14).
    Sejak B6: store menyelesaikan koperasi dengan `StoreSchool::require($slug)` (baris koperasi → job; tiada id dari input); harga/stok/had
    store HANYA melalui `StorePricing`; troli melalui `Carts` (`quote` = CartQuote), anak melalui `Children` — PELAN 10.2 "Konvensyen B6", 18.12 "B6 (sebenar)".
    Ujian HTTP dengan parameter: `$browser->status($laluan, $params)` (`tools/test-helpers.php`).
@@ -546,7 +550,7 @@ Sahkan: modul tidak dilanggan → endpoint modul 403; vendor suspended → store
 > digantung → 503 "Koperasi ditutup sementara". Tiada perubahan skema. Tertangguh: e-mel peringatan tunggakan / digantung; gateway borang POST
 > (iPay88) untuk yuran; pro-rata kredit bila turun taraf / henti di tengah kitaran (sengaja tiada refund).
 
-## B13 — Modul add-on
+## B13 — Modul add-on ✅ (30 Okt 2026 — lihat PROSES.md)
 
 ```
 Ikut peraturan umum. Session: B13. Prasyarat: B12 ✅.
@@ -557,6 +561,11 @@ Setiap endpoint memanggil ModuleAccess::require($vendorId, $cooperativeId, 'kod'
 (termasuk pembantu mockToday/mockDaysFromToday/mockActivity yang dipindah ke situ dalam B12) & MockVendor.activeModules; job modul menulis
 WriteActivityLogJob (news_save, clearance_save, calendar_save, season_save, messaging_save … — label sudah ada dalam lang).
 ```
+> Hasil B13: 23 laluan modul sebenar (`vendor/news/*` 4, `vendor/clearance/*` 6, `vendor/calendar/*` 3, `vendor/school-opening/*` 6,
+> `vendor/messaging/*` 4); 5 folder job (`News`, `Clearance`, `Calendar`, `SchoolOpening`, `Messaging`); driver WhatsApp/SMS `messaging/` (Twilio,
+> WhatsApp Cloud, iSMS — kunci `ID:RAHSIA`); cron baharu `send-messages.php` + berita berjadual dalam `send-emails.php` + peringatan tunai dalam
+> `expire-cash-orders.php`; migrasi 006 (`notification_queue.order_id`). Harga clearance (StorePricing), tutup tempahan & slot (CheckoutQuote/
+> CheckoutJob) sudah sebenar sejak B6/B7 — tidak diubah. Tertangguh: templat WhatsApp diluluskan Meta (mesej di luar 24 jam).
 
 ## B14 — Terjemahan & pengerasan keselamatan
 

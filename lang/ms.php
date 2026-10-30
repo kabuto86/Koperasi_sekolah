@@ -1807,7 +1807,7 @@ return [
     'opening.state.open'                 => 'Dibuka',
     'opening.state.upcoming'             => 'Akan datang',
     'opening.state.closed'               => 'Ditutup',
-    'messaging.ui_only_note'             => 'Tetapan disimpan sekarang; penghantaran mesej sebenar melalui pembekal dihidupkan dalam fasa backend. Mesej dihantar dari baris gilir, tidak melambatkan kaunter.',
+    'messaging.ui_only_note'             => 'Mesej dihantar dari baris gilir setiap minit melalui pembekal yang dipilih — tidak melambatkan kaunter. Kunci API dalam format ID:RAHSIA.',
     'messaging.settings'                 => 'Tetapan',
     'messaging.enabled'                  => 'Hantar notifikasi kepada ibu bapa',
     'messaging.channel'                  => 'Saluran',
@@ -1956,4 +1956,10 @@ return [
     'activity.action.staff_send_reset' => 'Hantar pautan set semula kata laluan',
     'email.invoice_issued.subject' => 'Invois {invoice_no} — {app_name}',
     'email.invoice_issued.body' => "Kepada {vendor_name},\n\nInvois {invoice_no} berjumlah {total} perlu dibayar sebelum {due_date}.\n\nBayar di: {pay_url}",
+    // B13 — modul add-on
+    'opening.slot_in_orders' => 'Slot ini pernah dipilih dalam pesanan — tidak boleh dipadam. Kurangkan kapasiti sahaja.',
+    'messaging.key_format' => 'Format kunci: ID:RAHSIA (WhatsApp Cloud: phone number ID:access token · Twilio: Account SID:Auth Token · iSMS: nama pengguna:kata laluan).',
+    'messaging.isms_sms_only' => 'iSMS hanya menyokong SMS.',
+    'email.news_post.subject' => '{title} — {school_name}',
+    'email.news_post.body' => "{body}\n\n— Koperasi {school_name}",
 ];
