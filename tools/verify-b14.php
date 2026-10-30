@@ -56,6 +56,8 @@ function endpoints()
             'coop'      => strpos($code, 'VendorAuth::requireCooperative') !== false,
             'cashier'   => strpos($code, 'PosAuth::requireCashier') !== false,
             'csrf'      => strpos($code, 'Csrf::verifyRequest') !== false,
+            // B15: log masuk apps (token Bearer) — tiada sesi / cookie, jadi tiada CSRF (diuji dalam verify-b15)
+            'token_issue' => strpos($code, 'IssueApiTokenJob') !== false,
             'sql'       => (bool) preg_match('/Database::|\b(SELECT|INSERT|UPDATE|DELETE)\s+(\*|[a-z_]+\s+(FROM|INTO|SET)|FROM|INTO)\b/i', $code),
             'raw_input' => (bool) preg_match('/\$_(GET|POST|REQUEST|COOKIE)\b/', $code),
         ];
@@ -222,8 +224,8 @@ try {
     check('Tiada SQL / Database:: dalam api/', count(array_filter($endpoints, function ($ep) { return $ep['sql']; })) === 0);
     check('Tiada $_GET / $_POST / $_REQUEST / $_COOKIE terus dalam api/ (input melalui Request)',
         count(array_filter($endpoints, function ($ep) { return $ep['raw_input']; })) === 0);
-    $noCsrf = array_keys(array_filter($endpoints, function ($ep) { return $ep['method'] === 'POST' && !$ep['csrf'] && $ep['area'] !== 'webhooks'; }));
-    check('Setiap endpoint POST (kecuali webhook gateway) memanggil Csrf::verifyRequest', count($noCsrf) === 0);
+    $noCsrf = array_keys(array_filter($endpoints, function ($ep) { return $ep['method'] === 'POST' && !$ep['csrf'] && $ep['area'] !== 'webhooks' && !$ep['token_issue']; }));
+    check('Setiap endpoint POST (kecuali webhook gateway & log masuk token apps) memanggil Csrf::verifyRequest', count($noCsrf) === 0);
     showList('tanpa CSRF', $noCsrf);
     $noMethod = array_keys(array_filter($endpoints, function ($ep) { return $ep['method'] === 'ANY'; }));
     check('Setiap endpoint menetapkan kaedah (Request::requireMethod)', count($noMethod) === 0);
@@ -413,7 +415,7 @@ try {
     $bad = [];
     $posts = 0;
     foreach ($endpoints as $ep) {
-        if ($ep['method'] !== 'POST' || $ep['area'] === 'webhooks') {
+        if ($ep['method'] !== 'POST' || $ep['area'] === 'webhooks' || $ep['token_issue']) {
             continue;
         }
         $posts++;

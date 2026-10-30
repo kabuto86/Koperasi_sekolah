@@ -27,6 +27,8 @@ class NewsPosts
             'send_email'       => (bool) $row['send_email'],
             'email_sent_at'    => IsoDate::format($row['email_sent_at']),
             'email_recipients' => (int) $row['email_recipients'],
+            'push_sent_at'     => IsoDate::format($row['push_sent_at']),
+            'push_recipients'  => (int) $row['push_recipients'],
             'state'            => $row['state'],
         ];
     }

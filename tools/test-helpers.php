@@ -24,6 +24,7 @@ function check($label, $condition)
 class Browser
 {
     public $csrf = '';
+    public $bearer = '';   // B15: token apps → header Authorization: Bearer
     private $jar;
     private $base;
 
@@ -121,6 +122,9 @@ class Browser
     {
         $curl = curl_init($this->base . '/' . $path);
         $headers = ['Accept: application/json'];
+        if ($this->bearer !== '') {
+            $headers[] = 'Authorization: Bearer ' . $this->bearer;
+        }
         curl_setopt_array($curl, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_COOKIEJAR      => $this->jar,
@@ -216,5 +220,6 @@ function clearTestLocks()
     Database::execute("DELETE FROM rate_limits WHERE bucket_key LIKE '%127.0.0.1%' OR bucket_key LIKE 'forgot:%' OR bucket_key LIKE 'resend_verify:%'"
         . " OR bucket_key LIKE 'store_cart:%' OR bucket_key LIKE 'store_child_save:%' OR bucket_key LIKE 'store_checkout:%'"
         . " OR bucket_key LIKE 'store_payment_%' OR bucket_key LIKE 'vendor_gateway_test:%'"
-        . " OR bucket_key LIKE 'pickup_code:%' OR bucket_key LIKE 'pickup_search:%'");
+        . " OR bucket_key LIKE 'pickup_code:%' OR bucket_key LIKE 'pickup_search:%'"
+        . " OR bucket_key LIKE 'api_token:%' OR bucket_key LIKE 'store_push_register:%'");
 }

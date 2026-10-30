@@ -1,6 +1,7 @@
 <?php
 // Sesi ibu bapa di store (nama sesi KOPSTORE). customer_id SENTIASA dari sini (PELAN 8.1).
 // "Ingat saya" → cookie 30 hari; tanpanya cookie tamat bila pelayar ditutup. Idle maksimum 30 hari.
+// B15: apps Flutter menghantar `Authorization: Bearer {token}` (ApiTokenAuth) — sesi tidak dimulakan; token salah → 401.
 class CustomerAuth
 {
     const SESSION_NAME = 'KOPSTORE';
@@ -19,8 +20,16 @@ class CustomerAuth
         if (self::$customer !== false) {
             return self::$customer;
         }
-        self::start();
         self::$customer = null;
+        if (ApiTokenAuth::hasBearer()) {
+            $token = ApiTokenAuth::authenticate();
+            self::$customer = (new LoadCustomerSessionJob($token['customer_id']))->run();
+            if (self::$customer === null) {
+                ApiTokenAuth::reject();
+            }
+            return self::$customer;
+        }
+        self::start();
         $id = (int) ($_SESSION['customer_id'] ?? 0);
         if ($id > 0) {
             $job = new LoadCustomerSessionJob($id);
@@ -59,6 +68,11 @@ class CustomerAuth
 
     public static function logout()
     {
+        // Apps: tiada sesi untuk dimusnahkan (token dibatal oleh job — RevokeApiTokenJob / padam akaun)
+        if (ApiTokenAuth::token() !== null) {
+            self::$customer = null;
+            return;
+        }
         self::start();
         Session::destroy();
         self::$customer = null;

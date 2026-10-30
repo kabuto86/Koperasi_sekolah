@@ -878,19 +878,24 @@ CREATE TABLE api_tokens (
     PRIMARY KEY (id),
     UNIQUE KEY uq_api_tokens_hash (token_hash),
     KEY idx_api_tokens_customer (customer_id),
+    KEY idx_api_tokens_active (customer_id, revoked_at, expires_at),
     CONSTRAINT fk_api_tokens_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE push_devices (
     id           INT UNSIGNED NOT NULL AUTO_INCREMENT,
     customer_id  INT UNSIGNED NOT NULL,
+    api_token_id INT UNSIGNED NULL COMMENT 'B15: token apps yang mendaftar peranti ini',
     platform     ENUM('android','ios') NOT NULL,
     push_token   VARCHAR(255) NOT NULL,
     created_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at   DATETIME     NULL ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY uq_push_devices_token (push_token),
     KEY idx_push_devices_customer (customer_id),
-    CONSTRAINT fk_push_devices_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE
+    KEY idx_push_devices_api_token (api_token_id),
+    CONSTRAINT fk_push_devices_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE,
+    CONSTRAINT fk_push_devices_api_token FOREIGN KEY (api_token_id) REFERENCES api_tokens (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Nota vendor tentang ibu bapa (vendor/customers/save-note) — setiap vendor nampak notanya sahaja
@@ -1222,6 +1227,8 @@ CREATE TABLE news_posts (
     send_email        TINYINT(1)   NOT NULL DEFAULT 0,
     email_sent_at     DATETIME     NULL,
     email_recipients  INT UNSIGNED NOT NULL DEFAULT 0,
+    push_sent_at      DATETIME     NULL COMMENT 'B15: push apps dimasukkan ke baris gilir (sekali sahaja)',
+    push_recipients   INT UNSIGNED NOT NULL DEFAULT 0,
     is_active         TINYINT(1)   NOT NULL DEFAULT 1,
     created_at        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at        DATETIME     NULL ON UPDATE CURRENT_TIMESTAMP,

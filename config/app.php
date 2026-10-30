@@ -48,6 +48,10 @@ return [
     'backup_keep_days'  => 14,
     'mysqldump_path'    => 'mysqldump',
 
+    // Push apps Flutter (B15): fail JSON akaun perkhidmatan Firebase owner (Firebase Console → Project settings → Service accounts →
+    // Generate new private key). Fail ini RAHSIA — dalam .gitignore. Tiada fail = push kekal dalam baris gilir (cron/send-push.php)
+    'fcm_service_account_file' => 'config/firebase-service-account.json',
+
     // Kunci penyulitan (sodium secretbox) — dijana oleh: php tools/generate-secret.php
     'secret_key_file'   => 'config/secret.key',
 ];

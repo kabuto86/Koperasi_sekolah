@@ -47,6 +47,8 @@ class StartOnlinePaymentJob
                 'amount'       => (int) $payment['amount'],
                 'mode'         => $gateway['mode'],
                 'redirect_url' => $raw['redirect_url'] ?? null,
+                // B15: gateway borang POST (iPay88) — apps membina borang sendiri dalam webview (tiada sesi web untuk payment-redirect.php)
+                'form'         => $raw['form'] ?? null,
             ],
         ];
     }

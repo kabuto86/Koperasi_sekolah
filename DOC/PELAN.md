@@ -151,7 +151,7 @@ menggantung / mengaktifkan vendor (butang tidak dipapar, API 403).
 | `clearance` | Jualan murah / clearance | Harga khas, tempoh, lencana "Clearance", halaman khas |
 | `calendar` | Kalendar cuti | Cuti sekolah, cuti koperasi — tempahan ditutup automatik pada hari tutup |
 | `school_opening` | Pembukaan sekolah | Musim pre-order kit, tarikh tutup tempahan, slot ambil barang |
-| `mobile_app` | Apps Flutter | Ibu bapa guna apps; API token + push notification |
+| `mobile_app` | Apps Flutter | Ibu bapa guna apps; API token + push notification (B15 — API sebenar: token Bearer hanya untuk koperasi yang melanggan modul ini; [API.md](API.md)) |
 | `template_premium` | Template premium | Template frontend selain Template 1 |
 | `whatsapp_sms` | Notifikasi WhatsApp/SMS | Mesej "sedia diambil" / "telah diambil" |
 | `advanced_report` | Laporan lanjutan | Perbandingan tahun, analisis kit |
@@ -386,8 +386,10 @@ Nama, harga dan maklumat anak **disalin** (snapshot) ke pesanan dan invois.
 - **`children`** — id, customer_id FK, cooperative_id FK, vendor_id (salinan, untuk tapisan vendor), full_name, grade_level_code, school_class_id NULL, class_name, school_year, is_active
   > Seed (B6): Adam (anak ibu bapa A) Darjah 1 tahun **2027** — sepadan dengan Kit Darjah 1 2027 yang diterbitkan (demo aliran kit).
 - **`customer_tokens`** — id, customer_id, type ENUM(verify_email, reset_password), token_hash, expires_at, used_at
-- **`api_tokens`** — id, customer_id, token_hash UNIQUE, device_name, last_used_at, expires_at, revoked_at
-- **`push_devices`** — id, customer_id, platform ENUM(android, ios), push_token, created_at
+- **`api_tokens`** — id, customer_id, token_hash UNIQUE, device_name, last_used_at, expires_at, revoked_at, created_at
+  > B15 (migrasi 008): indeks `(customer_id, revoked_at, expires_at)`. Token mentah 64 hex tidak disimpan; luput bergerak 90 hari; ≤ 10 aktif setiap ibu bapa.
+- **`push_devices`** — id, customer_id, api_token_id NULL (B15, FK api_tokens ON DELETE CASCADE), platform ENUM(android, ios), push_token UNIQUE, created_at, updated_at (B15)
+  > Satu peranti push setiap token apps; token dibatal → peranti dibuang.
 
 ### G. Pesanan, ambil & bayaran (13)
 
@@ -418,7 +420,7 @@ Nama, harga dan maklumat anak **disalin** (snapshot) ke pesanan dan invois.
 
 ### H. Modul add-on (8)
 
-- **`news_posts`** — id, vendor_id, cooperative_id, title, body, image_path, published_at, send_email, email_sent_at NULL, email_recipients, is_active
+- **`news_posts`** — id, vendor_id, cooperative_id, title, body, image_path, published_at, send_email, email_sent_at NULL, email_recipients, push_sent_at NULL, push_recipients (B15, migrasi 008), is_active
   > U6: e-mel dimasukkan ke `email_queue` **sekali** bila berita sudah terbit (`email_sent_at`); berita berjadual → cron semasa terbit
 - **`clearance_sales`** — id, vendor_id, cooperative_id, name, starts_at, ends_at, is_active
 - **`clearance_items`** — id, vendor_id, clearance_sale_id, product_id, variant_id, sale_price, qty_limit
@@ -476,11 +478,11 @@ Keterangan modul disimpan dalam `translations` (`module.{code}.description`); na
 ```
 Koperasi_sekolah/
 ├── CLAUDE.md
-├── DOC/            PELAN.md · PROSES.md · PROMPT-SESSION.md
+├── DOC/            PELAN.md · PROSES.md · PROMPT-SESSION.md · API.md (B15 — rujukan API apps Flutter)
 ├── config/         app.php · malaysia.php (negeri, jenis sekolah, hari) · database.php (.gitignore) · database.example.php · secret.key (.gitignore)
 ├── core/           bootstrap.php · Config · View · SecurityHeaders (CSP) — sejak U1
 │                   Database · Request · Response · Validator · Csrf · Lang (+ t(), e()) · ValidationException (B2)
-│                   OwnerAuth · VendorAuth · CustomerAuth · Session · Password · Totp · RateLimit (B2) · ApiTokenAuth
+│                   OwnerAuth · VendorAuth · CustomerAuth · Session · Password · Totp · RateLimit (B2) · ApiTokenAuth (B15 — Bearer apps)
 │                   PhoneNumber · IsoDate · Pagination (B2) · PanelRole (U7, sesi sejak B2)
 │                   Crypto (sodium) · ModuleAccess · Uploader (B4) · View · SecurityHeaders
 │                   Mailer (SMTP vanila: tls/ssl/none + AUTH LOGIN, driver log) · Money (sen → "RM 1.50") · QrCode (QR e-mel) — B7
@@ -493,10 +495,13 @@ Koperasi_sekolah/
 │   │   (Order/ = checkout, pesanan ibu bapa, no. pesanan, e-mel pesanan, luput tunai — B7 · Promotion/ = pilih promosi — B7)
 │   ├── News/ Clearance/ Calendar/ SchoolOpening/ Messaging/ (B13) · Notification/ Language/ Setting/ Announcement/ (B3)
 │   │   (Language/ sejak B14: LangFiles · GenerateLangFilesJob · ListTranslationsJob · SaveTranslationJob · MissingKeysJob)
+│   ├── ApiToken/  ApiTokens · IssueApiTokenJob · AuthenticateApiTokenJob · RevokeApiTokenJob · ListApiTokensJob (B15)
+│   ├── Push/      PushNotifications · RegisterPushDeviceJob · UnregisterPushDeviceJob · SendPushJob (B15 — notification_queue channel push)
 │   └── Maintenance/  BackupDatabaseJob (B14 — mysqldump → gzip)
 ├── payments/       GatewayInterface · GatewayFactory · BaseGateway (HTTP curl, URL sandbox/live) · GatewayException — B8 (dimuat automatik)
 │   └── drivers/    ToyyibPayGateway · BillplzGateway · SenangPayGateway · Ipay88Gateway · StripeGateway
 ├── messaging/      MessageSender (asas + make) · TwilioSender · WhatsappCloudSender · IsmsSender · MessagingException — B13 (tanpa DB, dimuat automatik)
+│                   FcmSender (FCM HTTP v1, JWT RS256 → OAuth) · PushTokenInvalidException — B15
 ├── api/v1/
 │   ├── owner/  vendor/  store/  pos/
 │   └── webhooks/   toyyibpay.php · billplz.php · senangpay.php · ipay88.php · stripe.php (B8, ?coop={id}, tiada sesi/CSRF)
@@ -518,7 +523,7 @@ Koperasi_sekolah/
 ├── modules/        news/ · clearance/ · calendar/ · school_opening/
 ├── lang/           ms.php · en.php · zh.php · ta.php
 ├── cron/           send-emails · expire-cash-orders (B7, CLI sahaja, `.htaccess` halang web) · expire-online-orders (B8) · generate-invoices ·
-│                   suspend-overdue (B12) · send-messages (B13, WhatsApp/SMS setiap minit) · backup-db (B14, harian) · promote-grades
+│                   suspend-overdue (B12) · send-messages (B13, WhatsApp/SMS setiap minit) · backup-db (B14, harian) · send-push (B15, setiap minit) · promote-grades
 ├── storage/        mail.log (mail_driver log) · fail kunci cron (.gitignore isi, `.htaccess` halang web) — B7
 │                   lang/{ms,en,zh,ta}.php (DIJANA: lang/*.php + jadual translations — B14) · backups/ (koperasi_saas-*.sql.gz, 0700 — B14)
 ├── tools/          check-ui.php (tiada inline CSS + kunci 4 bahasa sama) · generate-secret.php · verify-b1.php · verify-b2.php
@@ -527,6 +532,7 @@ Koperasi_sekolah/
 │                   verify-b7.php · fake-smtp.php (pelayan SMTP palsu untuk ujian) — B7
 │                   verify-b8.php · fake-gateway.php (gateway palsu 5 driver, `php -S` router) — B8 · verify-b9 … verify-b13.php
 │                   verify-b14.php (pengerasan + sapuan penembusan semua endpoint) · generate-lang.php (jana fail bahasa + kunci hilang) — B14
+│                   verify-b15.php (token apps, Bearer, push, FCM palsu dalam fake-messaging.php) — B15
 ├── assets/
 │   ├── lib/        bootstrap/ (5.3.3) · bootstrap-icons/ (1.11.3) · qrcode/ (qrcode-generator 1.4.4, MIT — sejak U2)
 │   ├── css/        app.css · print-label.css · print-slip.css · receipt.css
@@ -697,11 +703,23 @@ Muat naik HANYA `Uploader::saveImage` (finfo + ≤ 2MB + ≤ 4000 px + **kod sem
 Endpoint baharu: `requireMethod` → auth → CSRF (POST) → `requireCooperative` bila menerima `cooperative_id` (walaupun pilihan — cth.
 `vendor/activity-logs/list`) — `tools/verify-b14.php` menyapu SETIAP fail `api/v1` secara automatik, jadi endpoint baharu diuji tanpa kod tambahan.
 
+**Konvensyen B15 (token apps & push):** apps Flutter memanggil endpoint `store/` yang SAMA dengan web — tiada laluan berasingan. Token HANYA
+melalui `core/ApiTokenAuth` (`Authorization: Bearer {64 hex}` → `AuthenticateApiTokenJob` — SHA-256, belum dibatal, belum luput; luput bergerak 90 hari).
+`CustomerAuth::customer()` menyemak Bearer DAHULU: ada header → token disahkan (salah → 401 `token_invalid`, **tiada jatuh balik ke sesi**) dan sesi PHP
+tidak dimulakan. `Csrf::verifyRequest()` melangkau HANYA bila `ApiTokenAuth::token()` sudah disahkan (panel owner/vendor tidak pernah menyemak token →
+CSRF kekal). `StoreSchool::require()` menolak permintaan Bearer untuk koperasi tanpa modul `mobile_app` (403 `app_unavailable`). Token dikeluarkan
+HANYA oleh `IssueApiTokenJob` (`store/auth/token` — selepas `CustomerLoginJob`, tiada CSRF kerana tiada cookie); dibatal HANYA melalui `ApiTokens::revoke/
+revokeAll` (peranti push token itu dibuang sekali). Laluan khas apps memanggil `ApiTokenAuth::requireToken()` SELEPAS `requireLogin` + `Csrf`. Push
+masuk baris gilir HANYA melalui `PushNotifications` (`orderReady`, `orderCollected`, `news` — atom `push_sent_at`), satu baris `notification_queue`
+`channel = 'push'` setiap peranti (recipient = token FCM, message = JSON `{title, body, data}` bahasa ibu bapa), dihantar HANYA oleh `SendPushJob`
+(`cron/send-push.php`) melalui `messaging/FcmSender` (tanpa DB). Had: `store_token_login_ip:{ip}` 30/15 min, `api_token:{id}` 120/minit,
+`api_token_bad:{ip}` 30/15 min, `store_push_register:{token}` 20/jam. Rujukan penuh apps: [API.md](API.md).
+
 ### 10.3 Kontrak API
 
 - Format jawapan: `{ "ok": true, "data": ... }` atau `{ "ok": false, "error": "mesej", "errors": { "field": "mesej" } }`
 - Laluan: `/api/v1/{owner|vendor|store|pos}/{modul}/{tindakan}.php`
-- Web: sesi + header `X-CSRF-Token`. Flutter: `Authorization: Bearer {token}` (hanya `store/`)
+- Web: sesi + header `X-CSRF-Token`. Flutter: `Authorization: Bearer {token}` (hanya `store/`, tiada cookie / CSRF — B15, [API.md](API.md))
 - Senarai bertapis: `?page=1&per_page=20&q=...` → `data: { items: [...], total, page, per_page }`
 - Wang dalam **sen (integer)** dalam API dan pengiraan; dipapar sebagai `RM 12.50`
 - Tarikh ISO 8601 (`2026-10-24T10:15:00+08:00`), zon waktu `Asia/Kuala_Lumpur`
@@ -757,6 +775,8 @@ Endpoint baharu: `requireMethod` → auth → CSRF (POST) → `requireCooperativ
   token 1 jam. Jemputan kakitangan (owner & vendor) = token `invite` 7 hari → `owner|vendor/reset-password.php?token=`
 - Pengesahan e-mel ibu bapa: token 24 jam, pautan `store/index.php?verify_token=` (disahkan oleh `layout.js` sebelum sesi dimuat)
 - Kata laluan minimum: panel 10 aksara, ibu bapa 8. Log keluar = POST + CSRF (`data-panel-logout`)
+- Apps Flutter (B15): `store/auth/token { login, password, device_name }` → token Bearer (log masuk sama: `CustomerLoginJob`, kunci 5 gagal,
+  mesej sama). Tukar kata laluan → token lain dibatal; reset kata laluan / padam akaun → semua token dibatal. Log keluar apps = `store/auth/token-revoke`
 - PIN POS: `PosPinLoginJob` (B2) — endpoint `vendor/pos/pin-login` disambung dalam B10 (`PosLoginJob` + `core/PosAuth`). PIN demo 1234 hanya
   dalam seed (hash Argon2id), tiada lagi PIN tetap dalam kod / teks skrin. Dikunci = `pin_failed_attempts ≥ 5`; buka = pentadbir tetapkan PIN baharu
   di Kakitangan (`SaveVendorStaffJob` mengosongkan kiraan). Had tambahan `pos_pin:{pengguna panel}` 30/10 minit
@@ -902,7 +922,8 @@ WhatsApp yang diluluskan Meta untuk mesej di luar tetingkap 24 jam.
   `Permissions-Policy` (kamera/mikrofon/lokasi/payment/usb dimatikan), `Cross-Origin-Opener-Policy: same-origin`, `X-Permitted-Cross-Domain-Policies: none`,
   `X-Powered-By` dibuang. API JSON `Cache-Control: no-store`
 - Cookie sesi & bahasa `HttpOnly` + `SameSite=Lax` + `Secure` bila HTTPS (di belakang proksi: `trusted_proxies` + `X-Forwarded-Proto`)
-- Rate limit sedia ada + B14: kod ambil `pickup_code:{pengguna}` 300/10 min (serah), carian `pickup_search:{pengguna}` 600/10 min. API Flutter → B15
+- Rate limit sedia ada + B14: kod ambil `pickup_code:{pengguna}` 300/10 min (serah), carian `pickup_search:{pengguna}` 600/10 min. API Flutter → B15 ✅
+  (log masuk token 30/15 min setiap IP, setiap token 120/minit, token salah 30/15 min setiap IP, daftar push 20/jam — `tools/verify-b15.php`)
 - Muat naik: kod semula GD (EXIF lokasi dibuang — PDPA; polyglot PHP/HTML hilang), ≤ 4000 px; `uploads/.htaccess` hanya imej + CSP sandbox
 - `.htaccess` akar: `Options -Indexes`, `.git/.env` → 404, `.md/.sql/.log/.key` dihalang; `DOC/.htaccess` baharu
 - PDPA (`DeleteCustomerAccountJob`): juga nyahnama snapshot pesanan (`customer_name`, `pickup_by_name`, `order_items.child_name`, `order_pickups.picked_by_name`,
@@ -914,6 +935,10 @@ WhatsApp yang diluluskan Meta untuk mesej di luar tetingkap 24 jam.
   (bukan baris arahan), simpan `backup_keep_days` (14). Salin ke luar pelayan. `mysqldump_path` untuk XAMPP Windows
 - Ujian penembusan asas: setiap endpoint (230) — tanpa sesi 401, kaedah salah 405, POST tanpa CSRF 419, sesi kawasan lain 401, peranan 403, IDOR
   VENDOR02 → rekod VENDOR01 (± 5300 permintaan, 54 jadual tidak berubah), ibu bapa B → A, SQLi semua parameter, XSS nama produk/anak/terjemahan
+
+**Semakan B15 (token apps):** token 256-bit, DB = SHA-256 + `expires_at` (luput bergerak 90 hari) + `revoked_at`; tiada cookie / sesi untuk permintaan
+Bearer; token salah tidak jatuh balik ke sesi; CSRF dilangkau hanya untuk token yang disahkan (laluan `store/`); `customer_id` dari token; ujian kebocoran
+ibu bapa A ↔ B (pesanan, peranti, batal token) dan VENDOR01 ↔ VENDOR02 (baris gilir push); PDPA: padam akaun membuang token, peranti & push tertunda.
 
 ## 16. Perkara yang mudah tersilap
 
@@ -1586,9 +1611,9 @@ Harga, diskaun, cukai & stok dikira semula di pelayan; `expected_total` dari pel
 | Laluan | Kaedah | Input | `data` / peraturan |
 |---|---|---|---|
 | `store/schools/list` | GET | `q, state, page` | senarai `{ slug, school_name, school_type, state, district }` (koperasi aktif) |
-| `store/school` | GET | `slug` | + `address, phone, logo_url, default_language, opening_hours, grades, modules: ['news','clearance','calendar','school_opening'] (aktif sahaja), payment_methods, notices` (U6 — 18.13) |
+| `store/school` | GET | `slug` | + `address, phone, logo_url, default_language, opening_hours, grades, modules: ['news','clearance','calendar','school_opening'] (aktif sahaja), payment_methods, notices` (U6 — 18.13) + `app_enabled` (B15 — modul mobile_app) |
 | `store/classes` | GET | `slug, grade` | `[{ grade_level_code, class_name }]` (cadangan datalist) |
-| `store/session` | GET | `slug?` | `{ customer: Customer\|null, cart_count, schools: [sekolah anak-anak] }` |
+| `store/session` | GET | `slug?` | `{ customer: Customer\|null, cart_count, schools: [sekolah anak-anak] }` — B15: `schools[] = { slug, school_name, school_type, state, district, app_enabled }` |
 | `store/auth/register` | POST | `full_name, phone, email, password, password_confirm, relationship, language, pdpa` | telefon MY dinormalkan `012-3456789`; e-mel & telefon unik global (ralat umum); kata laluan ≥ 8; PDPA wajib → log masuk terus, `email_verified: false` |
 | `store/auth/login` | POST | `login` (e-mel atau telefon), `password` | mesej sama untuk akaun tiada / salah; 5 gagal → kunci 15 minit |
 | `store/auth/logout` · `forgot { email }` · `reset { token, password, password_confirm }` · `verify-email { token }` · `resend-verification` | POST | | token sekali guna, 1 jam. `forgot` sentiasa `{ sent: true }` |
@@ -1672,7 +1697,8 @@ diskaun automatik terbaik, cukai selepas diskaun. **Slip beg** (cara D): satu se
 > **B8 (sebenar):** online ditawarkan (quote, `store/school`, troli) hanya bila `accept_online` + `CooperativeGateways::active`. Place online →
 > `pending_payment` + `expires_at` (60 minit) → selepas transaksi `StartOnlinePaymentJob` → `payment: { reference: '{order_no}-{n}', gateway_name,
 > amount, mode, redirect_url }`; gateway gagal → `payment: null, payment_error`. `storeStartPayment()` memaparkan modal ringkasan (amaun, rujukan,
-> nota mod ujian) dengan pautan "Teruskan ke halaman bayaran" (`redirect_url`) / "Bayar kemudian" (order-success). iPay88: `redirect_url` =
+> nota mod ujian) dengan pautan "Teruskan ke halaman bayaran" (`redirect_url`) / "Bayar kemudian" (order-success). B15: `payment.form`
+> (`{ action, fields }` iPay88, selain itu `null`) — apps membina borang POST sendiri dalam webview. iPay88: `redirect_url` =
 > `store/payment-redirect.php?ref=` (borang POST automatik, bil milik ibu bapa sesi sahaja, CSP `form-action` + asal gateway). Kembali:
 > `store/payment-return.php?school=&order=` → `order-success&returned=1` → `store/orders/check-payment`. `gateway_ref` dalam StoreOrderDetail =
 > bil terkini.
@@ -1738,7 +1764,7 @@ Senarai **semua** laluan yang didaftar dalam `assets/js/mock/*.js` (214 laluan, 
 — jumlah **223**; B3 menambah `owner/plans/options` — **224**; B4, B5 & B6 tiada laluan baharu; B8 menambah `store/orders/check-payment` dan
 membuang `store/payment/simulate` — kekal **224**, + 5 webhook `webhooks/{gateway}` di luar jadual; B9 menambah `vendor/orders/unlock-code` — **225**; B10 tiada laluan baharu — kekal **225**; B11 tiada; B12 menambah
 `vendor/invoices/check-payment` — **226**, + webhook `webhooks/platform` (yuran langganan) di luar jadual; B13 tiada laluan baharu — 23 laluan modul kini sebenar; B14 tiada laluan baharu — `owner/translations/*` sebenar, **semua 226 laluan sebenar**,
-mock dibuang). Lajur Mock `— (B2)` … `— (B5)` = sudah sebenar (`api/v1/`), mock dibuang.
+mock dibuang; B15 menambah 6 laluan apps — `store/auth/token`, `store/auth/token-revoke`, `store/devices/list|revoke`, `store/push/register|unregister` — **232**). Lajur Mock `— (B2)` … `— (B5)` = sudah sebenar (`api/v1/`), mock dibuang.
 **B4:** PO, stock take, `templates/options` & `modules/active` disiapkan lebih awal (prompt B4); `vendor/settings/*` ditangguh ke B9 (skrin serah & POS mock masih membaca tetapan mock). Bentuk `data` setiap laluan
 ada dalam 18.4–18.13; jadual ini ialah senarai semak Peringkat 2 — setiap baris mesti menjadi `api/v1/{laluan}.php` (nipis, tiada SQL)
 yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan CSRF, B14).
@@ -1751,6 +1777,8 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 - `vendor sesi + koperasi` — juga `cooperative_id` disahkan milik vendor (`ValidateCooperativeJob`); id rekod dicari dalam koperasi itu
 - `koperasi + modul` — juga `ModuleAccess::has(cooperative_id, kod)`; tidak dilanggan → `module_locked: true`
 - `awam + slug` — sekolah dari slug (koperasi aktif sahaja); `ibu bapa (sesi)` — `customer_id` dari sesi/token sahaja
+  **Sejak B15:** setiap laluan `ibu bapa (sesi)` juga menerima token Bearer apps; `+ slug` dengan token → koperasi mesti melanggan `mobile_app`
+  (403 `app_unavailable`); `ibu bapa (token)` = token apps sahaja (sesi web → 403 `token_required`)
 - Peranan vendor (B2): laluan kewangan/kakitangan/langganan hanya `vendor_admin`; juruwang hanya `vendor/pos/*`, `vendor/handover/*`
   dan bacaan yang diperlukan oleh skrin itu (lihat jadual peranan dalam PELAN 4)
 
@@ -1817,6 +1845,8 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 | Laluan | Kaedah | Skop disahkan pelayan | Session | Mock |
 |---|---|---|---|---|
 | `store/auth/forgot` | POST | awam | B2 | — (B2) |
+| `store/auth/token` | POST | awam (tiada CSRF — tiada cookie) | B15 | — (baharu B15) |
+| `store/auth/token-revoke` | POST | ibu bapa (token) | B15 | — (baharu B15) |
 | `store/auth/login` | POST | awam | B2 | — (B2) |
 | `store/auth/logout` | POST | awam | B2 | — (B2) |
 | `store/auth/register` | POST | awam | B2 | — (B2) |
@@ -1839,6 +1869,8 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 | `store/children/save` | POST | ibu bapa (sesi) | B6 | — (B6) |
 | `store/classes` | GET | awam + slug | B6 | — (B6) |
 | `store/clearance/list` | GET | awam + slug | B6 | — (B6) |
+| `store/devices/list` | GET | ibu bapa (sesi/token) | B15 | — (baharu B15) |
+| `store/devices/revoke` | POST | ibu bapa (sesi/token) — id token milik ibu bapa | B15 | — (baharu B15) |
 | `store/kit` | GET | ibu bapa (sesi) + slug | B6 | — (B6) |
 | `store/news/list` | GET | awam + slug | B6 | — (B6) |
 | `store/orders/cancel` | POST | ibu bapa (sesi) + slug | B7 | — (B7) |
@@ -1851,6 +1883,8 @@ yang memanggil job class. Kaedah: GET = baca sahaja; POST = ubah data (+ semakan
 | `store/profile/get` | GET | ibu bapa (sesi) | B2 | — (B2) |
 | `store/profile/password` | POST | ibu bapa (sesi) | B2 | — (B2) |
 | `store/profile/save` | POST | ibu bapa (sesi) | B2 | — (B2) |
+| `store/push/register` | POST | ibu bapa (token) | B15 | — (baharu B15) |
+| `store/push/unregister` | POST | ibu bapa (token) | B15 | — (baharu B15) |
 | `store/school` | GET | awam + slug | B6 | — (B6) |
 | `store/schools/list` | GET | awam | B6 | — (B6) |
 | `store/session` | GET | awam + slug | B2 | — (B2) |

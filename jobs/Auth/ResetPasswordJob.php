@@ -41,6 +41,10 @@ class ResetPasswordJob
             "UPDATE $table SET password_hash = ?, failed_attempts = 0, locked_until = NULL WHERE id = ?",
             [Password::hash($password), $row['user_id']]
         );
+        // B15: kata laluan baharu → semua token apps ibu bapa dibatal
+        if ($this->area === 'customer') {
+            ApiTokens::revokeAll($row['user_id']);
+        }
         return ['reset' => true];
     }
 }
