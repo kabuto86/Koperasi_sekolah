@@ -55,6 +55,7 @@ class SaveModuleJob
         TranslationValues::save($nameKey, $this->input['names'] ?? []);
         TranslationValues::save($descriptionKey, $this->input['descriptions'] ?? []);
         Database::commit();
+        (new GenerateLangFilesJob())->run();
 
         (new WriteAuditLogJob('owner', $this->actorId, null, 'module.save', 'module', $id, $code))->run();
         return ListModulesJob::find($id);

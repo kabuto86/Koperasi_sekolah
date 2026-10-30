@@ -1,3 +1,11 @@
+# Keselamatan (B14): tiada senarai folder; fail tersembunyi (.git, .env), dokumen & SQL tidak dihidang.
+# Folder dalaman (core/, jobs/, config/, storage/, database/, tools/, DOC/ …) ada .htaccess "Require all denied" sendiri.
+Options -Indexes
+<FilesMatch "(^\.|\.(md|sql|log|lock|key|tmp|bak|dist|example\.php)$)">
+    Require all denied
+</FilesMatch>
+RedirectMatch 404 /\.(git|svn|hg|env)(/|$)
+
 # URL store cantik (B6): /{slug}/ dan /{slug}/{halaman} → store/index.php. Aktifkan juga config pretty_store_urls = true.
 # Folder & fail sebenar (owner/, vendor/, api/, assets/ …) tidak terjejas. Perlu Apache mod_rewrite.
 <IfModule mod_rewrite.c>

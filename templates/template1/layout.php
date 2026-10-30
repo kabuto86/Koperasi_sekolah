@@ -16,10 +16,6 @@ if (in_array($storePage, $printPages, true)) {
     $extraCss[] = $templateCss('print-slip.css');
     $pageScripts[] = View::asset('lib/qrcode/qrcode.js');
 }
-// Peringkat 1: mock store mengira jumlah dengan fungsi troli yang sama seperti POS (posTotals)
-if (Config::get('use_mock')) {
-    $pageScripts[] = View::asset('js/vendor/pos-cart.js');
-}
 $pageScripts[] = View::asset('js/store/common.js');
 $pageScripts[] = View::asset('js/store/layout.js');
 $pageScripts[] = View::asset('js/store/' . $storePage . '.js');

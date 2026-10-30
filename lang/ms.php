@@ -423,6 +423,7 @@ return [
     'translation.fallback_help'          => 'Bahasa Melayu wajib. Bahasa lain yang kosong akan memaparkan teks Bahasa Melayu.',
     'translation.complete'               => 'Lengkap',
     'translation.incomplete'             => 'Belum lengkap',
+    'translation.placeholder_unknown'    => 'Pemegang tempat tidak dikenali: {list}. Guna hanya pemegang tempat yang ada dalam teks asal Bahasa Melayu.',
     // Darjah
     'grade.intro'                        => 'Senarai master darjah & tingkatan. Kod tetap; nama boleh disunting dalam 4 bahasa.',
     'grade.edit'                         => 'Sunting darjah/tingkatan',
@@ -580,6 +581,7 @@ return [
     'upload.image_help'                   => 'JPG, PNG atau WebP, maksimum 2MB.',
     'upload.invalid_type'                 => 'Jenis fail tidak dibenarkan. Guna JPG, PNG atau WebP.',
     'upload.too_large'                    => 'Fail terlalu besar (maksimum {max}).',
+    'upload.too_many_pixels'              => 'Saiz gambar terlalu besar (maksimum {max} piksel setiap sisi).',
     // Papan pemuka vendor
     'vendor_dashboard.sales_today'        => 'Jualan hari ini',
     'vendor_dashboard.transactions'       => '{n} transaksi',
@@ -1301,6 +1303,7 @@ return [
     'activity.action.invoice_pay'          => 'Bayar invois',
     'activity.action.cooperative_save'     => 'Simpan koperasi',
     'activity.action.product_save'         => 'Simpan produk',
+    'activity.action.price_change'         => 'Tukar harga',
     'activity.action.stock_in'             => 'Stok masuk',
     'activity.action.po_save'              => 'Simpan pesanan belian',
     'activity.action.po_cancel'            => 'Batal pesanan belian',

@@ -62,8 +62,36 @@ class SaveProductJob
         }
 
         (new WriteActivityLogJob($this->vendorId, $coopId, $this->actorId, 'product_save', 'product', $id, $data['name']))->run();
+        if ($current !== null) {
+            $this->logPriceChanges($id, $current, $data, $oldVariants);
+        }
         $rows = ProductCatalog::summaries($this->vendorId, $coopId, 'AND p.id = ?', [$id]);
         return $rows[0];
+    }
+
+    // Log audit tukar harga (PELAN 15): harga asas & harga akhir setiap varian sedia ada — "Pensel 2B (Merah): RM 1.20 → RM 1.50"
+    private function logPriceChanges($id, array $current, array $data, array $oldVariants)
+    {
+        $changes = [];
+        $oldPrice = (int) $current['price'];
+        if ($oldPrice !== $data['price']) {
+            $changes[] = $data['name'] . ': ' . Money::format($oldPrice) . ' → ' . Money::format($data['price']);
+        }
+        $oldDeltas = array_column($oldVariants, 'price_delta', 'id');
+        foreach ($data['variants'] as $variant) {
+            if (!isset($oldDeltas[$variant['id']])) {
+                continue;
+            }
+            $before = $oldPrice + (int) $oldDeltas[$variant['id']];
+            $after = $data['price'] + $variant['price_delta'];
+            if ($before !== $after) {
+                $changes[] = $data['name'] . ' (' . $variant['label'] . '): ' . Money::format($before) . ' → ' . Money::format($after);
+            }
+        }
+        if (count($changes) > 0) {
+            $detail = mb_substr(implode('; ', $changes), 0, 1000, 'UTF-8');
+            (new WriteActivityLogJob($this->vendorId, (int) $this->cooperative['id'], $this->actorId, 'price_change', 'product', $id, $detail))->run();
+        }
     }
 
     private function validate($productId)

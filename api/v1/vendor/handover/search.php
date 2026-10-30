@@ -4,6 +4,7 @@ require __DIR__ . '/../../../../core/bootstrap.php';
 
 Request::requireMethod('GET');
 VendorAuth::requireRole(VendorAuth::ALL_ROLES);
+RateLimit::enforce('pickup_search:' . VendorAuth::id(), 600, 600);
 $cooperative = VendorAuth::requireCooperative(Request::int('cooperative_id'));
 
 $job = new FindOrdersForPickupJob(VendorAuth::vendorId(), $cooperative['id'], Request::all());

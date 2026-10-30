@@ -33,6 +33,7 @@ class SaveGradeJob
         );
         TranslationValues::save($grade['name_key'], $this->input['names']);
         Database::commit();
+        (new GenerateLangFilesJob())->run();
 
         (new WriteAuditLogJob('owner', $this->actorId, null, 'grade.update', 'grade_level', null, $code))->run();
         return ListGradesJob::find($code);

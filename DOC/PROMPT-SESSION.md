@@ -49,7 +49,7 @@ Setiap prompt di bawah bermula dengan "Ikut peraturan umum". Maksudnya:
    Sejak B1: skema sebenar = `database/schema.sql` (75 jadual, PELAN 9 J); lajur baharu → fail `database/migrations/NNN-nama.sql`
    **dan** kemas kini `schema.sql` + PELAN 9. Konvensyen job & core dalam PELAN 10.2 (constructor menerima id dari sesi + input, `run()`,
    `Database::fetchOne/fetchAll/execute/insert`, `Response::ok/fail/notFound`). Data demo & akaun: kepala `database/seed.sql`.
-   Semakan asas sebelum commit: `php tools/verify-b1.php` + `verify-b2.php` + `verify-b3.php` + `verify-b4.php` + `verify-b5.php` + `verify-b6.php` + `verify-b7.php` + `verify-b8.php` + `verify-b9.php` + `verify-b10.php` + `verify-b11.php` + `verify-b12.php` + `verify-b13.php` (mesti 0 gagal) + `php tools/check-ui.php`; tambah skrip semakan
+   Semakan asas sebelum commit: `php tools/verify-b1.php` + `verify-b2.php` + `verify-b3.php` + `verify-b4.php` + `verify-b5.php` + `verify-b6.php` + `verify-b7.php` + `verify-b8.php` + `verify-b9.php` + `verify-b10.php` + `verify-b11.php` + `verify-b12.php` + `verify-b13.php` + `verify-b14.php` (mesti 0 gagal) + `php tools/check-ui.php`; tambah skrip semakan
    session sendiri `tools/verify-bN.php` dengan ujian kebocoran VENDOR01↔VENDOR02 dan ibu bapa A↔B (contoh HTTP sebenar: kelas `Browser`
    dalam `tools/test-helpers.php` sejak B3 — pelayan `php -S` sendiri, cookie, CSRF; `require __DIR__ . '/test-helpers.php'`).
    Sejak B4: skop koperasi melalui `VendorAuth::requireCooperative()`; stok HANYA melalui `StockLedger::move()` dalam transaksi DB;
@@ -73,6 +73,11 @@ Setiap prompt di bawah bermula dengan "Ikut peraturan umum". Maksudnya:
    `MessageNotifications` → `notification_queue` → `cron/send-messages.php` (`SendQueuedMessagesJob`, driver `messaging/` tanpa DB; ujian
    `KOPERASI_MESSAGING_TEST_URL` + `tools/fake-messaging.php`); `booked` slot HANYA checkout/batal, panel mengunci slot `FOR UPDATE` — PELAN 10.2
    "Konvensyen B13". `mock/vendor-addons.js` & `mock/vendor.js` dibuang; satu-satunya mock yang tinggal = `mock/owner.js` (terjemahan, B14).
+   Sejak B14: **tiada mock lagi** (`assets/js/mock/` & `use_mock` dibuang; `Api.get/post` sentiasa `fetch`). Teks paparan dari `storage/lang/*.php`
+   (DIJANA — `lang/*.php` + `translations`; kunci baharu tetap ditambah ke `lang/*.php` 4 bahasa); job yang menyimpan terjemahan memanggil
+   `GenerateLangFilesJob` selepas commit. Gambar HANYA `Uploader` (kod semula GD). IP HANYA `Request::ip()`. Endpoint yang menerima `cooperative_id`
+   SENTIASA `requireCooperative`. `tools/verify-b14.php` menyapu setiap fail `api/v1` (401/405/419/403/IDOR/SQLi) — endpoint baharu ikut serta
+   automatik; backup harian `cron/backup-db.php` — PELAN 10.2 "Konvensyen B14", 12 "Pelaksanaan B14", 15.
    Sejak B6: store menyelesaikan koperasi dengan `StoreSchool::require($slug)` (baris koperasi → job; tiada id dari input); harga/stok/had
    store HANYA melalui `StorePricing`; troli melalui `Carts` (`quote` = CartQuote), anak melalui `Children` — PELAN 10.2 "Konvensyen B6", 18.12 "B6 (sebenar)".
    Ujian HTTP dengan parameter: `$browser->status($laluan, $params)` (`tools/test-helpers.php`).
@@ -567,7 +572,7 @@ WriteActivityLogJob (news_save, clearance_save, calendar_save, season_save, mess
 > `expire-cash-orders.php`; migrasi 006 (`notification_queue.order_id`). Harga clearance (StorePricing), tutup tempahan & slot (CheckoutQuote/
 > CheckoutJob) sudah sebenar sejak B6/B7 — tidak diubah. Tertangguh: templat WhatsApp diluluskan Meta (mesej di luar 24 jam).
 
-## B14 — Terjemahan & pengerasan keselamatan
+## B14 — Terjemahan & pengerasan keselamatan ✅ (30 Okt 2026 — lihat PROSES.md)
 
 ```
 Ikut peraturan umum. Session: B14. Prasyarat: B13 ✅.
@@ -578,12 +583,17 @@ token hash, PDPA padam akaun (DeleteCustomerAccountJob — nyahnama), audit log,
 Ujian penembusan asas: IDOR setiap endpoint, CSRF, XSS pada nama produk/anak, SQLi.
 Tulis hasil dalam PROSES.md.
 ```
+> Hasil B14: `owner/translations/list|save` sebenar (`jobs/Language/` 5 fail baharu — `storage/lang/*.php` dijana), mock dibuang sepenuhnya,
+> migrasi 007 (keterangan modul zh/ta → 0 kunci hilang); pengerasan: header tambahan, proksi dipercayai, muat naik dikod semula GD, rate limit
+> kod ambil, PDPA nyahnama snapshot pesanan & baris gilir, audit `price_change`, backup harian `BackupDatabaseJob`; `tools/verify-b14.php`
+> 112 semakan (sapuan automatik 230 endpoint). Tertangguh: rate limit API Flutter & token API (B15).
 
 ## B15 — API token Flutter & push
 
 ```
 Ikut peraturan umum. Session: B15. Prasyarat: B14 ✅.
 core/ApiTokenAuth (Bearer, hash SHA-256), jobs: IssueApiTokenJob, RevokeApiTokenJob,
+Rate limit API Flutter (tertangguh dari B14 — log masuk token & setiap token). Jalankan verify-b14 (sapuan automatik endpoint baharu).
 RegisterPushDeviceJob, SendPushJob (notification_queue). Endpoint store/ menerima sesi
 ATAU token. Hanya koperasi dengan modul mobile_app.
 Dokumentasi API lengkap untuk Flutter dalam DOC/API.md.

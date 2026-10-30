@@ -88,14 +88,33 @@ class Browser
         return $this->handle('POST', 'api/v1/' . $route . '.php', $body, true);
     }
 
+    // Permintaan penuh (B14): [status, location, body, json, headers: [ 'nama-huruf-kecil' => [nilai, …] ]]
+    // $route = laluan API ('vendor/products/list') ATAU halaman ('vendor/index.php' — ada .php)
+    public function raw($method, $route, $params = [], $withCsrf = true)
+    {
+        $path = substr($route, -4) === '.php' ? $route : 'api/v1/' . $route . '.php';
+        if ($method === 'GET' && $params) {
+            $path .= (strpos($path, '?') === false ? '?' : '&') . http_build_query($params);
+        }
+        return $this->send($method, $path, $method === 'GET' ? null : $params, $withCsrf);
+    }
+
     private function send($method, $path, $body, $withCsrf = true)
     {
         $curl = $this->handle($method, $path, $body, $withCsrf);
+        $headers = [];
+        curl_setopt($curl, CURLOPT_HEADERFUNCTION, function ($handle, $line) use (&$headers) {
+            $parts = explode(':', $line, 2);
+            if (count($parts) === 2) {
+                $headers[strtolower(trim($parts[0]))][] = trim($parts[1]);
+            }
+            return strlen($line);
+        });
         $raw = (string) curl_exec($curl);
         $status = curl_getinfo($curl, CURLINFO_HTTP_CODE);
         $location = (string) curl_getinfo($curl, CURLINFO_REDIRECT_URL);
         curl_close($curl);
-        return ['status' => $status, 'location' => $location, 'body' => $raw, 'json' => json_decode($raw, true)];
+        return ['status' => $status, 'location' => $location, 'body' => $raw, 'json' => json_decode($raw, true), 'headers' => $headers];
     }
 
     private function handle($method, $path, $body, $withCsrf)
@@ -147,6 +166,12 @@ function parallelPost(array $requests)
     return $results;
 }
 
+// Semakan "awalan laluan dalam Api.livePrefixes" (B9–B13). Sejak B14 api.js tiada mock langsung — semua laluan sebenar
+function apiRouteLive($apiJs, $needle)
+{
+    return strpos($apiJs, $needle) !== false || strpos($apiJs, 'Mock.') === false;
+}
+
 function totpNow($secret, $offset = 0)
 {
     return Totp::codeAt($secret, Totp::currentStep() + $offset);
@@ -190,5 +215,6 @@ function clearTestLocks()
     Database::execute("DELETE FROM login_attempts WHERE ip_address IN ('127.0.0.1', '::1', '0.0.0.0')");
     Database::execute("DELETE FROM rate_limits WHERE bucket_key LIKE '%127.0.0.1%' OR bucket_key LIKE 'forgot:%' OR bucket_key LIKE 'resend_verify:%'"
         . " OR bucket_key LIKE 'store_cart:%' OR bucket_key LIKE 'store_child_save:%' OR bucket_key LIKE 'store_checkout:%'"
-        . " OR bucket_key LIKE 'store_payment_%' OR bucket_key LIKE 'vendor_gateway_test:%'");
+        . " OR bucket_key LIKE 'store_payment_%' OR bucket_key LIKE 'vendor_gateway_test:%'"
+        . " OR bucket_key LIKE 'pickup_code:%' OR bucket_key LIKE 'pickup_search:%'");
 }

@@ -1,5 +1,8 @@
-# Muat naik: tiada PHP dilaksanakan (PELAN 8.8)
+# Muat naik: tiada PHP dilaksanakan (PELAN 8.8). Sejak B14: hanya gambar dihidang, tanpa skrip walaupun fail dibuka terus
 <FilesMatch "\.(php|phtml|phar|php[0-9]?)$">
+    Require all denied
+</FilesMatch>
+<FilesMatch "^(?!.*\.(jpe?g|png|webp)$).+$">
     Require all denied
 </FilesMatch>
 <IfModule mod_php.c>
@@ -7,5 +10,9 @@
 </IfModule>
 <IfModule mod_php7.c>
     php_flag engine off
+</IfModule>
+<IfModule mod_headers.c>
+    Header set Content-Security-Policy "default-src 'none'; img-src 'self'; sandbox"
+    Header set X-Content-Type-Options "nosniff"
 </IfModule>
 Options -Indexes
