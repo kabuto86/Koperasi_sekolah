@@ -660,7 +660,7 @@ templates/template2/ & template3/ — semua halaman wajib manifest (PELAN 10.5),
 Gambar pratonton sebenar (tangkap layar) untuk owner/templates & kedai modul vendor.
 ```
 
-## W6 — Semakan web menyeluruh
+## W6 — Semakan web menyeluruh ✅ (6 Nov 2026 — lihat PROSES.md)
 
 ```
 Ikut peraturan umum. Session: W6. Prasyarat: W5 ✅.

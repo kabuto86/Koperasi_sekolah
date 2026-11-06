@@ -4,10 +4,10 @@
 > Kemas kini fail ini di HUJUNG setiap session, sebelum commit & push.
 > Reka bentuk: [PELAN.md](PELAN.md) · Prompt kerja: [PROMPT-SESSION.md](PROMPT-SESSION.md)
 
-**Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · **Peringkat 2 siap** (B1–B15) — skema & core (B1), auth sebenar (B2), panel owner (B3), katalog & inventori vendor (B4), kit sekolah (B5), store ibu bapa: anak, katalog, kit, troli (B6), checkout tunai, pesanan & queue e-mel (B7), payment gateway + webhook (B8), pesanan vendor & serah barang (B9), POS kaunter & promosi (B10), refund & laporan (B11), langganan & invois vendor + cron (B12), modul add-on (B13), terjemahan & pengerasan keselamatan (B14), API token apps Flutter & push (B15) — **semua laluan web sebenar, mock dibuang; API apps sedia ([API.md](API.md))**
+**Status keseluruhan:** **Peringkat 2b siap** (W1–W6) — semua bahagian web lengkap; yang tinggal hanya apps Flutter (F1–F4) · **Peringkat 1 siap** (U1–U7) · **Peringkat 2 siap** (B1–B15) — skema & core (B1), auth sebenar (B2), panel owner (B3), katalog & inventori vendor (B4), kit sekolah (B5), store ibu bapa: anak, katalog, kit, troli (B6), checkout tunai, pesanan & queue e-mel (B7), payment gateway + webhook (B8), pesanan vendor & serah barang (B9), POS kaunter & promosi (B10), refund & laporan (B11), langganan & invois vendor + cron (B12), modul add-on (B13), terjemahan & pengerasan keselamatan (B14), API token apps Flutter & push (B15) — **semua laluan web sebenar, mock dibuang; API apps sedia ([API.md](API.md))**
 **Peringkat 2b — Web lengkap** (W1–W6, arahan pengguna 6 Nov 2026): semua perkara web yang tertangguh disiapkan sebelum apps
-**Session terakhir siap:** W5 — Template store 2 & 3
-**Session seterusnya:** **W6 — Semakan web menyeluruh** (selepas itu F1 — UI Flutter)
+**Session terakhir siap:** W6 — Semakan web menyeluruh
+**Session seterusnya:** **F1 — UI Flutter** (Peringkat 3 — hanya apps yang tinggal)
 
 Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 
@@ -62,7 +62,7 @@ Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 | W3 | E-mel refund, tunggakan & digantung + templat WhatsApp Meta | ✅ | 6 Nov 2026 | (lihat git log) | 3 templat e-mel baharu (owner boleh sunting), migrasi 009, `sendTemplate` WhatsApp Cloud, `tools/verify-w3.php` 16/16 lulus |
 | W4 | Modul laporan lanjutan, keahlian, halaman apps vendor | ✅ | 6 Nov 2026 | (lihat git log) | 12 endpoint, 4 folder job baharu (21 fail), migrasi 010 (4 jadual keahlian → 80 jadual), tiada lagi halaman "akan datang", `tools/verify-w4.php` 41/41 lulus |
 | W5 | Template store 2 & 3 + pratonton | ✅ | 6 Nov 2026 | (lihat git log) | `templates/template2` (Ceria) & `template3` (Klasik), gambar pratonton sebenar, migrasi 011, `tools/verify-w5.php` 19/19 lulus |
-| W6 | Semakan web menyeluruh | ⬜ | | | |
+| W6 | Semakan web menyeluruh | ✅ | 6 Nov 2026 | (lihat git log) | 20 skrip `verify-*` lulus (1 586 semakan), `check-ui` OK (2042 kunci × 4), audit UI 712 halaman-paparan, 0 perkara web tertangguh |
 
 ## Peringkat 3 — Apps Flutter (selepas Peringkat 1 & 2 siap)
 
@@ -1546,6 +1546,28 @@ melihat Template 2; dinyahaktif owner → Template 1; gambar 640 px; preview_ima
 404 pesanan demo `id=1` yang tiada dalam seed — sama seperti Template 1.
 
 Tertangguh: tiada.
+
+---
+
+### W6 — Semakan web menyeluruh (6 Nov 2026)
+
+Dijalankan pada pemasangan baharu (schema + seed + migrasi 009–011), MariaDB 10.11, PHP 8.3:
+- `verify-b1` 42/42 · `b2` 94/94 · `b3` 101/101 · `b4` 118/118 · `b5` 59/59 · `b6` 85/85 · `b7` 92/92 · `b8` 95/95 · `b9` 106/106 ·
+  `b10` 100/100 · `b11` 78/78 · `b12` 98/98 · `b13` 92/92 · `b14` 112/112 (sapuan **256** endpoint: 224 → 401 tanpa sesi, 256 → 405, 137 POST → 419,
+  176 → 403 ikut peranan, IDOR VENDOR02 6132 permintaan, ibu bapa B 408 permintaan) · `b15` 68/68 · `w1` 38/38 · `w2` 20/20 · `w3` 16/16 · `w4` 41/41 ·
+  `w5` 19/19. `check-ui` OK
+- Audit UI (`tools/ui-audit.js` + axe-core, semua halaman owner / vendor / POS / store × 4 bahasa × 375 & 1366 px = 712 paparan, modul add-on
+  dilanggan & satu pesanan demo): 0 terlempar ke log masuk, 0 skrol mendatar, 0 medan / butang tanpa nama. Dibaiki: kontras butang "Batal pesanan"
+  store (`btn-outline-danger` → `btn-danger`), `invoice-pay` / `invoice-return` dikecualikan dari sapuan (perlu bil / redirect). Baki dijangka:
+  kunci bahasa yang memang data dalam Log audit & Terjemahan (sejak U7), jualan murah `id=1` milik VENDOR02 (404 betul)
+- Kemasan: picking list mengira murid sekali walaupun ada beberapa pesanan (`student_count`); pratonton kit vendor guna ikon (bukan kotak semak
+  tanpa label); `verify-b3` kini 10 templat e-mel; senarai cron lengkap dalam PELAN 3.2
+
+**Status akhir semua "Tertangguh" lama:** semua kerja web siap (W1–W5). Yang kekal secara sengaja (bukan kerja web): resit PDF pelayan (B9 memilih
+cetak pelayar), refund API ToyyibPay / Billplz / SenangPay / iPay88 (pembekal tiada API — tunai / pindahan manual), kredit turun taraf (PELAN 18.10),
+imbas QR / barcode dengan kamera (apps F1), pemilih koperasi POS < 768 px (reka bentuk).
+
+Tertangguh: tiada. **Seterusnya: F1 — UI Flutter.**
 
 ---
 

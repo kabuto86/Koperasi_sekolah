@@ -47,7 +47,7 @@
                     <button class="btn btn-warning d-none" type="button" id="detail-pay"><i class="bi bi-credit-card" aria-hidden="true"></i> <?= e(t('store.order.pay_now')) ?></button>
                     <button class="btn btn-brand" type="button" id="detail-print-slip"><i class="bi bi-printer" aria-hidden="true"></i> <?= e(t('store.slip.print')) ?></button>
                     <button class="btn btn-outline-secondary" type="button" id="detail-print-receipt"><i class="bi bi-receipt" aria-hidden="true"></i> <?= e(t('store.receipt.print')) ?></button>
-                    <button class="btn btn-outline-danger d-none" type="button" id="detail-cancel"><i class="bi bi-x-circle" aria-hidden="true"></i> <?= e(t('order.cancel')) ?></button>
+                    <button class="btn btn-danger d-none" type="button" id="detail-cancel"><i class="bi bi-x-circle" aria-hidden="true"></i> <?= e(t('order.cancel')) ?></button>
                 </div>
             </div>
         </div>

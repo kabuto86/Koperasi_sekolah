@@ -19,7 +19,8 @@ const onlyLang = (process.argv.find(a => a.startsWith('lang=')) || '').slice(5);
 const onlyFilter = (process.argv.find(a => a.startsWith('only=')) || '').slice(5);
 
 // Halaman panel dari sistem fail (owner/, vendor/, vendor/addons/, vendor/pos/) — kecuali halaman log masuk & kata laluan
-const AUTH_PAGES = ['login.php', 'forgot-password.php', 'reset-password.php'];
+// W6: invoice-pay (perlu ?ref= bil sebenar) & invoice-return (redirect 303) bukan halaman paparan biasa
+const AUTH_PAGES = ['login.php', 'forgot-password.php', 'reset-password.php', 'invoice-pay.php', 'invoice-return.php'];
 const panelPages = [];
 ['owner', 'vendor', 'vendor/addons', 'vendor/pos'].forEach(dir => {
     fs.readdirSync(path.join(REPO, dir)).filter(f => f.endsWith('.php') && !AUTH_PAGES.includes(f)).sort()
