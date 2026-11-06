@@ -53,19 +53,24 @@ class MessageNotifications
         if (!$shape['is_enabled'] || empty($shape['events'][$event])) {
             return null;
         }
-        $message = MessagingSettings::render($shape['templates'][$event], $vars + [
+        $vars += [
             'parent_name' => (string) $order['customer_name'],
             'short_code'  => (string) $order['short_code'],
             'school_name' => $cooperative['school_name'],
-        ]);
-        return self::insert($cooperative, $shape['channel'], $event, $phone, $message, (int) $order['id']);
+        ];
+        $message = MessagingSettings::render($shape['templates'][$event], $vars);
+        // W3: templat diluluskan Meta (WhatsApp Cloud) — teks di atas kekal untuk log
+        $meta = MessagingSettings::metaMessage($settings, $event, $vars);
+        return self::insert($cooperative, $shape['channel'], $event, $phone, $message, (int) $order['id'], $meta);
     }
 
-    private static function insert(array $cooperative, $channel, $event, $phone, $message, $orderId)
+    private static function insert(array $cooperative, $channel, $event, $phone, $message, $orderId, $meta = null)
     {
         return Database::insert(
-            "INSERT INTO notification_queue (vendor_id, cooperative_id, order_id, channel, event, recipient, message) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            [(int) $cooperative['vendor_id'], (int) $cooperative['id'], $orderId, $channel, $event, $phone, $message]
+            "INSERT INTO notification_queue (vendor_id, cooperative_id, order_id, channel, event, recipient, message, template_json)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            [(int) $cooperative['vendor_id'], (int) $cooperative['id'], $orderId, $channel, $event, $phone, $message,
+                $meta === null ? null : json_encode($meta, JSON_UNESCAPED_UNICODE)]
         );
     }
 }

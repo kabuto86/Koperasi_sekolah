@@ -64,7 +64,7 @@ Senarai "Tertangguh" dalam PROSES.md (U7, B2–B15) yang bukan kerja apps:
 |---|---|---|
 | W1 | Profil vendor (`vendor/profile.php`) + 2FA vendor (`vendor/two-factor.php`) | Semua peranan (termasuk juruwang) boleh sunting nama, e-mel, telefon, bahasa & tukar kata laluan; peranan & akses koperasi kekal diurus pentadbir. 2FA vendor **pilihan**: aktifkan (QR + 8 kod pemulihan), jana semula kod, pindah peranti, **matikan** (kata laluan + kod 2FA). Pentadbir boleh set semula 2FA kakitangan (`vendor/staff/reset-2fa`). Profil dibuka walaupun langganan digantung |
 | W2 | Gateway borang POST (iPay88) untuk QR kaunter POS & yuran langganan; cron cuba semula refund gateway `pending` | QR POS iPay88 → `store/pay.php?ref=&t=` (halaman awam, token rawak 128-bit, hash dalam `payments.raw_payload`, hanya bil POS `pending` belum luput). Invois → `vendor/invoice-pay.php?ref=` (sesi vendor sama); kembali melalui `vendor/invoice-return.php` (GET/POST → 303). `cron/retry-refunds.php`: refund gateway `pending` 10 minit – 23 jam dicuba semula dengan kunci idempotensi sama (`refund_no`); > 23 jam = semakan manual |
-| W3 | E-mel "refund diproses" (ibu bapa), peringatan tunggakan & notis digantung (vendor), templat WhatsApp diluluskan Meta | lihat PROSES W3 |
+| W3 | E-mel "refund diproses" (ibu bapa), peringatan tunggakan & notis digantung (vendor), templat WhatsApp diluluskan Meta | Templat e-mel `refund_processed`, `invoice_overdue`, `vendor_suspended` (owner boleh sunting). E-mel tunggakan/digantung sekali setiap peralihan status. WhatsApp Cloud: nama templat Meta + kod bahasa per peristiwa (pilihan); parameter badan ikut tertib tetap `MessagingSettings::META_PARAMS`; kosong = teks biasa |
 | W4 | Modul `advanced_report`, `membership`, halaman `mobile_app` vendor | lihat PROSES W4 |
 | W5 | Template store 2 & 3 (premium) + gambar pratonton | lihat PROSES W5 |
 | W6 | Semakan menyeluruh (semua `verify-*`, `check-ui`, audit UI), kemas kini DOC | — |
@@ -878,8 +878,10 @@ melempar `GatewayException` (tidak disokong). **Stripe** sahaja: `GET /v1/checko
 
 **WhatsApp/SMS (modul `whatsapp_sms`, B13):** bukan gateway bayaran, tetapi corak sama — driver dalam `messaging/` tanpa DB, kunci vendor
 disulitkan per koperasi. Twilio `POST /2010-04-01/Accounts/{SID}/Messages.json` (basic auth; saluran WhatsApp = awalan `whatsapp:`), WhatsApp Cloud
-`POST /v19.0/{phone_number_id}/messages` (Bearer), iSMS `GET isms_send_all_id.php` (jawapan `2000 = SUCCESS`; SMS sahaja). Tertangguh: templat
-WhatsApp yang diluluskan Meta untuk mesej di luar tetingkap 24 jam.
+`POST /v19.0/{phone_number_id}/messages` (Bearer), iSMS `GET isms_send_all_id.php` (jawapan `2000 = SUCCESS`; SMS sahaja). **W3:** templat
+WhatsApp diluluskan Meta — `type: template`, `template { name, language { code }, components [{ type: body, parameters [...] }] }`; parameter
+order_ready = parent_name, child_name, short_code, school_name · order_collected = parent_name, child_name, picked_by, time, school_name ·
+cash_reminder = parent_name, child_name, short_code, expires_on, school_name.
 
 ## 14. Langganan & harga
 

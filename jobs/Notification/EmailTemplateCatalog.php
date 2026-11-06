@@ -11,6 +11,10 @@ class EmailTemplateCatalog
         'order_paid'       => ['{order_no}', '{customer_name}', '{total}', '{reference}'],
         'invoice_issued'   => ['{invoice_no}', '{vendor_name}', '{total}', '{due_date}', '{pay_url}'],
         'password_reset'   => ['{name}', '{reset_url}', '{expires_minutes}'],
+        // W3
+        'refund_processed' => ['{order_no}', '{customer_name}', '{school_name}', '{refund_no}', '{amount}', '{method}', '{reason}'],
+        'invoice_overdue'  => ['{invoice_no}', '{vendor_name}', '{total}', '{due_date}', '{suspend_date}', '{pay_url}'],
+        'vendor_suspended' => ['{invoice_no}', '{vendor_name}', '{total}', '{due_date}', '{pay_url}'],
     ];
 
     public static function placeholders($key)

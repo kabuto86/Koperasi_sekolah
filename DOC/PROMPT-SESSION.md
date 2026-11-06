@@ -633,7 +633,7 @@ iPay88 sebagai gateway owner untuk yuran langganan (borang POST, alamat kembali 
 Cron cuba semula refund gateway `pending` yang tersangkut (kunci idempotensi refund_no). Kemas kini verify-b10/b12.
 ```
 
-## W3 — E-mel & templat WhatsApp Meta
+## W3 — E-mel & templat WhatsApp Meta ✅ (6 Nov 2026 — lihat PROSES.md)
 
 ```
 Ikut peraturan umum. Session: W3. Prasyarat: W2 ✅.

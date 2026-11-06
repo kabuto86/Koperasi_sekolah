@@ -41,8 +41,30 @@ function renderPlaceholders(tags) {
     });
 }
 
+// W3: medan templat Meta hanya untuk WhatsApp Cloud + saluran WhatsApp
+function updateMetaBoxes() {
+    var show = msgForm.elements.provider.value === 'whatsapp_cloud' && msgForm.elements.channel.value === 'whatsapp';
+    document.querySelectorAll('.js-meta-box').forEach(function (box) {
+        box.classList.toggle('d-none', !show);
+    });
+}
+
+// "{{1}} = {parent_name} · {{2}} = {child_name} …" untuk setiap peristiwa
+function renderMetaParams(params) {
+    document.querySelectorAll('.js-meta-params').forEach(function (box) {
+        var list = (params || {})[box.getAttribute('data-event')] || [];
+        box.textContent = T('messaging.meta_params') + ' ' + list.map(function (name, index) {
+            return '{{' + (index + 1) + '}} = {' + name + '}';
+        }).join(' · ');
+    });
+}
+
 function renderSettings(data) {
     fillForm(msgForm, data);
+    if (data.meta_params) {
+        renderMetaParams(data.meta_params);
+    }
+    updateMetaBoxes();
     document.getElementById('msg-key').value = '';
     document.getElementById('msg-key-help').textContent = data.api_key_set ? T('messaging.key_set') : T('messaging.key_not_set');
     renderPlaceholders(data.placeholders || []);
@@ -113,6 +135,9 @@ bindForm('msg-test-form', 'vendor/messaging/test', function () {
 }, function (payload) {
     return withCoop(payload);
 });
+
+msgForm.elements.provider.addEventListener('change', updateMetaBoxes);
+msgForm.elements.channel.addEventListener('change', updateMetaBoxes);
 
 bindListFilters('msg-log-filters', msgLog, loadLog);
 

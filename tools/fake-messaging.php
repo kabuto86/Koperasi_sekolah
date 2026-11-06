@@ -45,7 +45,8 @@ if ($path === '/_admin/requests') {
 if (preg_match('#^/whatsapp_cloud/([^/]+)/messages$#', $path, $m)) {
     $body = json_decode((string) file_get_contents('php://input'), true);
     $ok = ($_SERVER['HTTP_AUTHORIZATION'] ?? '') === 'Bearer ' . FAKE_SECRET && ($body['to'] ?? '') !== FAKE_REJECTED;
-    remember($file, ['provider' => 'whatsapp_cloud', 'id' => $m[1], 'to' => $body['to'] ?? '', 'text' => $body['text']['body'] ?? '', 'ok' => $ok]);
+    remember($file, ['provider' => 'whatsapp_cloud', 'id' => $m[1], 'to' => $body['to'] ?? '', 'text' => $body['text']['body'] ?? '',
+        'type' => $body['type'] ?? '', 'template' => $body['template'] ?? null, 'ok' => $ok]);
     $ok ? reply(200, ['messages' => [['id' => 'wamid.' . bin2hex(random_bytes(4))]]]) : reply(401, ['error' => ['message' => 'Invalid token']]);
 }
 

@@ -97,6 +97,30 @@ class OrderEmails
         (new QueueEmailJob((int) $order['vendor_id'], $customer['email'], 'order_paid', $customer['language'], $vars))->run();
     }
 
+    // W3: "Refund diproses" kepada ibu bapa selepas refund selesai (tunai / pindahan bank / gateway) — dari Refunds::apply
+    public static function queueRefund(array $order, array $refund)
+    {
+        $customer = self::customer($order);
+        if ($customer === null) {
+            return;
+        }
+        $language = $customer['language'];
+        $method = (string) Database::fetchValue("SELECT method FROM refunds WHERE id = ? AND vendor_id = ?",
+            [(int) $refund['id'], (int) $order['vendor_id']]);
+        $school = (string) Database::fetchValue("SELECT school_name FROM cooperatives WHERE id = ? AND vendor_id = ?",
+            [(int) $order['cooperative_id'], (int) $order['vendor_id']]);
+        $vars = [
+            'order_no'      => $order['order_no'],
+            'customer_name' => (string) $order['customer_name'],
+            'school_name'   => $school,
+            'refund_no'     => $refund['refund_no'],
+            'amount'        => Money::format($refund['amount']),
+            'method'        => Lang::getFor($language, 'refund.method.' . $method),
+            'reason'        => (string) $refund['reason'],
+        ];
+        (new QueueEmailJob((int) $order['vendor_id'], $customer['email'], 'refund_processed', $language, $vars))->run();
+    }
+
     // Penerima = e-mel snapshot pesanan + bahasa akaun ibu bapa. POS walk-in / tiada e-mel → null
     private static function customer(array $order)
     {

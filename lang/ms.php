@@ -1993,4 +1993,36 @@ return [
     // Web lengkap W2 — bayaran QR iPay88 & cuba semula refund
     'pos.pay_link_invalid' => 'Pautan bayaran ini tidak sah, sudah dibayar atau telah luput. Minta juruwang memaparkan kod QR baharu.',
     'refund.retried' => 'dicuba semula oleh sistem',
+
+    // Web lengkap W3 — e-mel refund, tunggakan, digantung & templat WhatsApp Meta
+    'email_template.refund_processed' => 'Refund diproses (kepada ibu bapa)',
+    'email_template.invoice_overdue' => 'Peringatan invois tertunggak (kepada vendor)',
+    'email_template.vendor_suspended' => 'Akaun digantung (kepada vendor)',
+    'email.refund_processed.subject' => 'Refund {refund_no} untuk pesanan {order_no}',
+    'email.refund_processed.body' => 'Kepada {customer_name},
+
+Koperasi {school_name} telah memproses refund {refund_no} berjumlah {amount} untuk pesanan {order_no}.
+Cara refund: {method}
+Sebab: {reason}
+
+Hubungi koperasi jika ada pertanyaan.',
+    'email.invoice_overdue.subject' => 'Peringatan: invois {invoice_no} telah melepasi tarikh akhir',
+    'email.invoice_overdue.body' => 'Kepada {vendor_name},
+
+Invois {invoice_no} berjumlah {total} telah melepasi tarikh akhir {due_date}.
+Sila bayar sebelum {suspend_date} untuk mengelakkan akaun digantung dan store koperasi ditutup sementara.
+
+Bayar di: {pay_url}',
+    'email.vendor_suspended.subject' => 'Akaun digantung — invois {invoice_no} belum dibayar',
+    'email.vendor_suspended.body' => 'Kepada {vendor_name},
+
+Akaun anda telah digantung kerana invois {invoice_no} berjumlah {total} (tarikh akhir {due_date}) belum dibayar. Store koperasi ditutup sementara dan hanya pentadbir boleh log masuk untuk membayar. Semua data anda kekal selamat.
+
+Akaun dipulihkan secara automatik selepas bayaran: {pay_url}',
+    'messaging.meta_name' => 'Nama templat Meta (pilihan)',
+    'messaging.meta_language' => 'Kod bahasa',
+    'messaging.meta_help' => 'WhatsApp Cloud: mesej di luar tetingkap 24 jam memerlukan templat yang diluluskan Meta. Isi nama templat untuk menghantar mesej templat; biarkan kosong untuk teks biasa di atas. Cipta templat di Meta dengan parameter ikut tertib yang dipaparkan.',
+    'messaging.meta_params' => 'Parameter templat:',
+    'messaging.meta_name_format' => 'Nama templat hanya huruf kecil, nombor dan _ (seperti dalam Meta).',
+    'messaging.meta_language_format' => 'Kod bahasa tidak sah (contoh: ms, en, zh_CN, ta).',
 ];

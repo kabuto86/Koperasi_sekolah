@@ -1978,4 +1978,36 @@ return [
     // Web lengkap W2 — bayaran QR iPay88 & cuba semula refund
     'pos.pay_link_invalid' => '此付款链接无效、已付款或已过期。请收银员显示新的二维码。',
     'refund.retried' => '由系统重试',
+
+    // Web lengkap W3 — e-mel refund, tunggakan, digantung & templat WhatsApp Meta
+    'email_template.refund_processed' => '退款已处理（致家长）',
+    'email_template.invoice_overdue' => '逾期发票提醒（致供应商）',
+    'email_template.vendor_suspended' => '账户已暂停（致供应商）',
+    'email.refund_processed.subject' => '订单 {order_no} 的退款 {refund_no}',
+    'email.refund_processed.body' => '{customer_name} 您好：
+
+{school_name} 合作社已为订单 {order_no} 处理退款 {refund_no}，金额 {amount}。
+退款方式：{method}
+原因：{reason}
+
+如有疑问，请联系合作社。',
+    'email.invoice_overdue.subject' => '提醒：发票 {invoice_no} 已逾期',
+    'email.invoice_overdue.body' => '{vendor_name} 您好：
+
+金额 {total} 的发票 {invoice_no} 已超过截止日期 {due_date}。
+请在 {suspend_date} 之前付款，以免账户被暂停及合作社商店暂时关闭。
+
+付款：{pay_url}',
+    'email.vendor_suspended.subject' => '账户已暂停 — 发票 {invoice_no} 未付款',
+    'email.vendor_suspended.body' => '{vendor_name} 您好：
+
+由于金额 {total} 的发票 {invoice_no}（截止日期 {due_date}）尚未付款，您的账户已被暂停。合作社商店暂时关闭，仅管理员可登录付款。您的所有数据仍然安全。
+
+付款后账户将自动恢复：{pay_url}',
+    'messaging.meta_name' => 'Meta 模板名称（可选）',
+    'messaging.meta_language' => '语言代码',
+    'messaging.meta_help' => 'WhatsApp Cloud：24 小时窗口以外的消息需要 Meta 批准的模板。填写模板名称以发送模板消息；留空则发送上方的普通文本。请在 Meta 按所示顺序创建带参数的模板。',
+    'messaging.meta_params' => '模板参数：',
+    'messaging.meta_name_format' => '模板名称只能包含小写字母、数字和 _（与 Meta 一致）。',
+    'messaging.meta_language_format' => '语言代码无效（例如：ms、en、zh_CN、ta）。',
 ];

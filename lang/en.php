@@ -1978,4 +1978,36 @@ return [
     // Web lengkap W2 — bayaran QR iPay88 & cuba semula refund
     'pos.pay_link_invalid' => 'This payment link is invalid, already paid or has expired. Ask the cashier to show a new QR code.',
     'refund.retried' => 'retried by the system',
+
+    // Web lengkap W3 — e-mel refund, tunggakan, digantung & templat WhatsApp Meta
+    'email_template.refund_processed' => 'Refund processed (to parent)',
+    'email_template.invoice_overdue' => 'Overdue invoice reminder (to vendor)',
+    'email_template.vendor_suspended' => 'Account suspended (to vendor)',
+    'email.refund_processed.subject' => 'Refund {refund_no} for order {order_no}',
+    'email.refund_processed.body' => 'Dear {customer_name},
+
+The {school_name} cooperative has processed refund {refund_no} of {amount} for order {order_no}.
+Refund method: {method}
+Reason: {reason}
+
+Please contact the cooperative if you have any questions.',
+    'email.invoice_overdue.subject' => 'Reminder: invoice {invoice_no} is overdue',
+    'email.invoice_overdue.body' => 'Dear {vendor_name},
+
+Invoice {invoice_no} of {total} passed its due date of {due_date}.
+Please pay before {suspend_date} to avoid account suspension and temporary closure of your cooperative stores.
+
+Pay at: {pay_url}',
+    'email.vendor_suspended.subject' => 'Account suspended — invoice {invoice_no} unpaid',
+    'email.vendor_suspended.body' => 'Dear {vendor_name},
+
+Your account has been suspended because invoice {invoice_no} of {total} (due {due_date}) is unpaid. Your cooperative stores are temporarily closed and only administrators can sign in to pay. All your data remains safe.
+
+Your account is restored automatically after payment: {pay_url}',
+    'messaging.meta_name' => 'Meta template name (optional)',
+    'messaging.meta_language' => 'Language code',
+    'messaging.meta_help' => 'WhatsApp Cloud: messages outside the 24-hour window require a Meta-approved template. Enter the template name to send template messages; leave empty to send the plain text above. Create the template in Meta with parameters in the order shown.',
+    'messaging.meta_params' => 'Template parameters:',
+    'messaging.meta_name_format' => 'Template name may only contain lowercase letters, numbers and _ (as in Meta).',
+    'messaging.meta_language_format' => 'Invalid language code (e.g. ms, en, zh_CN, ta).',
 ];

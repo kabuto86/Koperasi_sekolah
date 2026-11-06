@@ -149,6 +149,7 @@ class Refunds
 
         self::moveStock($order, $refund, $release, $restock, $userId);
         self::updateStatus($order, $status, $refund, $userId, $language);
+        OrderEmails::queueRefund($order, $refund);
         return $status;
     }
 

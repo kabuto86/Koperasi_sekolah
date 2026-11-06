@@ -6,8 +6,8 @@
 
 **Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · **Peringkat 2 siap** (B1–B15) — skema & core (B1), auth sebenar (B2), panel owner (B3), katalog & inventori vendor (B4), kit sekolah (B5), store ibu bapa: anak, katalog, kit, troli (B6), checkout tunai, pesanan & queue e-mel (B7), payment gateway + webhook (B8), pesanan vendor & serah barang (B9), POS kaunter & promosi (B10), refund & laporan (B11), langganan & invois vendor + cron (B12), modul add-on (B13), terjemahan & pengerasan keselamatan (B14), API token apps Flutter & push (B15) — **semua laluan web sebenar, mock dibuang; API apps sedia ([API.md](API.md))**
 **Peringkat 2b — Web lengkap** (W1–W6, arahan pengguna 6 Nov 2026): semua perkara web yang tertangguh disiapkan sebelum apps
-**Session terakhir siap:** W2 — Gateway borang POST & refund tersangkut
-**Session seterusnya:** **W3 — E-mel & templat WhatsApp** (kemudian W4–W6, selepas itu F1 — UI Flutter)
+**Session terakhir siap:** W3 — E-mel & templat WhatsApp Meta
+**Session seterusnya:** **W4 — Laporan lanjutan, keahlian & halaman apps** (kemudian W5–W6, selepas itu F1 — UI Flutter)
 
 Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 
@@ -59,7 +59,7 @@ Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 |---|---|---|---|---|---|
 | W1 | Profil vendor + 2FA vendor | ✅ | 6 Nov 2026 | (lihat git log) | `vendor/profile.php`, `vendor/two-factor.php`, 8 laluan, 4 job, set semula 2FA kakitangan, `tools/verify-w1.php` 38/38 lulus |
 | W2 | Gateway borang POST (iPay88) untuk QR POS & invois + cuba semula refund | ✅ | 6 Nov 2026 | (lihat git log) | `store/pay.php`, `vendor/invoice-pay.php`, `vendor/invoice-return.php`, `GatewayRefundSender`, cron `retry-refunds.php`, `tools/verify-w2.php` 20/20 lulus |
-| W3 | E-mel refund, tunggakan & digantung + templat WhatsApp Meta | ⬜ | | | |
+| W3 | E-mel refund, tunggakan & digantung + templat WhatsApp Meta | ✅ | 6 Nov 2026 | (lihat git log) | 3 templat e-mel baharu (owner boleh sunting), migrasi 009, `sendTemplate` WhatsApp Cloud, `tools/verify-w3.php` 16/16 lulus |
 | W4 | Modul laporan lanjutan, keahlian, halaman apps vendor | ⬜ | | | |
 | W5 | Template store 2 & 3 + pratonton | ⬜ | | | |
 | W6 | Semakan web menyeluruh | ⬜ | | | |
@@ -1461,6 +1461,31 @@ Dibuat:
 Disahkan: `tools/verify-w2.php` **20 lulus, 0 gagal** (invois iPay88: borang, VENDOR01 → 404, kembali POST → 303, enquiry pending → webhook "00" → paid;
 refund: tersangkut 20 minit → completed, baru 2 minit tidak disentuh, > 23 jam manual, sudah diterima gateway → tidak dipulang dua kali, ditolak → failed,
 gateway tiada → failed); `verify-b10` 100/100; `verify-b11` 78/78; `verify-b12` 98/98.
+
+Tertangguh: tiada.
+
+---
+
+### W3 — E-mel & templat WhatsApp Meta (6 Nov 2026)
+
+Dibuat:
+- **E-mel (3 templat baharu dalam `EmailTemplateCatalog`, boleh disunting owner, teks lalai 4 bahasa):**
+  - `refund_processed` → ibu bapa (e-mel snapshot pesanan, bahasa akaun) setiap refund selesai: `OrderEmails::queueRefund` dari `Refunds::apply`
+    (tunai, pindahan bank, gateway — termasuk cuba semula cron W2). POS walk-in / tiada e-mel → tiada e-mel
+  - `invoice_overdue` → e-mel syarikat vendor bila `SuspendOverdueJob` menukar ke `past_due` (dengan `{suspend_date}` = tarikh akhir + tempoh tangguh)
+  - `vendor_suspended` → bila ditukar ke `suspended`. Kedua-duanya sekali setiap peralihan (cron berulang tidak menghantar semula)
+  - `VendorBillingStatus::oldestOverdue` kini memulangkan `total`; nilai contoh pratonton baharu dalam `assets/js/owner/email-templates.js`
+- **Templat WhatsApp diluluskan Meta:** migrasi `009-whatsapp-meta-templates.sql` (+ `schema.sql`): `messaging_settings.meta_templates_json`,
+  `notification_queue.template_json`. `MessagingSettings::META_PARAMS` (tertib `{{1}}…` setiap peristiwa), `metaTemplates`, `metaMessage`;
+  `SaveMessagingSettingsJob` mengesahkan nama (`[a-z0-9_]`) & kod bahasa (`ms`, `en`, `zh_CN`…); `MessageNotifications` menyimpan templat + parameter;
+  `SendQueuedMessagesJob` → `WhatsappCloudSender::sendTemplate` (type `template`, komponen body). Teks biasa kekal untuk log & pembekal lain.
+  UI: medan nama + bahasa setiap peristiwa (hanya WhatsApp Cloud + saluran WhatsApp) dan senarai parameter
+- `tools/fake-messaging.php` merekod `type` & `template`. 15 kunci bahasa × 4
+
+Disahkan: `tools/verify-w3.php` **16 lulus, 0 gagal** (nama/bahasa tidak sah ditolak; mesej templat dengan 4 parameter ikut tertib diterima pembekal palsu;
+peristiwa tanpa nama → teks; Twilio/SMS mengabaikan templat Meta; e-mel refund dengan amaun/cara/sebab, templat owner digunakan & sebab di-escape;
+past_due → `invoice_overdue` sekali, suspended → `vendor_suspended` sekali, tiada e-mel ke VENDOR01); `verify-b9` 106/106; `verify-b11` 78/78;
+`verify-b12` 98/98; `verify-b13` 92/92.
 
 Tertangguh: tiada.
 
