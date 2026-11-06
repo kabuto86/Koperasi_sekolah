@@ -6,8 +6,8 @@
 
 **Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · **Peringkat 2 siap** (B1–B15) — skema & core (B1), auth sebenar (B2), panel owner (B3), katalog & inventori vendor (B4), kit sekolah (B5), store ibu bapa: anak, katalog, kit, troli (B6), checkout tunai, pesanan & queue e-mel (B7), payment gateway + webhook (B8), pesanan vendor & serah barang (B9), POS kaunter & promosi (B10), refund & laporan (B11), langganan & invois vendor + cron (B12), modul add-on (B13), terjemahan & pengerasan keselamatan (B14), API token apps Flutter & push (B15) — **semua laluan web sebenar, mock dibuang; API apps sedia ([API.md](API.md))**
 **Peringkat 2b — Web lengkap** (W1–W6, arahan pengguna 6 Nov 2026): semua perkara web yang tertangguh disiapkan sebelum apps
-**Session terakhir siap:** W3 — E-mel & templat WhatsApp Meta
-**Session seterusnya:** **W4 — Laporan lanjutan, keahlian & halaman apps** (kemudian W5–W6, selepas itu F1 — UI Flutter)
+**Session terakhir siap:** W4 — Laporan lanjutan, keahlian & halaman apps
+**Session seterusnya:** **W5 — Template store 2 & 3** (kemudian W6, selepas itu F1 — UI Flutter)
 
 Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 
@@ -60,7 +60,7 @@ Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 | W1 | Profil vendor + 2FA vendor | ✅ | 6 Nov 2026 | (lihat git log) | `vendor/profile.php`, `vendor/two-factor.php`, 8 laluan, 4 job, set semula 2FA kakitangan, `tools/verify-w1.php` 38/38 lulus |
 | W2 | Gateway borang POST (iPay88) untuk QR POS & invois + cuba semula refund | ✅ | 6 Nov 2026 | (lihat git log) | `store/pay.php`, `vendor/invoice-pay.php`, `vendor/invoice-return.php`, `GatewayRefundSender`, cron `retry-refunds.php`, `tools/verify-w2.php` 20/20 lulus |
 | W3 | E-mel refund, tunggakan & digantung + templat WhatsApp Meta | ✅ | 6 Nov 2026 | (lihat git log) | 3 templat e-mel baharu (owner boleh sunting), migrasi 009, `sendTemplate` WhatsApp Cloud, `tools/verify-w3.php` 16/16 lulus |
-| W4 | Modul laporan lanjutan, keahlian, halaman apps vendor | ⬜ | | | |
+| W4 | Modul laporan lanjutan, keahlian, halaman apps vendor | ✅ | 6 Nov 2026 | (lihat git log) | 12 endpoint, 4 folder job baharu (21 fail), migrasi 010 (4 jadual keahlian → 80 jadual), tiada lagi halaman "akan datang", `tools/verify-w4.php` 41/41 lulus |
 | W5 | Template store 2 & 3 + pratonton | ⬜ | | | |
 | W6 | Semakan web menyeluruh | ⬜ | | | |
 
@@ -1486,6 +1486,38 @@ Disahkan: `tools/verify-w3.php` **16 lulus, 0 gagal** (nama/bahasa tidak sah dit
 peristiwa tanpa nama → teks; Twilio/SMS mengabaikan templat Meta; e-mel refund dengan amaun/cara/sebab, templat owner digunakan & sebab di-escape;
 past_due → `invoice_overdue` sekali, suspended → `vendor_suspended` sekali, tiada e-mel ke VENDOR01); `verify-b9` 106/106; `verify-b11` 78/78;
 `verify-b12` 98/98; `verify-b13` 92/92.
+
+Tertangguh: tiada.
+
+---
+
+### W4 — Laporan lanjutan, keahlian & halaman apps (6 Nov 2026)
+
+Dibuat (tiga halaman "akan datang" diganti modul sebenar; `vendor/_layout/addons/coming-soon.php` & `coming-soon.js` dibuang):
+- **Laporan lanjutan (`advanced_report`):** `vendor/addons/advanced_report.php` + `advanced_report.js` (pilih jenis & tahun, jadual, carta, CSV, cetak).
+  `vendor/advanced-report/run` → `jobs/AdvancedReport/`: `RunAdvancedReportJob` (sahkan jenis & tahun 2020…tahun depan; bentuk jawapan sama seperti
+  `vendor/reports/run`), `YearCompareReportJob` (12 bulan, tahun ini vs lepas, perubahan %), `ProductCompareReportJob`, `KitSummaryReportJob`
+  (pembelian kit = pasangan pesanan + anak, jualan, purata, banding tahun lepas), `KitItemsReportJob` (kadar uncheck setiap item kit, purata kuantiti)
+- **Keahlian (`membership`):** migrasi `010-membership.sql` + `schema.sql` — `membership_members` (no. ahli A0001 unik per koperasi, jenis
+  murid/guru/kakitangan/ibu bapa/lain, **tiada no. IC**), `membership_share_transactions` (buy / withdraw / dividend), `membership_dividends`
+  (satu setiap tahun setiap koperasi, cash / reinvest, declared → paid), `membership_dividend_lines` (salinan baki 31 Dis + amaun).
+  10 laluan `vendor/membership/*` (members, member, save-member, add-transaction, dividends, dividend, preview-dividend, declare-dividend, pay-dividend,
+  delete-dividend) → `jobs/Membership/` 12 fail (`Membership`, `DividendCalculator`, …). Pengeluaran ≤ baki (baris ahli dikunci), ahli tidak aktif tidak
+  boleh beli, tarikh masa hadapan ditolak, dividen dikira semula di pelayan, reinvest → transaksi `dividend` semasa ditanda dibayar, dividen dibayar
+  tidak boleh dipadam. UI: tab Ahli (kad ringkasan, senarai, borang, modal syer) & Dividen (pratonton, isytihar, sejarah, CSV, tanda dibayar)
+- **Apps mudah alih (`mobile_app`):** `vendor/addons/mobile_app.php` + `mobile_app.js` — ibu bapa berdaftar, ibu bapa guna apps (token aktif), peranti
+  push, push 30 hari ikut peristiwa & status, poster QR (Play Store / App Store / kedai web — QR dijana dalam pelayar). `vendor/mobile-app/stats` →
+  `jobs/MobileApp/GetMobileAppStatsJob` (kiraan sahaja, tiada data peribadi). Owner → Tetapan: `app_android_url`, `app_ios_url` (https sahaja; kosong
+  sehingga F4)
+- 124 kunci bahasa × 4 (`advreport.*`, `report.col.*` baharu, `membership.*`, `mobileapp.*`, `settings.app*`, `activity.action.membership_*`);
+  warna lencana keahlian dalam `helpers.js`. `verify-b1` kini mengira 80 jadual
+- Nota: modul `membership` dalam seed masih `is_active = 0` — owner mengaktifkannya di Owner → Modul add-on bila mahu mula menjualnya
+
+Disahkan: `tools/verify-w4.php` **41 lulus, 0 gagal** (gerbang modul 403 `module_locked`, juruwang 403, VENDOR02 → koperasi 1 404; perbandingan Mac
+tahun lepas vs tahun ini & perubahan %; kit D1: 2 pembelian, uncheck 0% / 50% / 100%; no. ahli dijana & input `member_no`/`vendor_id` diabaikan;
+pengeluaran melebihi baki ditolak; dividen 5% → 5.00 + 2.50 ikut baki 31 Dis, isytihar berganda ditolak, reinvest → baki 115.00; VENDOR02 tidak boleh
+membaca/menulis ahli & dividen VENDOR01; statistik apps tanpa e-mel ibu bapa; pautan bukan https ditolak). Audit UI (`tools/ui-audit.js` + axe) untuk
+halaman W1 & W4: 0 ralat konsol, 0 kunci mentah, 0 pelanggaran axe (4 bahasa × 375/1366 px).
 
 Tertangguh: tiada.
 

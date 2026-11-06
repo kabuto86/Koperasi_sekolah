@@ -34,7 +34,7 @@ check('Pangkalan data utf8mb4_unicode_ci', $dbCharset['cs'] === 'utf8mb4' && $db
 
 echo "2. Skema\n";
 $tableCount = (int) Database::fetchValue("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE()");
-check("76 jadual (dapat $tableCount) — 75 B1 + platform_user_tokens B2", $tableCount === 76);
+check("80 jadual (dapat $tableCount) — 75 B1 + platform_user_tokens B2 + 4 jadual keahlian W4", $tableCount === 80);
 $badTables = (int) Database::fetchValue(
     "SELECT COUNT(*) FROM information_schema.TABLES
       WHERE TABLE_SCHEMA = DATABASE() AND (ENGINE <> 'InnoDB' OR TABLE_COLLATION <> 'utf8mb4_unicode_ci')"

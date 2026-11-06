@@ -642,7 +642,7 @@ vendor_suspended (notis digantung). Dihantar oleh job sedia ada (RefundOrderJob/
 WhatsApp Cloud: templat diluluskan Meta (nama templat + kod bahasa per acara) — dihantar sebagai mesej templat.
 ```
 
-## W4 — Modul laporan lanjutan, keahlian & halaman apps
+## W4 — Modul laporan lanjutan, keahlian & halaman apps ✅ (6 Nov 2026 — lihat PROSES.md)
 
 ```
 Ikut peraturan umum. Session: W4. Prasyarat: W3 ✅.

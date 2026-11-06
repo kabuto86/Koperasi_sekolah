@@ -65,7 +65,7 @@ Senarai "Tertangguh" dalam PROSES.md (U7, B2–B15) yang bukan kerja apps:
 | W1 | Profil vendor (`vendor/profile.php`) + 2FA vendor (`vendor/two-factor.php`) | Semua peranan (termasuk juruwang) boleh sunting nama, e-mel, telefon, bahasa & tukar kata laluan; peranan & akses koperasi kekal diurus pentadbir. 2FA vendor **pilihan**: aktifkan (QR + 8 kod pemulihan), jana semula kod, pindah peranti, **matikan** (kata laluan + kod 2FA). Pentadbir boleh set semula 2FA kakitangan (`vendor/staff/reset-2fa`). Profil dibuka walaupun langganan digantung |
 | W2 | Gateway borang POST (iPay88) untuk QR kaunter POS & yuran langganan; cron cuba semula refund gateway `pending` | QR POS iPay88 → `store/pay.php?ref=&t=` (halaman awam, token rawak 128-bit, hash dalam `payments.raw_payload`, hanya bil POS `pending` belum luput). Invois → `vendor/invoice-pay.php?ref=` (sesi vendor sama); kembali melalui `vendor/invoice-return.php` (GET/POST → 303). `cron/retry-refunds.php`: refund gateway `pending` 10 minit – 23 jam dicuba semula dengan kunci idempotensi sama (`refund_no`); > 23 jam = semakan manual |
 | W3 | E-mel "refund diproses" (ibu bapa), peringatan tunggakan & notis digantung (vendor), templat WhatsApp diluluskan Meta | Templat e-mel `refund_processed`, `invoice_overdue`, `vendor_suspended` (owner boleh sunting). E-mel tunggakan/digantung sekali setiap peralihan status. WhatsApp Cloud: nama templat Meta + kod bahasa per peristiwa (pilihan); parameter badan ikut tertib tetap `MessagingSettings::META_PARAMS`; kosong = teks biasa |
-| W4 | Modul `advanced_report`, `membership`, halaman `mobile_app` vendor | lihat PROSES W4 |
+| W4 | Modul `advanced_report`, `membership`, halaman `mobile_app` vendor | Laporan lanjutan: perbandingan tahun (bulanan & produk) + analisis kit (pembelian = pasangan pesanan + anak; kadar uncheck item). Keahlian: ahli (tiada IC), syer (buy/withdraw, ≤ baki), dividen tahunan = baki 31 Dis × kadar %, salinan disimpan, cash / reinvest. Apps: statistik kiraan sahaja + pautan muat turun dari tetapan owner (`app_android_url`, `app_ios_url`) |
 | W5 | Template store 2 & 3 (premium) + gambar pratonton | lihat PROSES W5 |
 | W6 | Semakan menyeluruh (semua `verify-*`, `check-ui`, audit UI), kemas kini DOC | — |
 
@@ -170,8 +170,8 @@ menggantung / mengaktifkan vendor (butang tidak dipapar, API 403).
 | `mobile_app` | Apps Flutter | Ibu bapa guna apps; API token + push notification (B15 — API sebenar: token Bearer hanya untuk koperasi yang melanggan modul ini; [API.md](API.md)) |
 | `template_premium` | Template premium | Template frontend selain Template 1 |
 | `whatsapp_sms` | Notifikasi WhatsApp/SMS | Mesej "sedia diambil" / "telah diambil" |
-| `advanced_report` | Laporan lanjutan | Perbandingan tahun, analisis kit |
-| `membership` | Keahlian koperasi | Ahli, syer, dividen (kemudian) |
+| `advanced_report` | Laporan lanjutan | Perbandingan tahun, analisis kit (W4) |
+| `membership` | Keahlian koperasi | Ahli, syer, dividen (W4 — jadual `membership_*`) |
 
 - Owner boleh **menambah modul baharu**: satu baris `modules` + folder `modules/{code}/`.
 - Akses disemak di pelayan: `ModuleAccess::has($cooperativeId, 'news')` dalam setiap endpoint modul.
@@ -447,6 +447,15 @@ Nama, harga dan maklumat anak **disalin** (snapshot) ke pesanan dan invois.
   > **B13:** `recipient` = nombor antarabangsa `60…`; `order_id` + `event` = peringatan tunai sekali setiap pesanan (indeks `idx_notifications_order`)
 - **`messaging_settings`** (U6) — id, vendor_id, cooperative_id UNIQUE, provider, channel ENUM(whatsapp, sms), sender, api_key_enc, is_enabled, events_json, templates_json, updated_at
   > Kunci API disulitkan (seperti gateway), tidak pernah dipulangkan; kosong semasa simpan = kekal
+  > **W3 (migrasi 009):** `messaging_settings.meta_templates_json` `{peristiwa: {name, language}}` & `notification_queue.template_json`
+  > `{name, language, params[]}` — mesej templat diluluskan Meta (WhatsApp Cloud)
+- **`membership_members`** (W4, migrasi 010) — id, vendor_id, cooperative_id, member_no UNIQUE(cooperative_id, member_no) `A0001`, full_name,
+  member_type ENUM(student, teacher, staff, parent, other), class_name, phone, email, joined_on, status ENUM(active, inactive), note — **tiada IC**
+- **`membership_share_transactions`** (W4) — id, vendor_id, cooperative_id, member_id, type ENUM(buy, withdraw, dividend), amount (sen),
+  transaction_date, note, dividend_id, vendor_user_id
+- **`membership_dividends`** (W4) — id, vendor_id, cooperative_id, year UNIQUE(cooperative_id, year), rate, total_shares, total_amount, member_count,
+  payout ENUM(cash, reinvest), status ENUM(declared, paid), declared_by, paid_at
+- **`membership_dividend_lines`** (W4) — id, vendor_id, dividend_id (CASCADE), member_id, share_balance (31 Dis), amount
 
 ### I. Sistem (2)
 
@@ -458,7 +467,7 @@ Nama, harga dan maklumat anak **disalin** (snapshot) ke pesanan dan invois.
 
 Jumlah: **69 jadual** (U6: + `messaging_settings`).
 
-### J. Tambahan B1 — jadual yang diperlukan oleh kontrak UI (PELAN 18) · jumlah sebenar **75 jadual** (B2: **76**)
+### J. Tambahan B1 — jadual yang diperlukan oleh kontrak UI (PELAN 18) · jumlah sebenar **75 jadual** (B2: **76**, W4: **80**)
 
 `database/schema.sql` ialah sumber kebenaran lajur. Tambahan berbanding senarai A–I di atas:
 

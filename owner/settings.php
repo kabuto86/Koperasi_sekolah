@@ -39,6 +39,23 @@ require __DIR__ . '/_layout/header.php';
             </div>
 
             <div class="card border-0 shadow-sm mb-3">
+                <div class="card-header bg-body fw-semibold"><i class="bi bi-phone" aria-hidden="true"></i> <?= e(t('settings.apps')) ?></div>
+                <div class="card-body row g-3">
+                    <div class="col-12 small text-body-secondary"><?= e(t('settings.apps_help')) ?></div>
+                    <div class="col-sm-6">
+                        <label class="form-label" for="set-app-android"><?= e(t('settings.app_android_url')) ?></label>
+                        <input type="url" class="form-control" id="set-app-android" name="app_android_url" maxlength="255">
+                        <div class="invalid-feedback"><?= e(t('settings.app_url_invalid')) ?></div>
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="form-label" for="set-app-ios"><?= e(t('settings.app_ios_url')) ?></label>
+                        <input type="url" class="form-control" id="set-app-ios" name="app_ios_url" maxlength="255">
+                        <div class="invalid-feedback"><?= e(t('settings.app_url_invalid')) ?></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-3">
                 <div class="card-header bg-body fw-semibold"><?= e(t('settings.billing')) ?></div>
                 <div class="card-body row g-3">
                     <div class="col-sm-6">

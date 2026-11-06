@@ -4,7 +4,7 @@
 class SavePlatformSettingsJob
 {
     const TEXT_FIELDS = ['platform_name', 'support_email', 'support_phone', 'smtp_host', 'smtp_port', 'smtp_encryption', 'smtp_username',
-        'mail_from_address', 'mail_from_name', 'sst_rate', 'sst_registration_no', 'trial_days', 'grace_days', 'default_language'];
+        'mail_from_address', 'mail_from_name', 'sst_rate', 'sst_registration_no', 'trial_days', 'grace_days', 'default_language', 'app_android_url', 'app_ios_url'];
 
     private $actorId;
     private $input;
@@ -30,6 +30,13 @@ class SavePlatformSettingsJob
           ->required('trial_days')->integer('trial_days', 0, 365)
           ->required('grace_days')->integer('grace_days', 0, 90)
           ->inList('default_language', Config::get('languages'));
+        // W4: pautan muat turun apps (Play Store / App Store) — kosong sehingga apps diterbitkan (F4); https sahaja
+        foreach (['app_android_url', 'app_ios_url'] as $field) {
+            $url = trim((string) ($this->input[$field] ?? ''));
+            if ($url !== '' && (strlen($url) > 255 || strpos($url, 'https://') !== 0 || filter_var($url, FILTER_VALIDATE_URL) === false)) {
+                $v->addError($field, t('settings.app_url_invalid'));
+            }
+        }
         $sst = $this->input['sst_rate'] ?? null;
         if ($sst !== null && $sst !== '' && (!is_numeric($sst) || $sst < 0 || $sst > 100)) {
             $v->addError('sst_rate', t('error.invalid'));
