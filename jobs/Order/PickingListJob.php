@@ -47,8 +47,13 @@ class PickingListJob
                 }
                 $groupKey = $child['grade_level_code'] . '|' . $child['class_name'];
                 if (!isset($groups[$groupKey])) {
-                    $groups[$groupKey] = ['grade_level_code' => $child['grade_level_code'], 'class_name' => $child['class_name'], 'children' => []];
+                    $groups[$groupKey] = ['grade_level_code' => $child['grade_level_code'], 'class_name' => $child['class_name'], 'children' => [],
+                        'student_count' => 0, 'students' => []];
                 }
+                // W6: murid dikira sekali walaupun ada beberapa pesanan (anak tanpa id → ikut nama)
+                $studentKey = $child['child_id'] !== null ? 'id' . $child['child_id'] : 'nm' . $child['child_name'];
+                $groups[$groupKey]['students'][$studentKey] = true;
+                $groups[$groupKey]['student_count'] = count($groups[$groupKey]['students']);
                 $counted[(int) $order['id']] = true;
                 $groups[$groupKey]['children'][] = ['child_name' => $child['child_name'], 'order_no' => $order['order_no'],
                     'short_code' => $order['short_code'], 'status' => $order['status'], 'items' => $lines];
@@ -72,6 +77,7 @@ class PickingListJob
             return [$order[$a['grade_level_code']] ?? 99, $a['class_name']] <=> [$order[$b['grade_level_code']] ?? 99, $b['class_name']];
         });
         foreach ($groups as &$group) {
+            unset($group['students']);
             usort($group['children'], function ($a, $b) {
                 return strcmp($a['child_name'], $b['child_name']);
             });

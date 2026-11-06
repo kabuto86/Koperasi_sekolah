@@ -516,7 +516,7 @@ Dokumen:
 | ~~E-mel jemputan / reset kata laluan kakitangan sebenar~~ (masuk `email_queue`; penghantaran SMTP oleh cron B7) | ✅ B2 |
 | ~~Owner `owner_staff`: sekatan harga/pelan/tetapan di pelayan~~ — halaman B2, API owner B3 | ✅ B3 |
 | Muat naik sebenar (logo, gambar produk, gambar berita) — `Uploader` + `finfo`; Peringkat 1 guna data URL / ikon gantian | B4/B13 |
-| Gambar pratonton template sebenar (`preview_image`) | bila template2/3 dibina |
+| ~~Gambar pratonton template sebenar (`preview_image`)~~ (template2 & template3 dibina) | ✅ W5 |
 | E-mel sebenar (pengesahan, reset, pesanan baharu, slip, invois) melalui `email_queue` + cron | B7 |
 | Luput automatik pesanan tunai/online (cron) | B7 |
 | ~~Kaitan promosi dengan pesanan (`orders.promotion_id`, `used_count`)~~ (store B7, POS & panel promosi B10) | ✅ B10 |
@@ -529,7 +529,7 @@ Dokumen:
 | Penghantaran WhatsApp/SMS sebenar; mesej automatik "sedia diambil / telah diambil" | B13 |
 | E-mel berita sebenar | B13 |
 | ~~URL cantik store `/{slug}/` (.htaccess); pratonton `?template=` hadkan kepada owner~~ — owner / vendor pemilik | ✅ B6 |
-| Halaman `advanced_report`, `membership` (sementara "sedang dibina"); `mobile_app` | kemudian / F1–F4 |
+| ~~Halaman `advanced_report`, `membership` (sementara "sedang dibina"); `mobile_app`~~ (modul sebenar) | ✅ W4 |
 | Imbas QR/barcode dengan kamera | F1 (app) |
 | Pemilih koperasi POS disembunyikan < 768px (tukar koperasi dari panel) | kekal — reka bentuk |
 

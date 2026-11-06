@@ -67,7 +67,21 @@ Senarai "Tertangguh" dalam PROSES.md (U7, B2–B15) yang bukan kerja apps:
 | W3 | E-mel "refund diproses" (ibu bapa), peringatan tunggakan & notis digantung (vendor), templat WhatsApp diluluskan Meta | Templat e-mel `refund_processed`, `invoice_overdue`, `vendor_suspended` (owner boleh sunting). E-mel tunggakan/digantung sekali setiap peralihan status. WhatsApp Cloud: nama templat Meta + kod bahasa per peristiwa (pilihan); parameter badan ikut tertib tetap `MessagingSettings::META_PARAMS`; kosong = teks biasa |
 | W4 | Modul `advanced_report`, `membership`, halaman `mobile_app` vendor | Laporan lanjutan: perbandingan tahun (bulanan & produk) + analisis kit (pembelian = pasangan pesanan + anak; kadar uncheck item). Keahlian: ahli (tiada IC), syer (buy/withdraw, ≤ baki), dividen tahunan = baki 31 Dis × kadar %, salinan disimpan, cash / reinvest. Apps: statistik kiraan sahaja + pautan muat turun dari tetapan owner (`app_android_url`, `app_ios_url`) |
 | W5 | Template store 2 & 3 (premium) + gambar pratonton | Template 2 Ceria & Template 3 Klasik: layout, header, footer, halaman utama & `theme.css` sendiri; halaman lain memuat paparan Template 1 (cangkuk JS sama). Pratonton = tangkap layar sebenar `assets/img/templates/` |
-| W6 | Semakan menyeluruh (semua `verify-*`, `check-ui`, audit UI), kemas kini DOC | — |
+| W6 | Semakan menyeluruh (semua `verify-*`, `check-ui`, audit UI), kemas kini DOC | Tiada lagi perkara web tertangguh. Baki yang disengajakan (bukan kerja web): resit PDF pelayan (cetak pelayar dipilih B9), refund API untuk ToyyibPay/Billplz/SenangPay/iPay88 (pembekal tiada API), kredit turun taraf (PELAN 18.10), imbas kamera (apps F1) |
+
+**Senarai cron lengkap (pelayan produksi, `crontab -e`, laluan penuh):**
+
+| Jadual | Fail | Kerja |
+|---|---|---|
+| `* * * * *` | `cron/send-emails.php` | hantar `email_queue` (SMTP owner) |
+| `* * * * *` | `cron/send-messages.php` | WhatsApp/SMS `notification_queue` (+ peringatan tunai) |
+| `* * * * *` | `cron/send-push.php` | push apps (FCM) |
+| `*/10 * * * *` | `cron/expire-online-orders.php` | luput bayaran online & QR POS (semak semula gateway dahulu) |
+| `*/15 * * * *` | `cron/retry-refunds.php` | cuba semula refund gateway tersangkut (W2) |
+| `0 * * * *` | `cron/expire-cash-orders.php` | luput pesanan tunai belum dibayar |
+| `15 * * * *` | `cron/suspend-overdue.php` | tunggakan → past_due → suspended + e-mel (W3) |
+| `5 0 * * *` | `cron/generate-invoices.php` | draf & terbit invois pembaharuan |
+| `15 3 * * *` | `cron/backup-db.php` | backup harian `.sql.gz` |
 
 ### 3.1 Bagaimana UI dibina tanpa backend
 

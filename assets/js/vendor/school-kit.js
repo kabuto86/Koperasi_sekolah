@@ -148,12 +148,8 @@ function refreshKit() {
 
 function previewItem(item, amount) {
     var li = createEl('li', 'list-group-item d-flex gap-2');
-    var check = createEl('input', 'form-check-input mt-1');
-    check.type = 'checkbox';
-    check.checked = true;
-    check.disabled = true;
-    check.setAttribute('aria-hidden', 'true');
-    li.appendChild(check);
+    // Ikon (bukan kotak semak sebenar) — pratonton sahaja; ibu bapa melihat kotak semak sebenar di store
+    li.appendChild(createIcon('bi-check-square-fill text-brand mt-1'));
     var text = createEl('div', 'flex-grow-1');
     text.appendChild(createEl('div', '', item.qty + ' × ' + optionLabel(item.option)));
     if (item.is_mandatory) {
