@@ -66,7 +66,7 @@ Senarai "Tertangguh" dalam PROSES.md (U7, B2–B15) yang bukan kerja apps:
 | W2 | Gateway borang POST (iPay88) untuk QR kaunter POS & yuran langganan; cron cuba semula refund gateway `pending` | QR POS iPay88 → `store/pay.php?ref=&t=` (halaman awam, token rawak 128-bit, hash dalam `payments.raw_payload`, hanya bil POS `pending` belum luput). Invois → `vendor/invoice-pay.php?ref=` (sesi vendor sama); kembali melalui `vendor/invoice-return.php` (GET/POST → 303). `cron/retry-refunds.php`: refund gateway `pending` 10 minit – 23 jam dicuba semula dengan kunci idempotensi sama (`refund_no`); > 23 jam = semakan manual |
 | W3 | E-mel "refund diproses" (ibu bapa), peringatan tunggakan & notis digantung (vendor), templat WhatsApp diluluskan Meta | Templat e-mel `refund_processed`, `invoice_overdue`, `vendor_suspended` (owner boleh sunting). E-mel tunggakan/digantung sekali setiap peralihan status. WhatsApp Cloud: nama templat Meta + kod bahasa per peristiwa (pilihan); parameter badan ikut tertib tetap `MessagingSettings::META_PARAMS`; kosong = teks biasa |
 | W4 | Modul `advanced_report`, `membership`, halaman `mobile_app` vendor | Laporan lanjutan: perbandingan tahun (bulanan & produk) + analisis kit (pembelian = pasangan pesanan + anak; kadar uncheck item). Keahlian: ahli (tiada IC), syer (buy/withdraw, ≤ baki), dividen tahunan = baki 31 Dis × kadar %, salinan disimpan, cash / reinvest. Apps: statistik kiraan sahaja + pautan muat turun dari tetapan owner (`app_android_url`, `app_ios_url`) |
-| W5 | Template store 2 & 3 (premium) + gambar pratonton | lihat PROSES W5 |
+| W5 | Template store 2 & 3 (premium) + gambar pratonton | Template 2 Ceria & Template 3 Klasik: layout, header, footer, halaman utama & `theme.css` sendiri; halaman lain memuat paparan Template 1 (cangkuk JS sama). Pratonton = tangkap layar sebenar `assets/img/templates/` |
 | W6 | Semakan menyeluruh (semua `verify-*`, `check-ui`, audit UI), kemas kini DOC | — |
 
 ### 3.1 Bagaimana UI dibina tanpa backend
@@ -767,6 +767,9 @@ masuk baris gilir HANYA melalui `PushNotifications` (`orderReady`, `orderCollect
 - Vendor memilih template yang dilanggan untuk setiap koperasi (`cooperatives.template_id`). Template tidak dilanggan → jatuh balik ke `template1`
   (**sejak B6** `ResolveStoreTemplateJob`: template aktif + dilanggan vendor + folder lengkap dengan semua halaman wajib manifest; pratonton
   `?template=` hanya owner / vendor pemilik koperasi)
+- **Sejak W5:** `template2` (Ceria) & `template3` (Klasik) siap. Template baharu boleh memuat paparan halaman Template 1
+  (`require APP_ROOT . '/templates/template1/pages/{halaman}.php'`) dan hanya menukar `layout.php`, `partials/header|footer.php`, `pages/home.php`
+  dan `css/theme.css` (dimuat selepas `template1/css/template.css`; body `store-{kod}`). Gambar pratonton: `assets/img/templates/{kod}.jpg`
 - **Sejak U5:** logik setiap halaman store dalam `assets/js/store/{halaman}.js` (+ `common.js`, `layout.js`) — dikongsi semua template.
   Template baharu mesti mengekalkan `id` / atribut `data-*` yang dibaca JS (cth. `#store-context`, `data-cart-count`, `data-module`,
   `data-auth-guest|user`, `#slip-area`) dan boleh menukar rupa melalui `css/` sendiri. Slip & resit: `templates/{kod}/css/print-slip.css`

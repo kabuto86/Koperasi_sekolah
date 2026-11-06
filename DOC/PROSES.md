@@ -6,8 +6,8 @@
 
 **Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · **Peringkat 2 siap** (B1–B15) — skema & core (B1), auth sebenar (B2), panel owner (B3), katalog & inventori vendor (B4), kit sekolah (B5), store ibu bapa: anak, katalog, kit, troli (B6), checkout tunai, pesanan & queue e-mel (B7), payment gateway + webhook (B8), pesanan vendor & serah barang (B9), POS kaunter & promosi (B10), refund & laporan (B11), langganan & invois vendor + cron (B12), modul add-on (B13), terjemahan & pengerasan keselamatan (B14), API token apps Flutter & push (B15) — **semua laluan web sebenar, mock dibuang; API apps sedia ([API.md](API.md))**
 **Peringkat 2b — Web lengkap** (W1–W6, arahan pengguna 6 Nov 2026): semua perkara web yang tertangguh disiapkan sebelum apps
-**Session terakhir siap:** W4 — Laporan lanjutan, keahlian & halaman apps
-**Session seterusnya:** **W5 — Template store 2 & 3** (kemudian W6, selepas itu F1 — UI Flutter)
+**Session terakhir siap:** W5 — Template store 2 & 3
+**Session seterusnya:** **W6 — Semakan web menyeluruh** (selepas itu F1 — UI Flutter)
 
 Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 
@@ -61,7 +61,7 @@ Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 | W2 | Gateway borang POST (iPay88) untuk QR POS & invois + cuba semula refund | ✅ | 6 Nov 2026 | (lihat git log) | `store/pay.php`, `vendor/invoice-pay.php`, `vendor/invoice-return.php`, `GatewayRefundSender`, cron `retry-refunds.php`, `tools/verify-w2.php` 20/20 lulus |
 | W3 | E-mel refund, tunggakan & digantung + templat WhatsApp Meta | ✅ | 6 Nov 2026 | (lihat git log) | 3 templat e-mel baharu (owner boleh sunting), migrasi 009, `sendTemplate` WhatsApp Cloud, `tools/verify-w3.php` 16/16 lulus |
 | W4 | Modul laporan lanjutan, keahlian, halaman apps vendor | ✅ | 6 Nov 2026 | (lihat git log) | 12 endpoint, 4 folder job baharu (21 fail), migrasi 010 (4 jadual keahlian → 80 jadual), tiada lagi halaman "akan datang", `tools/verify-w4.php` 41/41 lulus |
-| W5 | Template store 2 & 3 + pratonton | ⬜ | | | |
+| W5 | Template store 2 & 3 + pratonton | ✅ | 6 Nov 2026 | (lihat git log) | `templates/template2` (Ceria) & `template3` (Klasik), gambar pratonton sebenar, migrasi 011, `tools/verify-w5.php` 19/19 lulus |
 | W6 | Semakan web menyeluruh | ⬜ | | | |
 
 ## Peringkat 3 — Apps Flutter (selepas Peringkat 1 & 2 siap)
@@ -1518,6 +1518,32 @@ tahun lepas vs tahun ini & perubahan %; kit D1: 2 pembelian, uncheck 0% / 50% / 
 pengeluaran melebihi baki ditolak; dividen 5% → 5.00 + 2.50 ikut baki 31 Dis, isytihar berganda ditolak, reinvest → baki 115.00; VENDOR02 tidak boleh
 membaca/menulis ahli & dividen VENDOR01; statistik apps tanpa e-mel ibu bapa; pautan bukan https ditolak). Audit UI (`tools/ui-audit.js` + axe) untuk
 halaman W1 & W4: 0 ralat konsol, 0 kunci mentah, 0 pelanggaran axe (4 bahasa × 375/1366 px).
+
+Tertangguh: tiada.
+
+---
+
+### W5 — Template store 2 & 3 (6 Nov 2026)
+
+Dibuat:
+- **`templates/template2/` — Ceria (sekolah rendah):** bar atas putih + jalur warna-warni, logo bulat bergradien, pautan kapsul, hero ungu→merah
+  jambu→jingga dengan ikon alat tulis, jubin pintasan pastel, kad & butang bulat, navbar bawah berkapsul, kaki halaman berikon
+- **`templates/template3/` — Klasik (sekolah menengah):** biru tua + emas, tajuk serif (Georgia), lambang `bi-mortarboard`, sepanduk rasmi berbingkai
+  emas, jubin bersambung, kad bergaris emas & tajuk huruf besar, kaki halaman biru tua
+- Struktur setiap template: `manifest.json` (17 halaman wajib), `layout.php` (body `store-body store-{kod}`; CSS = `template1/css/template.css` +
+  `{kod}/css/theme.css`; cetak = `template1/css/print-slip.css`), `partials/header.php` & `footer.php` sendiri, `pages/home.php` sendiri.
+  Halaman lain = pembalut satu baris yang memuat paparan Template 1 (id / data-* yang dibaca `assets/js/store/*.js` sama, satu tempat untuk dibaiki).
+  Navbar bawah, banner notis & item navigasi dikongsi dari Template 1
+- **Pratonton sebenar:** `assets/img/templates/template{1,2,3}.jpg` (tangkap layar halaman utama 1280 px → JPEG 640 px); `seed.sql` + migrasi
+  `011-template-previews.sql` (`templates.preview_image`). Kedai modul vendor kini memapar gambar pratonton (`GetAddonCatalogJob.preview_image`,
+  `addon-store.js`, `.app-template-preview img`). `asset_version` → 17
+- Template 3 kekal `is_active = 0` dalam seed — owner mengaktifkannya di Owner → Template frontend bila mahu menjual
+
+Disahkan: `tools/verify-w5.php` **19 lulus, 0 gagal** (folder lengkap; 17 halaman × 2 template dipapar 200 tanpa ralat PHP; semua id & data-* Template 1
+wujud; halaman cetak memuat print-slip + QR; pelawat / VENDOR02 tidak boleh pratonton; dipilih tetapi belum dilanggan → Template 1; dilanggan → ibu bapa
+melihat Template 2; dinyahaktif owner → Template 1; gambar 640 px; preview_image di owner & kedai vendor). Audit UI store (13 halaman × 4 bahasa ×
+375/1366 px) dengan Template 2 dan Template 3: 0 kunci mentah, 0 skrol mendatar, 0 pelanggaran axe (kontras WCAG AA); satu-satunya ralat konsol ialah
+404 pesanan demo `id=1` yang tiada dalam seed — sama seperti Template 1.
 
 Tertangguh: tiada.
 

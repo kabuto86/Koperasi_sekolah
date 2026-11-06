@@ -92,7 +92,14 @@ function renderTemplates(data) {
         var col = createEl('div', 'col-12 col-md-6 col-xxl-4');
         var card = createEl('div', 'card border shadow-sm h-100');
         var preview = createEl('div', 'app-template-preview');
-        preview.appendChild(createIcon('bi-phone'));
+        if (template.preview_image) {
+            var img = createEl('img', 'img-fluid');
+            img.src = template.preview_image;
+            img.alt = template.name;
+            preview.appendChild(img);
+        } else {
+            preview.appendChild(createIcon('bi-phone'));
+        }
         card.appendChild(preview);
         var body = createEl('div', 'card-body');
         var title = createEl('div', 'd-flex flex-wrap justify-content-between gap-2');

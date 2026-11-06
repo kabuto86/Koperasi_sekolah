@@ -147,9 +147,9 @@ INSERT INTO modules (id, code, name_key, description_key, price_monthly, price_y
 (8, 'membership',      'module.membership',      'module.membership.description',      3000, 30000, 0, 0, 8);
 
 INSERT INTO templates (id, code, name, description, folder, preview_image, price_monthly, price_yearly, is_free, is_active) VALUES
-(1, 'template1', 'Template 1 — Asas',   'Ringkas, mobile-first, navbar bawah.', 'templates/template1', NULL, 0,    0,     1, 1),
-(2, 'template2', 'Template 2 — Ceria',  'Warna ceria untuk sekolah rendah.',    'templates/template2', NULL, 1000, 10000, 0, 1),
-(3, 'template3', 'Template 3 — Klasik', 'Rupa formal untuk sekolah menengah.',  'templates/template3', NULL, 1500, 15000, 0, 0);
+(1, 'template1', 'Template 1 — Asas',   'Ringkas, mobile-first, navbar bawah.', 'templates/template1', 'assets/img/templates/template1.jpg', 0,    0,     1, 1),
+(2, 'template2', 'Template 2 — Ceria',  'Warna ceria untuk sekolah rendah.',    'templates/template2', 'assets/img/templates/template2.jpg', 1000, 10000, 0, 1),
+(3, 'template3', 'Template 3 — Klasik', 'Rupa formal untuk sekolah menengah.',  'templates/template3', 'assets/img/templates/template3.jpg', 1500, 15000, 0, 0);
 
 INSERT INTO vendors (id, code, company_name, registration_no, contact_name, phone, email, address, status, trial_ends_at, created_at) VALUES
 (1, 'VENDOR01', 'Niaga Sekolah Sdn Bhd',       '202301012345', 'Ahmad bin Ismail', '012-3456789', 'ahmad@niagasekolah.my', 'No. 12, Jalan Melati 3, 53100 Gombak, Selangor', 'active', NULL, '2026-01-05 09:00:00'),

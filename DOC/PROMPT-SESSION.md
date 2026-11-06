@@ -652,7 +652,7 @@ mobile_app: halaman vendor — status modul, ibu bapa guna apps, peranti push, p
 ModuleAccess::has dalam setiap endpoint; ujian kebocoran VENDOR01 ↔ VENDOR02.
 ```
 
-## W5 — Template store 2 & 3
+## W5 — Template store 2 & 3 ✅ (6 Nov 2026 — lihat PROSES.md)
 
 ```
 Ikut peraturan umum. Session: W5. Prasyarat: W4 ✅.

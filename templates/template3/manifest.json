@@ -1,0 +1,10 @@
+{
+    "code": "template3",
+    "name": "Template 3 — Klasik",
+    "version": "1.0.0",
+    "pages": [
+        "home", "school-select", "catalog", "product", "kit", "cart", "checkout",
+        "order-success", "orders", "order-detail", "children", "login", "register",
+        "forgot-password", "profile", "news", "clearance"
+    ]
+}
