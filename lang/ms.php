@@ -1975,4 +1975,22 @@ return [
     'push.order_collected.title' => 'Barang telah diambil',
     'push.order_collected.body' => 'Pesanan {order_no}: diambil oleh {picked_by} pada {time}.',
     'push.news.title' => '{school_name}: {title}',
+
+    // Web lengkap W1 — profil & 2FA vendor
+    'twofa.vendor_note' => '2FA adalah pilihan untuk kakitangan vendor tetapi sangat digalakkan, terutamanya untuk pentadbir.',
+    'twofa.disable' => 'Matikan 2FA',
+    'twofa.disable_help' => 'Akaun anda akan dilindungi dengan kata laluan sahaja. Masukkan kata laluan dan kod 2FA (atau kod pemulihan) untuk mengesahkan.',
+    'twofa.disable_code' => 'Kod 2FA atau kod pemulihan',
+    'twofa.disabled_toast' => '2FA telah dimatikan.',
+    'staff_v.reset_2fa_confirm' => 'Set semula 2FA untuk {name}? Mereka boleh log masuk dengan kata laluan sahaja dan menyediakan 2FA semula di halaman profil.',
+    'activity.action.profile_update' => 'Kemas kini profil',
+    'activity.action.profile_password' => 'Tukar kata laluan',
+    'activity.action.two_factor_enable' => 'Aktifkan 2FA',
+    'activity.action.two_factor_disable' => 'Matikan 2FA',
+    'activity.action.two_factor_regenerate' => 'Jana semula kod pemulihan 2FA',
+    'activity.action.staff_reset_2fa' => 'Set semula 2FA kakitangan',
+
+    // Web lengkap W2 — bayaran QR iPay88 & cuba semula refund
+    'pos.pay_link_invalid' => 'Pautan bayaran ini tidak sah, sudah dibayar atau telah luput. Minta juruwang memaparkan kod QR baharu.',
+    'refund.retried' => 'dicuba semula oleh sistem',
 ];

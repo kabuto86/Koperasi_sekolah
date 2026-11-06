@@ -1960,4 +1960,22 @@ return [
     'push.order_collected.title' => '物品已领取',
     'push.order_collected.body' => '订单 {order_no}：由 {picked_by} 于 {time} 领取。',
     'push.news.title' => '{school_name}：{title}',
+
+    // Web lengkap W1 — profil & 2FA vendor
+    'twofa.vendor_note' => '供应商员工可选择启用双重验证，但强烈建议启用，尤其是管理员。',
+    'twofa.disable' => '关闭双重验证',
+    'twofa.disable_help' => '您的账户将仅受密码保护。请输入密码和双重验证码（或恢复码）以确认。',
+    'twofa.disable_code' => '双重验证码或恢复码',
+    'twofa.disabled_toast' => '双重验证已关闭。',
+    'staff_v.reset_2fa_confirm' => '重置 {name} 的双重验证？对方将只能用密码登录，并可在个人资料页面重新设置双重验证。',
+    'activity.action.profile_update' => '更新个人资料',
+    'activity.action.profile_password' => '更改密码',
+    'activity.action.two_factor_enable' => '启用双重验证',
+    'activity.action.two_factor_disable' => '关闭双重验证',
+    'activity.action.two_factor_regenerate' => '重新生成双重验证恢复码',
+    'activity.action.staff_reset_2fa' => '重置员工双重验证',
+
+    // Web lengkap W2 — bayaran QR iPay88 & cuba semula refund
+    'pos.pay_link_invalid' => '此付款链接无效、已付款或已过期。请收银员显示新的二维码。',
+    'refund.retried' => '由系统重试',
 ];

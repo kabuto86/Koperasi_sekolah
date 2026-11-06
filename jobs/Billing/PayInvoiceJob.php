@@ -2,6 +2,8 @@
 // Bayar invois secara online melalui gateway owner (PELAN 14, 18.10 vendor/invoices/pay) → { paid: false, redirect_url }.
 // Bil gateway dicipta DI LUAR transaksi DB; baris platform_payments `pending` (gateway_ref UNIQUE). Status `paid` HANYA
 // selepas panggilan balik / semakan semula ke API gateway + amaun sama (PlatformPaymentSettlement) — redirect tidak dipercayai.
+// Gateway borang POST (iPay88, W2): borang disimpan dalam raw_payload; redirect_url = vendor/invoice-pay.php?ref= (sesi vendor
+// yang sama sahaja) yang menghantar borang secara automatik. Kembali melalui vendor/invoice-return.php (GET atau POST).
 class PayInvoiceJob
 {
     // Bil pending yang sama diguna semula dalam tempoh ini (vendor tekan "Bayar" berulang kali)
@@ -67,18 +69,21 @@ class PayInvoiceJob
                 'name'         => (string) $vendor['company_name'],
                 'email'        => (string) $vendor['email'],
                 'phone'        => (string) $vendor['phone'],
-                'return_url'   => View::absoluteUrl('vendor/invoices.php') . '?paid_return=' . (int) $invoice['id'],
+                'return_url'   => View::absoluteUrl('vendor/invoice-return.php') . '?invoice=' . (int) $invoice['id'],
                 'callback_url' => PlatformGateway::callbackUrl($gateway['code']),
             ]);
         } catch (GatewayException $error) {
             error_log('[KoperasiKu] bil invois ' . $reference . ': ' . $error->getMessage());
             throw new ValidationException(t('payment.gateway_error'));
         }
-        if ($created['form'] !== null || empty($created['redirect_url'])) {
-            // Gateway borang POST (iPay88) belum disokong untuk yuran platform
+        if ($created['form'] !== null) {
+            $redirect = View::absoluteUrl('vendor/invoice-pay.php') . '?ref=' . rawurlencode($created['gateway_ref']);
+            $raw = ['reference' => $reference, 'redirect_url' => $redirect, 'form' => $created['form']];
+        } elseif (!empty($created['redirect_url'])) {
+            $raw = ['reference' => $reference, 'redirect_url' => $created['redirect_url']];
+        } else {
             throw new ValidationException(t('billing.gateway_unavailable'));
         }
-        $raw = ['reference' => $reference, 'redirect_url' => $created['redirect_url']];
         $id = Database::insert(
             "INSERT INTO platform_payments (vendor_id, invoice_id, method, gateway_code, gateway_ref, amount, status, raw_payload)
              VALUES (?, ?, 'online', ?, ?, ?, 'pending', ?)",

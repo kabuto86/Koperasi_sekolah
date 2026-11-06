@@ -166,6 +166,25 @@ class VendorAuth
         return (int) ($_SESSION['cooperative_id'] ?? 0);
     }
 
+    // Rahsia TOTP baharu semasa menyediakan 2FA (vendor/two-factor) — disulitkan dalam sesi sehingga disahkan
+    public static function setSetupSecret($secret)
+    {
+        self::start();
+        $_SESSION['vendor_setup_secret'] = Crypto::encrypt($secret);
+    }
+
+    public static function setupSecret()
+    {
+        self::start();
+        $value = $_SESSION['vendor_setup_secret'] ?? null;
+        return $value === null ? null : Crypto::decrypt($value);
+    }
+
+    public static function clearSetupSecret()
+    {
+        unset($_SESSION['vendor_setup_secret']);
+    }
+
     public static function logout()
     {
         self::start();

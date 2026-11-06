@@ -1960,4 +1960,22 @@ return [
     'push.order_collected.title' => 'பொருட்கள் பெறப்பட்டன',
     'push.order_collected.body' => 'ஆர்டர் {order_no}: {time} மணிக்கு {picked_by} பெற்றார்.',
     'push.news.title' => '{school_name}: {title}',
+
+    // Web lengkap W1 — profil & 2FA vendor
+    'twofa.vendor_note' => 'விற்பனையாளர் பணியாளர்களுக்கு 2FA விருப்பத்தேர்வு, ஆனால் குறிப்பாக நிர்வாகிகளுக்கு மிகவும் பரிந்துரைக்கப்படுகிறது.',
+    'twofa.disable' => '2FA-ஐ முடக்கு',
+    'twofa.disable_help' => 'உங்கள் கணக்கு கடவுச்சொல்லால் மட்டுமே பாதுகாக்கப்படும். உறுதிப்படுத்த கடவுச்சொல் மற்றும் 2FA குறியீட்டை (அல்லது மீட்புக் குறியீடு) உள்ளிடவும்.',
+    'twofa.disable_code' => '2FA குறியீடு அல்லது மீட்புக் குறியீடு',
+    'twofa.disabled_toast' => '2FA முடக்கப்பட்டது.',
+    'staff_v.reset_2fa_confirm' => '{name}-க்கான 2FA-ஐ மீட்டமைக்கவா? அவர்கள் கடவுச்சொல் மூலம் மட்டும் உள்நுழைந்து சுயவிவரப் பக்கத்தில் 2FA-ஐ மீண்டும் அமைக்கலாம்.',
+    'activity.action.profile_update' => 'சுயவிவரத்தைப் புதுப்பி',
+    'activity.action.profile_password' => 'கடவுச்சொல்லை மாற்று',
+    'activity.action.two_factor_enable' => '2FA-ஐ இயக்கு',
+    'activity.action.two_factor_disable' => '2FA-ஐ முடக்கு',
+    'activity.action.two_factor_regenerate' => '2FA மீட்புக் குறியீடுகளை மீண்டும் உருவாக்கு',
+    'activity.action.staff_reset_2fa' => 'பணியாளர் 2FA-ஐ மீட்டமை',
+
+    // Web lengkap W2 — bayaran QR iPay88 & cuba semula refund
+    'pos.pay_link_invalid' => 'இந்தக் கட்டண இணைப்பு செல்லாதது, ஏற்கனவே செலுத்தப்பட்டது அல்லது காலாவதியானது. புதிய QR குறியீட்டைக் காட்டுமாறு காசாளரிடம் கேளுங்கள்.',
+    'refund.retried' => 'அமைப்பால் மீண்டும் முயற்சிக்கப்பட்டது',
 ];

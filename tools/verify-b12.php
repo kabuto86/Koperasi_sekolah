@@ -353,9 +353,9 @@ try {
         && $pay['data']['paid'] === false && strpos($pay['data']['redirect_url'], $fakeBase . '/toyyibpay/tp') === 0
         && $payment['status'] === 'pending' && $payment['gateway_ref'] === $billCode && (int) $payment['amount'] === (int) $newsInvoice['total']);
     $bill = $bills['bills'][$billCode] ?? $bills[$billCode] ?? null;
-    check('Bil: panggilan balik webhooks/platform.php?gateway=toyyibpay, kembali ke vendor/invoices.php?paid_return=', $bill !== null
+    check('Bil: panggilan balik webhooks/platform.php?gateway=toyyibpay, kembali ke vendor/invoice-return.php?invoice= (W2)', $bill !== null
         && strpos($bill['callback'], '/api/v1/webhooks/platform.php?gateway=toyyibpay') !== false
-        && strpos($bill['return'], '/vendor/invoices.php?paid_return=' . $newsInvoice['id']) !== false);
+        && strpos($bill['return'], '/vendor/invoice-return.php?invoice=' . $newsInvoice['id']) !== false);
     $again = $v2->post('vendor/invoices/pay', ['id' => $newsInvoice['id']]);
     check('Bayar sekali lagi → bil sama diguna semula (satu baris pending)', ($again['data']['redirect_url'] ?? '') === $pay['data']['redirect_url']
         && (int) Database::fetchValue("SELECT COUNT(*) FROM platform_payments WHERE invoice_id = ?", [$newsInvoice['id']]) === 1);

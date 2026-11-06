@@ -610,12 +610,71 @@ Dokumentasi API lengkap untuk Flutter dalam DOC/API.md.
 
 ---
 
+# PERINGKAT 2b — WEB LENGKAP (arahan pengguna 6 Nov 2026 — sebelum apps)
+
+> Semua perkara web yang tertangguh dari U/B disiapkan di sini. Selepas W6, yang tinggal hanya F1–F4.
+> Setiap session: `tools/verify-wN.php` sendiri + jalankan semula `verify-b*` yang berkaitan.
+
+## W1 — Profil & 2FA vendor ✅ (6 Nov 2026 — lihat PROSES.md)
+
+```
+Ikut peraturan umum. Session: W1. Prasyarat: B15 ✅.
+vendor/profile.php (pautan menu profil sejak U3): nama, e-mel unik, telefon, bahasa, tukar kata laluan — semua peranan.
+vendor/two-factor.php: 2FA vendor PILIHAN (PELAN 11) — aktifkan, kod pemulihan, pindah peranti, matikan (kata laluan + kod).
+Pentadbir set semula 2FA kakitangan sendiri. Ujian kebocoran VENDOR01 ↔ VENDOR02.
+```
+
+## W2 — Gateway borang POST & refund tersangkut ✅ (6 Nov 2026 — lihat PROSES.md)
+
+```
+Ikut peraturan umum. Session: W2. Prasyarat: W1 ✅.
+QR kaunter POS untuk iPay88: halaman bayaran awam tanpa sesi ibu bapa (token rawak dalam QR, hash dalam DB).
+iPay88 sebagai gateway owner untuk yuran langganan (borang POST, alamat kembali GET/POST).
+Cron cuba semula refund gateway `pending` yang tersangkut (kunci idempotensi refund_no). Kemas kini verify-b10/b12.
+```
+
+## W3 — E-mel & templat WhatsApp Meta
+
+```
+Ikut peraturan umum. Session: W3. Prasyarat: W2 ✅.
+Templat e-mel baharu (4 bahasa, boleh disunting owner): refund_processed (ibu bapa), invoice_overdue (peringatan tunggakan),
+vendor_suspended (notis digantung). Dihantar oleh job sedia ada (RefundOrderJob/GatewayRefundSender, SuspendOverdueJob, cron).
+WhatsApp Cloud: templat diluluskan Meta (nama templat + kod bahasa per acara) — dihantar sebagai mesej templat.
+```
+
+## W4 — Modul laporan lanjutan, keahlian & halaman apps
+
+```
+Ikut peraturan umum. Session: W4. Prasyarat: W3 ✅.
+advanced_report: perbandingan tahun (bulanan), analisis kit (kadar uncheck item, kit dibeli ikut darjah), CSV.
+membership: ahli, syer (transaksi), dividen tahunan (kadar %, dikira di pelayan) — jadual baharu + migrasi.
+mobile_app: halaman vendor — status modul, ibu bapa guna apps, peranti push, push dihantar, pautan muat turun (tetapan owner).
+ModuleAccess::has dalam setiap endpoint; ujian kebocoran VENDOR01 ↔ VENDOR02.
+```
+
+## W5 — Template store 2 & 3
+
+```
+Ikut peraturan umum. Session: W5. Prasyarat: W4 ✅.
+templates/template2/ & template3/ — semua halaman wajib manifest (PELAN 10.5), id/data-* sama seperti template1, CSS sendiri.
+Gambar pratonton sebenar (tangkap layar) untuk owner/templates & kedai modul vendor.
+```
+
+## W6 — Semakan web menyeluruh
+
+```
+Ikut peraturan umum. Session: W6. Prasyarat: W5 ✅.
+Jalankan semua tools/verify-*.php, check-ui, audit UI (axe) semua halaman baharu. Tiada lagi perkara web "tertangguh" dalam PROSES.md.
+```
+
+---
+
 # PERINGKAT 3 — APPS FLUTTER (hanya selepas Peringkat 1 & 2 ✅)
 
 ## F1 — UI Flutter
 
 ```
-Ikut peraturan umum. Session: F1. Prasyarat: semua U dan B ✅.
+Ikut peraturan umum. Session: F1. Prasyarat: semua U, B dan W ✅.
 Cipta folder mobile/ (projek Flutter). Skrin sama seperti Template 1 (U5) dengan data mock,
 4 bahasa (flutter_localizations, kunci sama seperti lang/*.php).
 ```

@@ -22,7 +22,7 @@ return [
     'pretty_store_urls' => false,
 
     // Naikkan nombor ini bila CSS/JS berubah supaya pelayar tidak guna cache lama
-    'asset_version'     => '15',
+    'asset_version'     => '16',
 
     // Peringkat 2 (B1): true = ralat penuh dipapar (pembangunan sahaja). Produksi: false
     'debug'             => false,

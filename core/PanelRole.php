@@ -12,8 +12,8 @@ class PanelRole
     // Halaman modul add-on ('module.*') — juruwang tidak mengurus modul
     const ADDON_ROLES = ['vendor_admin', 'coop_manager'];
 
-    // Vendor digantung: hanya halaman langganan & invois (activeMenu 'menu.subscription')
-    const BILLING_MENUS = ['menu.subscription'];
+    // Vendor digantung: hanya halaman langganan & invois (activeMenu 'menu.subscription') + profil sendiri
+    const BILLING_MENUS = ['menu.subscription', 'common.profile'];
 
     public static function current($panel)
     {

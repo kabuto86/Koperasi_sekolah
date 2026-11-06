@@ -2,6 +2,8 @@
 // Bil QR untuk jualan POS online (PELAN 18.11, 13). Sama seperti StartOnlinePaymentJob: bil di gateway koperasi
 // (CooperativeGateways::driver → createBill) DI LUAR transaksi DB → baris payments `pending`. Pembeli mengimbas QR
 // (pautan bayaran gateway) dengan telefon; status `paid` HANYA oleh PaymentSettlement (webhook / semakan semula).
+// Gateway borang POST (iPay88): QR memaut ke halaman bayaran awam store/pay.php?ref=…&t=… (token rawak sekali cipta,
+// hash SHA-256 dalam raw_payload) yang menghantar borang gateway — tiada sesi ibu bapa diperlukan (W2).
 // Pulangkan { reference, gateway_name, qr_payload, expires_in (saat) }.
 class PosOnlinePaymentJob
 {
@@ -39,12 +41,16 @@ class PosOnlinePaymentJob
             error_log('[KoperasiKu] cipta bil POS ' . $reference . ': ' . $error->getMessage());
             throw new ValidationException(t('payment.gateway_error'));
         }
-        if ($created['form'] !== null || (string) $created['redirect_url'] === '') {
-            // Gateway borang POST (iPay88) perlu sesi ibu bapa (store/payment-redirect.php) — tiada pautan untuk QR kaunter
+        if ($created['form'] !== null) {
+            $token = bin2hex(random_bytes(16));
+            $link = View::absoluteUrl('store/pay.php?' . http_build_query(['ref' => $created['gateway_ref'], 't' => $token]));
+            $raw = ['reference' => $reference, 'redirect_url' => null, 'form' => $created['form'], 'pay_token_hash' => Crypto::hashToken($token)];
+        } elseif ((string) $created['redirect_url'] !== '') {
+            $link = $created['redirect_url'];
+            $raw = ['reference' => $reference, 'redirect_url' => $link, 'form' => null];
+        } else {
             throw new ValidationException(t('pos.online_qr_unsupported'));
         }
-        $link = $created['redirect_url'];
-        $raw = ['reference' => $reference, 'redirect_url' => $link, 'form' => null];
         Database::insert(
             "INSERT INTO payments (vendor_id, cooperative_id, order_id, method, gateway_code, gateway_ref, amount, status, raw_payload)
              VALUES (?, ?, ?, 'online', ?, ?, ?, 'pending', ?)",

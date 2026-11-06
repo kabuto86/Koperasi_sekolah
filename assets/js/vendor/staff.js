@@ -57,6 +57,11 @@ function staffActions(row) {
     wrap.appendChild(createButton('', 'btn-outline-secondary', 'bi-envelope', function () {
         sendReset(row);
     }, T('staff_v.send_reset')));
+    if (row.totp_enabled && !row.is_self) {
+        wrap.appendChild(createButton('', 'btn-outline-warning', 'bi-shield-x', function () {
+            reset2fa(row);
+        }, T('staff.reset_2fa')));
+    }
     if (!row.is_self) {
         wrap.appendChild(createButton('', row.is_active ? 'btn-outline-danger' : 'btn-outline-success', row.is_active ? 'bi-person-slash' : 'bi-person-check', function () {
             setActive(row, !row.is_active);
@@ -78,6 +83,20 @@ function setActive(row, isActive) {
             }
             showToast(T('common.saved'), 'success');
             loadStaff();
+        });
+    });
+}
+
+function reset2fa(row) {
+    confirmDialog(T('staff_v.reset_2fa_confirm', { name: row.full_name }), { okClass: 'btn-warning' }).then(function (confirmed) {
+        if (!confirmed) {
+            return;
+        }
+        Api.post('vendor/staff/reset-2fa', { id: row.id }).then(function (res) {
+            showToast(res.ok ? T('common.saved') : res.error, res.ok ? 'success' : 'danger');
+            if (res.ok) {
+                loadStaff();
+            }
         });
     });
 }

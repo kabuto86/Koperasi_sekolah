@@ -153,39 +153,10 @@ class RefundOrderJob
         return $refund;
     }
 
-    // Langkah 2 & 3 refund gateway. Pulangkan $refund dengan status completed | failed
+    // Langkah 2 & 3 refund gateway (GatewayRefundSender). Pulangkan $refund dengan status completed | failed
     private function sendToGateway(array $refund, array $gateway)
     {
-        list($row, $driver) = $gateway;
-        $payment = Database::fetchOne("SELECT p.* FROM payments p JOIN refunds r ON r.payment_id = p.id AND r.vendor_id = p.vendor_id
-             WHERE r.id = ? AND r.vendor_id = ?", [(int) $refund['id'], $this->vendorId]);
-        try {
-            $result = $driver->refund($payment['gateway_ref'], $refund['amount'], $refund['refund_no']);
-        } catch (GatewayException $error) {
-            error_log('refund gateway ' . $row['gateway_code'] . ' ' . $refund['refund_no'] . ': ' . $error->getMessage());
-            Database::execute("UPDATE refunds SET status = 'failed' WHERE id = ? AND vendor_id = ? AND status = 'pending'",
-                [(int) $refund['id'], $this->vendorId]);
-            $refund['status'] = 'failed';
-            return $refund;
-        }
-
-        Database::beginTransaction();
-        try {
-            $order = VendorOrders::require($this->vendorId, $this->cooperative['id'], (int) $payment['order_id'], true);
-            Database::execute("UPDATE refunds SET status = 'completed', gateway_ref = ? WHERE id = ? AND vendor_id = ?",
-                [mb_substr((string) $result['refund_ref'], 0, 100, 'UTF-8'), (int) $refund['id'], $this->vendorId]);
-            $lines = array_map('intval', array_column(Database::fetchAll(
-                "SELECT order_item_id, qty FROM refund_items WHERE vendor_id = ? AND refund_id = ? ORDER BY order_item_id",
-                [$this->vendorId, (int) $refund['id']]
-            ), 'qty', 'order_item_id'));
-            Refunds::apply($order, $refund, $lines, $this->userId, $this->cooperative['default_language']);
-            Database::commit();
-        } catch (Throwable $error) {
-            Database::rollBack();
-            throw $error;
-        }
-        $refund['status'] = 'completed';
-        return $refund;
+        return GatewayRefundSender::send($this->vendorId, $this->cooperative, $refund, $gateway, $this->userId);
     }
 
     private function log(array $refund, $action)

@@ -5,7 +5,7 @@
 > tanpa bertanya. Status semasa: [PROSES.md](PROSES.md). Prompt kerja:
 > [PROMPT-SESSION.md](PROMPT-SESSION.md).
 
-Kemas kini terakhir: 30 Oktober 2026 (B13 — Modul add-on)
+Kemas kini terakhir: 6 November 2026 (W1–W6 — Web lengkap)
 Persekitaran sasaran: XAMPP · PHP 8.2 · MariaDB 10.4+ / MySQL 8 · Bootstrap 5
 
 ---
@@ -52,6 +52,22 @@ mencatat **nama anak, darjah dan kelas**, dan barang diambil di koperasi sekolah
 1. **Peringkat 1 — UI desktop/web** (U1–U7). Semua skrin dibina dahulu dengan data contoh.
 2. **Peringkat 2 — Backend & API** (B1–B15). Sambung skrin yang sudah ada kepada data sebenar.
 3. **Peringkat 3 — Apps Flutter** (F1–F4). Hanya bermula selepas **semua** bahagian desktop siap.
+
+**Diputuskan pengguna, 6 Nov 2026:** sebelum Peringkat 3, semua bahagian web yang tertangguh dari U/B disiapkan dahulu dalam
+**Peringkat 2b — Web lengkap (W1–W6)**. Selepas W6, kerja yang tinggal hanya apps Flutter (F1–F4). Lihat 3.2.
+
+### 3.2 Peringkat 2b — Web lengkap (W1–W6)
+
+Senarai "Tertangguh" dalam PROSES.md (U7, B2–B15) yang bukan kerja apps:
+
+| Session | Isi | Keputusan |
+|---|---|---|
+| W1 | Profil vendor (`vendor/profile.php`) + 2FA vendor (`vendor/two-factor.php`) | Semua peranan (termasuk juruwang) boleh sunting nama, e-mel, telefon, bahasa & tukar kata laluan; peranan & akses koperasi kekal diurus pentadbir. 2FA vendor **pilihan**: aktifkan (QR + 8 kod pemulihan), jana semula kod, pindah peranti, **matikan** (kata laluan + kod 2FA). Pentadbir boleh set semula 2FA kakitangan (`vendor/staff/reset-2fa`). Profil dibuka walaupun langganan digantung |
+| W2 | Gateway borang POST (iPay88) untuk QR kaunter POS & yuran langganan; cron cuba semula refund gateway `pending` | QR POS iPay88 → `store/pay.php?ref=&t=` (halaman awam, token rawak 128-bit, hash dalam `payments.raw_payload`, hanya bil POS `pending` belum luput). Invois → `vendor/invoice-pay.php?ref=` (sesi vendor sama); kembali melalui `vendor/invoice-return.php` (GET/POST → 303). `cron/retry-refunds.php`: refund gateway `pending` 10 minit – 23 jam dicuba semula dengan kunci idempotensi sama (`refund_no`); > 23 jam = semakan manual |
+| W3 | E-mel "refund diproses" (ibu bapa), peringatan tunggakan & notis digantung (vendor), templat WhatsApp diluluskan Meta | lihat PROSES W3 |
+| W4 | Modul `advanced_report`, `membership`, halaman `mobile_app` vendor | lihat PROSES W4 |
+| W5 | Template store 2 & 3 (premium) + gambar pratonton | lihat PROSES W5 |
+| W6 | Semakan menyeluruh (semua `verify-*`, `check-ui`, audit UI), kemas kini DOC | — |
 
 ### 3.1 Bagaimana UI dibina tanpa backend
 
@@ -780,6 +796,10 @@ masuk baris gilir HANYA melalui `PushNotifications` (`orderReady`, `orderCollect
 - PIN POS: `PosPinLoginJob` (B2) — endpoint `vendor/pos/pin-login` disambung dalam B10 (`PosLoginJob` + `core/PosAuth`). PIN demo 1234 hanya
   dalam seed (hash Argon2id), tiada lagi PIN tetap dalam kod / teks skrin. Dikunci = `pin_failed_attempts ≥ 5`; buka = pentadbir tetapkan PIN baharu
   di Kakitangan (`SaveVendorStaffJob` mengosongkan kiraan). Had tambahan `pos_pin:{pengguna panel}` 30/10 minit
+- **2FA vendor (W1):** `vendor/two-factor.php` — `vendor/two-factor/setup` (rahsia dalam sesi `vendor_setup_secret`, disulitkan) → `enable` (kod
+  pertama; 8 kod pemulihan) · `regenerate-codes` (kod TOTP semasa) · `disable` (kata laluan **dan** kod TOTP / kod pemulihan — `DisableTotpJob`).
+  Pentadbir: `vendor/staff/reset-2fa` (`ResetVendorStaff2faJob`, kakitangan vendor sendiri sahaja). Profil `vendor/profile/get|save|change-password`
+  (tukar kata laluan membatalkan pautan reset/jemputan yang belum diguna). Log aktiviti: `profile_update`, `profile_password`, `two_factor_*`, `staff_reset_2fa`
 
 ## 12. Pelbagai bahasa — ms · en · zh · ta
 
@@ -845,6 +865,16 @@ melempar `GatewayException` (tidak disokong). **Stripe** sahaja: `GET /v1/checko
 **dan** driver `supportsRefund()`, menggunakan baris `cooperative_gateways` gateway bil itu (aktif atau tidak). Gateway lain → tunai / pindahan bank manual.
 - Bil `pending` yang sama diguna semula 30 minit (`StartOnlinePaymentJob::REUSE_MINUTES`); gateway gagal mencipta bil → pesanan tetap disimpan,
   `payment: null` + `payment_error`; ibu bapa tekan "Bayar" semula
+
+**Pelaksanaan W2 (gateway borang POST & refund tersangkut):**
+- **QR kaunter iPay88:** `PosOnlinePaymentJob` menyimpan borang + `pay_token_hash` (SHA-256 token rawak 32 hex) dalam `payments.raw_payload`; QR =
+  `store/pay.php?ref={gateway_ref}&t={token}`. `GetPosPaymentFormJob` hanya memulangkan borang untuk bil `pending` jualan POS `pending_payment`
+  yang belum luput dan token sepadan (`hash_equals`) — selain itu 404. Batal / dibayar / luput → pautan mati
+- **Invois langganan iPay88:** `PayInvoiceJob` menyimpan borang dalam `platform_payments.raw_payload`, `redirect_url` = `vendor/invoice-pay.php?ref=`
+  (`GetInvoicePaymentFormJob`, vendor sesi sahaja). `return_url` semua gateway owner = `vendor/invoice-return.php?invoice={id}` (GET/POST → 303 →
+  `invoices.php?paid_return=`; cookie SameSite=Lax dihantar pada GET). Owner boleh memilih iPay88 bila `payment_gateways.is_enabled_for_platform = 1`
+- **Refund tersangkut:** langkah 2 & 3 refund gateway dalam `GatewayRefundSender` (dikongsi `RefundOrderJob` & `RetryPendingRefundsJob`; baris refund
+  dikunci `FOR UPDATE` dan mesti masih `pending`). `cron/retry-refunds.php` (setiap 15 minit, `flock`)
 
 **WhatsApp/SMS (modul `whatsapp_sms`, B13):** bukan gateway bayaran, tetapi corak sama — driver dalam `messaging/` tanpa DB, kunci vendor
 disulitkan per koperasi. Twilio `POST /2010-04-01/Accounts/{SID}/Messages.json` (basic auth; saluran WhatsApp = awalan `whatsapp:`), WhatsApp Cloud

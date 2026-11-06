@@ -1960,4 +1960,22 @@ return [
     'push.order_collected.title' => 'Items collected',
     'push.order_collected.body' => 'Order {order_no}: collected by {picked_by} at {time}.',
     'push.news.title' => '{school_name}: {title}',
+
+    // Web lengkap W1 — profil & 2FA vendor
+    'twofa.vendor_note' => '2FA is optional for vendor staff but strongly recommended, especially for administrators.',
+    'twofa.disable' => 'Turn off 2FA',
+    'twofa.disable_help' => 'Your account will be protected by password only. Enter your password and 2FA code (or a recovery code) to confirm.',
+    'twofa.disable_code' => '2FA code or recovery code',
+    'twofa.disabled_toast' => '2FA has been turned off.',
+    'staff_v.reset_2fa_confirm' => 'Reset 2FA for {name}? They can sign in with password only and set up 2FA again on their profile page.',
+    'activity.action.profile_update' => 'Update profile',
+    'activity.action.profile_password' => 'Change password',
+    'activity.action.two_factor_enable' => 'Enable 2FA',
+    'activity.action.two_factor_disable' => 'Turn off 2FA',
+    'activity.action.two_factor_regenerate' => 'Regenerate 2FA recovery codes',
+    'activity.action.staff_reset_2fa' => 'Reset staff 2FA',
+
+    // Web lengkap W2 — bayaran QR iPay88 & cuba semula refund
+    'pos.pay_link_invalid' => 'This payment link is invalid, already paid or has expired. Ask the cashier to show a new QR code.',
+    'refund.retried' => 'retried by the system',
 ];
