@@ -1,0 +1,73 @@
+/* Template 2 — Ceria (sekolah rendah). Di atas gaya asas templates/template1/css/template.css.
+   Warna utama ungu (kontras teks putih ≥ 4.5:1), jubin pastel, sudut bulat, jalur warna-warni. */
+
+.store-template2 {
+    --app-brand: #6d28d9;
+    --app-brand-dark: #5b21b6;
+    --bs-link-color: #6d28d9;
+    --bs-link-color-rgb: 109, 40, 217;
+    --bs-link-hover-color: #5b21b6;
+    --bs-link-hover-color-rgb: 91, 33, 182;
+    background-color: #fff8ef;
+}
+
+/* Bar atas putih + jalur warna */
+.store-t2-topbar.navbar { --bs-navbar-color: #3f3f46; --bs-navbar-hover-color: #6d28d9; --bs-navbar-active-color: #fff; }
+.store-t2-topbar .navbar-brand { color: #6d28d9; }
+.store-t2-topbar .nav-link.active { background-color: #6d28d9; color: #fff; text-decoration: none; }
+.store-t2-topbar .nav-link:not(.active):hover { background-color: #f3e8ff; }
+.store-t2-logo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    flex-shrink: 0;
+    border-radius: 50%;
+    color: #fff;
+    background: linear-gradient(135deg, #f97316, #db2777, #6d28d9);
+}
+.store-t2-stripe { height: 0.35rem; background: linear-gradient(90deg, #f97316, #facc15, #22c55e, #0ea5e9, #6d28d9, #db2777); }
+
+/* Hero */
+.store-t2-hero { background: linear-gradient(135deg, #6d28d9 0%, #9d174d 55%, #c2410c 100%); }
+.store-t2-hero > *:not(.store-t2-hero-deco) { position: relative; }
+.store-t2-hero-deco {
+    position: absolute;
+    top: 0.5rem;
+    right: 1rem;
+    display: flex;
+    gap: 0.75rem;
+    font-size: 2.5rem;
+    color: rgba(255, 255, 255, 0.18);
+}
+
+/* Jubin pintasan pastel (teks gelap — kontras AA) */
+.store-t2-tile-1 { background-color: #ffedd5; }
+.store-t2-tile-2 { background-color: #dcfce7; }
+.store-t2-tile-3 { background-color: #e0f2fe; }
+.store-t2-tile-4 { background-color: #fce7f3; }
+.store-t2-tile-1 .bi { color: #c2410c; }
+.store-t2-tile-2 .bi { color: #15803d; }
+.store-t2-tile-3 .bi { color: #0369a1; }
+.store-t2-tile-4 .bi { color: #be185d; }
+.store-template2 .store-quick-card { transition: transform 0.15s ease; }
+.store-template2 .store-quick-card:hover { transform: translateY(-2px); }
+
+/* Kad & butang lebih bulat */
+.store-template2 .card { border-radius: 1rem; }
+.store-template2 .card-header:first-child { border-radius: 1rem 1rem 0 0; }
+.store-template2 .btn:not(.btn-sm):not(.dropdown-toggle) { border-radius: 2rem; }
+.store-template2 .store-thumb { border-radius: 0.75rem; }
+
+/* Navbar bawah: ikon aktif dalam kapsul */
+.store-template2 .store-bottom-link.active { color: #6d28d9; }
+.store-template2 .store-bottom-link.active .bi { padding: 0.1rem 0.9rem; border-radius: 1rem; background-color: #ede9fe; }
+
+/* Kaki halaman */
+.store-t2-footer { color: #52525b; background-color: #fff; border-top: 0.35rem solid #fde68a; }
+.store-t2-footer-icons .bi { margin: 0 0.25rem; }
+.store-t2-footer-icons .bi:nth-child(1) { color: #c2410c; }
+.store-t2-footer-icons .bi:nth-child(2) { color: #15803d; }
+.store-t2-footer-icons .bi:nth-child(3) { color: #0369a1; }
+.store-t2-footer-icons .bi:nth-child(4) { color: #be185d; }

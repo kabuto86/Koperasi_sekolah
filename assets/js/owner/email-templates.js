@@ -11,7 +11,8 @@ var SAMPLE_VALUES = {
     '{pickup_code}': '4821', '{child_name}': 'Aisyah', '{child_class}': '4 Bestari', '{opening_hours}': '7:30 pagi – 1:00 petang',
     '{collected_by}': 'Aisyah (4 Bestari)', '{collected_at}': '24/10/2026 10:15', '{invoice_no}': 'INV-2026-0048',
     '{vendor_name}': 'Niaga Sekolah Sdn Bhd', '{due_date}': '27/10/2026', '{pay_url}': '#', '{name}': 'Ahmad',
-    '{reset_url}': '#', '{expires_minutes}': '30'
+    '{reset_url}': '#', '{expires_minutes}': '30', '{refund_no}': 'RF-A123-1', '{amount}': 'RM 13.00', '{method}': 'Pindahan bank',
+    '{reason}': 'Saiz tidak sesuai', '{suspend_date}': '03/11/2026', '{reference}': 'TXN-88231'
 };
 
 function loadTemplateList(selectKey) {

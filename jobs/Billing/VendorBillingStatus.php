@@ -8,7 +8,7 @@ class VendorBillingStatus
     public static function oldestOverdue($vendorId)
     {
         return Database::fetchOne(
-            "SELECT id, invoice_no, due_at FROM invoices WHERE vendor_id = ? AND status = 'issued' AND due_at < NOW() ORDER BY due_at LIMIT 1",
+            "SELECT id, invoice_no, total, due_at FROM invoices WHERE vendor_id = ? AND status = 'issued' AND due_at < NOW() ORDER BY due_at LIMIT 1",
             [(int) $vendorId]
         );
     }

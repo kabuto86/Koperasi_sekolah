@@ -4,9 +4,10 @@
 > Kemas kini fail ini di HUJUNG setiap session, sebelum commit & push.
 > Reka bentuk: [PELAN.md](PELAN.md) · Prompt kerja: [PROMPT-SESSION.md](PROMPT-SESSION.md)
 
-**Status keseluruhan:** **Peringkat 1 siap** (U1–U7) · **Peringkat 2 siap** (B1–B15) — skema & core (B1), auth sebenar (B2), panel owner (B3), katalog & inventori vendor (B4), kit sekolah (B5), store ibu bapa: anak, katalog, kit, troli (B6), checkout tunai, pesanan & queue e-mel (B7), payment gateway + webhook (B8), pesanan vendor & serah barang (B9), POS kaunter & promosi (B10), refund & laporan (B11), langganan & invois vendor + cron (B12), modul add-on (B13), terjemahan & pengerasan keselamatan (B14), API token apps Flutter & push (B15) — **semua laluan web sebenar, mock dibuang; API apps sedia ([API.md](API.md))**
-**Session terakhir siap:** B15 — API token Flutter & push
-**Session seterusnya:** **F1 — UI Flutter** (Peringkat 3)
+**Status keseluruhan:** **Peringkat 2b siap** (W1–W6) — semua bahagian web lengkap; yang tinggal hanya apps Flutter (F1–F4) · **Peringkat 1 siap** (U1–U7) · **Peringkat 2 siap** (B1–B15) — skema & core (B1), auth sebenar (B2), panel owner (B3), katalog & inventori vendor (B4), kit sekolah (B5), store ibu bapa: anak, katalog, kit, troli (B6), checkout tunai, pesanan & queue e-mel (B7), payment gateway + webhook (B8), pesanan vendor & serah barang (B9), POS kaunter & promosi (B10), refund & laporan (B11), langganan & invois vendor + cron (B12), modul add-on (B13), terjemahan & pengerasan keselamatan (B14), API token apps Flutter & push (B15) — **semua laluan web sebenar, mock dibuang; API apps sedia ([API.md](API.md))**
+**Peringkat 2b — Web lengkap** (W1–W6, arahan pengguna 6 Nov 2026): semua perkara web yang tertangguh disiapkan sebelum apps
+**Session terakhir siap:** W6 — Semakan web menyeluruh
+**Session seterusnya:** **F1 — UI Flutter** (Peringkat 3 — hanya apps yang tinggal)
 
 Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 
@@ -51,6 +52,17 @@ Petunjuk: ⬜ belum mula · 🟡 sedang berjalan · ✅ siap · ⛔ tersekat
 | B13 | Modul add-on | ✅ | 30 Okt 2026 | `5bd56fe` | 23 endpoint modul (`vendor/news|clearance|calendar|school-opening|messaging/*`), 5 folder job baharu (31 fail), driver WhatsApp/SMS `messaging/` (Twilio, WhatsApp Cloud, iSMS), cron `send-messages.php`, e-mel berita sekali sahaja + berjadual, peringatan tunai, migrasi 006, `mock/vendor-addons.js` & `mock/vendor.js` dibuang, `tools/verify-b13.php` 92/92 lulus |
 | B14 | Modul terjemahan + pengerasan keselamatan | ✅ | 30 Okt 2026 | `a6e12ce` | `owner/translations/*` sebenar (`storage/lang/*.php` dijana dari `lang/*.php` + `translations`, `MissingKeysJob`), mock dibuang sepenuhnya, migrasi 007, senarai PELAN 15 disemak satu per satu (header, proksi, muat naik GD, rate limit kod ambil, PDPA nyahnama pesanan, audit `price_change`, backup harian), `tools/verify-b14.php` 112/112 lulus (sapuan 230 endpoint) |
 | B15 | API token Flutter + push | ✅ | 30 Okt 2026 | `c0b679b` | `core/ApiTokenAuth` (Bearer, SHA-256, luput bergerak 90 hari, ≤ 10 token), semua endpoint store menerima token (tiada cookie/CSRF), gerbang modul `mobile_app`, 6 laluan baharu, `jobs/ApiToken/` + `jobs/Push/`, `messaging/FcmSender` (FCM HTTP v1), cron `send-push.php`, migrasi 008, `DOC/API.md`, `tools/verify-b15.php` 68/68 lulus |
+
+## Peringkat 2b — Web lengkap (arahan pengguna 6 Nov 2026 — siapkan semua bahagian web sebelum apps)
+
+| Session | Tajuk | Status | Tarikh siap | Commit | Nota |
+|---|---|---|---|---|---|
+| W1 | Profil vendor + 2FA vendor | ✅ | 6 Nov 2026 | (lihat git log) | `vendor/profile.php`, `vendor/two-factor.php`, 8 laluan, 4 job, set semula 2FA kakitangan, `tools/verify-w1.php` 38/38 lulus |
+| W2 | Gateway borang POST (iPay88) untuk QR POS & invois + cuba semula refund | ✅ | 6 Nov 2026 | (lihat git log) | `store/pay.php`, `vendor/invoice-pay.php`, `vendor/invoice-return.php`, `GatewayRefundSender`, cron `retry-refunds.php`, `tools/verify-w2.php` 20/20 lulus |
+| W3 | E-mel refund, tunggakan & digantung + templat WhatsApp Meta | ✅ | 6 Nov 2026 | (lihat git log) | 3 templat e-mel baharu (owner boleh sunting), migrasi 009, `sendTemplate` WhatsApp Cloud, `tools/verify-w3.php` 16/16 lulus |
+| W4 | Modul laporan lanjutan, keahlian, halaman apps vendor | ✅ | 6 Nov 2026 | (lihat git log) | 12 endpoint, 4 folder job baharu (21 fail), migrasi 010 (4 jadual keahlian → 80 jadual), tiada lagi halaman "akan datang", `tools/verify-w4.php` 41/41 lulus |
+| W5 | Template store 2 & 3 + pratonton | ✅ | 6 Nov 2026 | (lihat git log) | `templates/template2` (Ceria) & `template3` (Klasik), gambar pratonton sebenar, migrasi 011, `tools/verify-w5.php` 19/19 lulus |
+| W6 | Semakan web menyeluruh | ✅ | 6 Nov 2026 | (lihat git log) | 20 skrip `verify-*` lulus (1 586 semakan), `check-ui` OK (2042 kunci × 4), audit UI 712 halaman-paparan, 0 perkara web tertangguh |
 
 ## Peringkat 3 — Apps Flutter (selepas Peringkat 1 & 2 siap)
 
@@ -504,7 +516,7 @@ Dokumen:
 | ~~E-mel jemputan / reset kata laluan kakitangan sebenar~~ (masuk `email_queue`; penghantaran SMTP oleh cron B7) | ✅ B2 |
 | ~~Owner `owner_staff`: sekatan harga/pelan/tetapan di pelayan~~ — halaman B2, API owner B3 | ✅ B3 |
 | Muat naik sebenar (logo, gambar produk, gambar berita) — `Uploader` + `finfo`; Peringkat 1 guna data URL / ikon gantian | B4/B13 |
-| Gambar pratonton template sebenar (`preview_image`) | bila template2/3 dibina |
+| ~~Gambar pratonton template sebenar (`preview_image`)~~ (template2 & template3 dibina) | ✅ W5 |
 | E-mel sebenar (pengesahan, reset, pesanan baharu, slip, invois) melalui `email_queue` + cron | B7 |
 | Luput automatik pesanan tunai/online (cron) | B7 |
 | ~~Kaitan promosi dengan pesanan (`orders.promotion_id`, `used_count`)~~ (store B7, POS & panel promosi B10) | ✅ B10 |
@@ -517,7 +529,7 @@ Dokumen:
 | Penghantaran WhatsApp/SMS sebenar; mesej automatik "sedia diambil / telah diambil" | B13 |
 | E-mel berita sebenar | B13 |
 | ~~URL cantik store `/{slug}/` (.htaccess); pratonton `?template=` hadkan kepada owner~~ — owner / vendor pemilik | ✅ B6 |
-| Halaman `advanced_report`, `membership` (sementara "sedang dibina"); `mobile_app` | kemudian / F1–F4 |
+| ~~Halaman `advanced_report`, `membership` (sementara "sedang dibina"); `mobile_app`~~ (modul sebenar) | ✅ W4 |
 | Imbas QR/barcode dengan kamera | F1 (app) |
 | Pemilih koperasi POS disembunyikan < 768px (tukar koperasi dari panel) | kekal — reka bentuk |
 
@@ -1417,6 +1429,148 @@ Tertangguh:
 
 ---
 
+### W1 — Profil & 2FA vendor (6 Nov 2026)
+
+Dibuat:
+- `vendor/profile.php` + `assets/js/vendor/profile.js` — maklumat diri (syarikat & peranan dipapar, nama, e-mel unik, telefon, bahasa), tukar kata
+  laluan, status 2FA. Pautan menu profil (sejak U3) kini berfungsi. `$activeMenu = 'common.profile'` — semua peranan; dibenarkan ketika digantung
+  (`PanelRole::BILLING_MENUS`)
+- `vendor/two-factor.php` + `assets/js/vendor/two-factor.js` — QR (dijana dalam pelayar), kunci manual, kod pemulihan (cetak), pindah peranti, matikan 2FA
+- API (8): `vendor/profile/get|save|change-password`, `vendor/two-factor/setup|enable|regenerate-codes|disable`, `vendor/staff/reset-2fa`
+- Job: `SaveVendorProfileJob`, `ChangeVendorPasswordJob`, `ResetVendorStaff2faJob` (`jobs/Vendor/`), `DisableTotpJob` (`jobs/Auth/`).
+  `VendorAuth::setSetupSecret|setupSecret|clearSetupSecret`. Butang "Set semula 2FA" di halaman Kakitangan
+- 12 kunci bahasa × 4 (`twofa.vendor_note|disable*`, `staff_v.reset_2fa_confirm`, `activity.action.*`)
+
+Disahkan (`tools/verify-w1.php` **38 lulus, 0 gagal**): e-mel pendua merentas vendor ditolak; `role`/`vendor_id` dari input diabaikan; tanpa CSRF
+ditolak; juruwang boleh buka profil; kata laluan lama tidak sah selepas tukar & pautan reset dibatalkan; rahsia TOTP tidak disimpan sebelum disahkan,
+sesi VENDOR02 tidak boleh guna rahsia sesi VENDOR01; log masuk 2 langkah (kod pemulihan sekali guna); matikan perlu kata laluan **dan** kod;
+VENDOR01 set semula 2FA kakitangan VENDOR02 → 404, pengurus → 403; profil dibuka ketika digantung; tiada SQL dalam `api/` baharu.
+
+### W2 — Gateway borang POST & refund tersangkut (6 Nov 2026)
+
+Dibuat:
+- **QR kaunter iPay88:** `PosOnlinePaymentJob` → borang + hash token dalam `raw_payload`, QR `store/pay.php?ref=&t=`; `jobs/Pos/GetPosPaymentFormJob`;
+  `store/pay.php` (awam, CSP `form-action` asal gateway, borang dihantar automatik). Sebelum ini ditolak dengan `pos.online_qr_unsupported`
+- **Invois iPay88:** `PayInvoiceJob` (borang dalam `platform_payments.raw_payload`), `jobs/Billing/GetInvoicePaymentFormJob`, `vendor/invoice-pay.php`,
+  `vendor/invoice-return.php` (alamat kembali semua gateway owner)
+- **Refund tersangkut:** `jobs/Refund/GatewayRefundSender` (dari `RefundOrderJob`, + kunci baris & semak masih `pending`), `RetryPendingRefundsJob`,
+  `cron/retry-refunds.php` (`*/15 * * * *`)
+- 2 kunci bahasa × 4 (`pos.pay_link_invalid`, `refund.retried`)
+- Ujian lama dikemas kini: `verify-b10` (iPay88 QR kini berjaya — pautan, token salah 404, batal → 404), `verify-b12` (alamat kembali `invoice-return.php`)
+
+Disahkan: `tools/verify-w2.php` **20 lulus, 0 gagal** (invois iPay88: borang, VENDOR01 → 404, kembali POST → 303, enquiry pending → webhook "00" → paid;
+refund: tersangkut 20 minit → completed, baru 2 minit tidak disentuh, > 23 jam manual, sudah diterima gateway → tidak dipulang dua kali, ditolak → failed,
+gateway tiada → failed); `verify-b10` 100/100; `verify-b11` 78/78; `verify-b12` 98/98.
+
+Tertangguh: tiada.
+
+---
+
+### W3 — E-mel & templat WhatsApp Meta (6 Nov 2026)
+
+Dibuat:
+- **E-mel (3 templat baharu dalam `EmailTemplateCatalog`, boleh disunting owner, teks lalai 4 bahasa):**
+  - `refund_processed` → ibu bapa (e-mel snapshot pesanan, bahasa akaun) setiap refund selesai: `OrderEmails::queueRefund` dari `Refunds::apply`
+    (tunai, pindahan bank, gateway — termasuk cuba semula cron W2). POS walk-in / tiada e-mel → tiada e-mel
+  - `invoice_overdue` → e-mel syarikat vendor bila `SuspendOverdueJob` menukar ke `past_due` (dengan `{suspend_date}` = tarikh akhir + tempoh tangguh)
+  - `vendor_suspended` → bila ditukar ke `suspended`. Kedua-duanya sekali setiap peralihan (cron berulang tidak menghantar semula)
+  - `VendorBillingStatus::oldestOverdue` kini memulangkan `total`; nilai contoh pratonton baharu dalam `assets/js/owner/email-templates.js`
+- **Templat WhatsApp diluluskan Meta:** migrasi `009-whatsapp-meta-templates.sql` (+ `schema.sql`): `messaging_settings.meta_templates_json`,
+  `notification_queue.template_json`. `MessagingSettings::META_PARAMS` (tertib `{{1}}…` setiap peristiwa), `metaTemplates`, `metaMessage`;
+  `SaveMessagingSettingsJob` mengesahkan nama (`[a-z0-9_]`) & kod bahasa (`ms`, `en`, `zh_CN`…); `MessageNotifications` menyimpan templat + parameter;
+  `SendQueuedMessagesJob` → `WhatsappCloudSender::sendTemplate` (type `template`, komponen body). Teks biasa kekal untuk log & pembekal lain.
+  UI: medan nama + bahasa setiap peristiwa (hanya WhatsApp Cloud + saluran WhatsApp) dan senarai parameter
+- `tools/fake-messaging.php` merekod `type` & `template`. 15 kunci bahasa × 4
+
+Disahkan: `tools/verify-w3.php` **16 lulus, 0 gagal** (nama/bahasa tidak sah ditolak; mesej templat dengan 4 parameter ikut tertib diterima pembekal palsu;
+peristiwa tanpa nama → teks; Twilio/SMS mengabaikan templat Meta; e-mel refund dengan amaun/cara/sebab, templat owner digunakan & sebab di-escape;
+past_due → `invoice_overdue` sekali, suspended → `vendor_suspended` sekali, tiada e-mel ke VENDOR01); `verify-b9` 106/106; `verify-b11` 78/78;
+`verify-b12` 98/98; `verify-b13` 92/92.
+
+Tertangguh: tiada.
+
+---
+
+### W4 — Laporan lanjutan, keahlian & halaman apps (6 Nov 2026)
+
+Dibuat (tiga halaman "akan datang" diganti modul sebenar; `vendor/_layout/addons/coming-soon.php` & `coming-soon.js` dibuang):
+- **Laporan lanjutan (`advanced_report`):** `vendor/addons/advanced_report.php` + `advanced_report.js` (pilih jenis & tahun, jadual, carta, CSV, cetak).
+  `vendor/advanced-report/run` → `jobs/AdvancedReport/`: `RunAdvancedReportJob` (sahkan jenis & tahun 2020…tahun depan; bentuk jawapan sama seperti
+  `vendor/reports/run`), `YearCompareReportJob` (12 bulan, tahun ini vs lepas, perubahan %), `ProductCompareReportJob`, `KitSummaryReportJob`
+  (pembelian kit = pasangan pesanan + anak, jualan, purata, banding tahun lepas), `KitItemsReportJob` (kadar uncheck setiap item kit, purata kuantiti)
+- **Keahlian (`membership`):** migrasi `010-membership.sql` + `schema.sql` — `membership_members` (no. ahli A0001 unik per koperasi, jenis
+  murid/guru/kakitangan/ibu bapa/lain, **tiada no. IC**), `membership_share_transactions` (buy / withdraw / dividend), `membership_dividends`
+  (satu setiap tahun setiap koperasi, cash / reinvest, declared → paid), `membership_dividend_lines` (salinan baki 31 Dis + amaun).
+  10 laluan `vendor/membership/*` (members, member, save-member, add-transaction, dividends, dividend, preview-dividend, declare-dividend, pay-dividend,
+  delete-dividend) → `jobs/Membership/` 12 fail (`Membership`, `DividendCalculator`, …). Pengeluaran ≤ baki (baris ahli dikunci), ahli tidak aktif tidak
+  boleh beli, tarikh masa hadapan ditolak, dividen dikira semula di pelayan, reinvest → transaksi `dividend` semasa ditanda dibayar, dividen dibayar
+  tidak boleh dipadam. UI: tab Ahli (kad ringkasan, senarai, borang, modal syer) & Dividen (pratonton, isytihar, sejarah, CSV, tanda dibayar)
+- **Apps mudah alih (`mobile_app`):** `vendor/addons/mobile_app.php` + `mobile_app.js` — ibu bapa berdaftar, ibu bapa guna apps (token aktif), peranti
+  push, push 30 hari ikut peristiwa & status, poster QR (Play Store / App Store / kedai web — QR dijana dalam pelayar). `vendor/mobile-app/stats` →
+  `jobs/MobileApp/GetMobileAppStatsJob` (kiraan sahaja, tiada data peribadi). Owner → Tetapan: `app_android_url`, `app_ios_url` (https sahaja; kosong
+  sehingga F4)
+- 124 kunci bahasa × 4 (`advreport.*`, `report.col.*` baharu, `membership.*`, `mobileapp.*`, `settings.app*`, `activity.action.membership_*`);
+  warna lencana keahlian dalam `helpers.js`. `verify-b1` kini mengira 80 jadual
+- Nota: modul `membership` dalam seed masih `is_active = 0` — owner mengaktifkannya di Owner → Modul add-on bila mahu mula menjualnya
+
+Disahkan: `tools/verify-w4.php` **41 lulus, 0 gagal** (gerbang modul 403 `module_locked`, juruwang 403, VENDOR02 → koperasi 1 404; perbandingan Mac
+tahun lepas vs tahun ini & perubahan %; kit D1: 2 pembelian, uncheck 0% / 50% / 100%; no. ahli dijana & input `member_no`/`vendor_id` diabaikan;
+pengeluaran melebihi baki ditolak; dividen 5% → 5.00 + 2.50 ikut baki 31 Dis, isytihar berganda ditolak, reinvest → baki 115.00; VENDOR02 tidak boleh
+membaca/menulis ahli & dividen VENDOR01; statistik apps tanpa e-mel ibu bapa; pautan bukan https ditolak). Audit UI (`tools/ui-audit.js` + axe) untuk
+halaman W1 & W4: 0 ralat konsol, 0 kunci mentah, 0 pelanggaran axe (4 bahasa × 375/1366 px).
+
+Tertangguh: tiada.
+
+---
+
+### W5 — Template store 2 & 3 (6 Nov 2026)
+
+Dibuat:
+- **`templates/template2/` — Ceria (sekolah rendah):** bar atas putih + jalur warna-warni, logo bulat bergradien, pautan kapsul, hero ungu→merah
+  jambu→jingga dengan ikon alat tulis, jubin pintasan pastel, kad & butang bulat, navbar bawah berkapsul, kaki halaman berikon
+- **`templates/template3/` — Klasik (sekolah menengah):** biru tua + emas, tajuk serif (Georgia), lambang `bi-mortarboard`, sepanduk rasmi berbingkai
+  emas, jubin bersambung, kad bergaris emas & tajuk huruf besar, kaki halaman biru tua
+- Struktur setiap template: `manifest.json` (17 halaman wajib), `layout.php` (body `store-body store-{kod}`; CSS = `template1/css/template.css` +
+  `{kod}/css/theme.css`; cetak = `template1/css/print-slip.css`), `partials/header.php` & `footer.php` sendiri, `pages/home.php` sendiri.
+  Halaman lain = pembalut satu baris yang memuat paparan Template 1 (id / data-* yang dibaca `assets/js/store/*.js` sama, satu tempat untuk dibaiki).
+  Navbar bawah, banner notis & item navigasi dikongsi dari Template 1
+- **Pratonton sebenar:** `assets/img/templates/template{1,2,3}.jpg` (tangkap layar halaman utama 1280 px → JPEG 640 px); `seed.sql` + migrasi
+  `011-template-previews.sql` (`templates.preview_image`). Kedai modul vendor kini memapar gambar pratonton (`GetAddonCatalogJob.preview_image`,
+  `addon-store.js`, `.app-template-preview img`). `asset_version` → 17
+- Template 3 kekal `is_active = 0` dalam seed — owner mengaktifkannya di Owner → Template frontend bila mahu menjual
+
+Disahkan: `tools/verify-w5.php` **19 lulus, 0 gagal** (folder lengkap; 17 halaman × 2 template dipapar 200 tanpa ralat PHP; semua id & data-* Template 1
+wujud; halaman cetak memuat print-slip + QR; pelawat / VENDOR02 tidak boleh pratonton; dipilih tetapi belum dilanggan → Template 1; dilanggan → ibu bapa
+melihat Template 2; dinyahaktif owner → Template 1; gambar 640 px; preview_image di owner & kedai vendor). Audit UI store (13 halaman × 4 bahasa ×
+375/1366 px) dengan Template 2 dan Template 3: 0 kunci mentah, 0 skrol mendatar, 0 pelanggaran axe (kontras WCAG AA); satu-satunya ralat konsol ialah
+404 pesanan demo `id=1` yang tiada dalam seed — sama seperti Template 1.
+
+Tertangguh: tiada.
+
+---
+
+### W6 — Semakan web menyeluruh (6 Nov 2026)
+
+Dijalankan pada pemasangan baharu (schema + seed + migrasi 009–011), MariaDB 10.11, PHP 8.3:
+- `verify-b1` 42/42 · `b2` 94/94 · `b3` 101/101 · `b4` 118/118 · `b5` 59/59 · `b6` 85/85 · `b7` 92/92 · `b8` 95/95 · `b9` 106/106 ·
+  `b10` 100/100 · `b11` 78/78 · `b12` 98/98 · `b13` 92/92 · `b14` 112/112 (sapuan **256** endpoint: 224 → 401 tanpa sesi, 256 → 405, 137 POST → 419,
+  176 → 403 ikut peranan, IDOR VENDOR02 6132 permintaan, ibu bapa B 408 permintaan) · `b15` 68/68 · `w1` 38/38 · `w2` 20/20 · `w3` 16/16 · `w4` 41/41 ·
+  `w5` 19/19. `check-ui` OK
+- Audit UI (`tools/ui-audit.js` + axe-core, semua halaman owner / vendor / POS / store × 4 bahasa × 375 & 1366 px = 712 paparan, modul add-on
+  dilanggan & satu pesanan demo): 0 terlempar ke log masuk, 0 skrol mendatar, 0 medan / butang tanpa nama. Dibaiki: kontras butang "Batal pesanan"
+  store (`btn-outline-danger` → `btn-danger`), `invoice-pay` / `invoice-return` dikecualikan dari sapuan (perlu bil / redirect). Baki dijangka:
+  kunci bahasa yang memang data dalam Log audit & Terjemahan (sejak U7), jualan murah `id=1` milik VENDOR02 (404 betul)
+- Kemasan: picking list mengira murid sekali walaupun ada beberapa pesanan (`student_count`); pratonton kit vendor guna ikon (bukan kotak semak
+  tanpa label); `verify-b3` kini 10 templat e-mel; senarai cron lengkap dalam PELAN 3.2
+
+**Status akhir semua "Tertangguh" lama:** semua kerja web siap (W1–W5). Yang kekal secara sengaja (bukan kerja web): resit PDF pelayan (B9 memilih
+cetak pelayar), refund API ToyyibPay / Billplz / SenangPay / iPay88 (pembekal tiada API — tunai / pindahan manual), kredit turun taraf (PELAN 18.10),
+imbas QR / barcode dengan kamera (apps F1), pemilih koperasi POS < 768 px (reka bentuk).
+
+Tertangguh: tiada. **Seterusnya: F1 — UI Flutter.**
+
+---
+
 ## Log perubahan pengguna
 
 > Setiap kali pengguna mengubah keperluan: catat di sini **dan** kemas kini PELAN.md +
@@ -1431,3 +1585,4 @@ Tertangguh:
 | 24 Okt 2026 | Beli ala carte **atau** kit; ambil barang jangan sulit, ada pilihan; murid boleh ambil barang yang ibu bapa bayar | PELAN 5.4, 7 |
 | 24 Okt 2026 | Repo projek `kabuto86/Koperasi_sekolah`; setiap kerja siap di-push | CLAUDE.md |
 | 24 Okt 2026 | UI dahulu → backend & API → Flutter selepas desktop siap; prompt session per modul; simpan dalam `DOC/` | PELAN 3, PROMPT-SESSION, CLAUDE.md |
+| 6 Nov 2026 | Siapkan **semua** bahagian web yang belum siap sebelum apps; selepas ini hanya apps Flutter yang tinggal → Peringkat 2b W1–W6 | PELAN 3, 3.2, 11, 13 · PROMPT-SESSION W1–W6 · PROSES |

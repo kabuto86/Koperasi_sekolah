@@ -1,7 +1,7 @@
 <?php
 // Cron (cron/send-messages.php): hantar WhatsApp/SMS dari notification_queue melalui pembekal koperasi (messaging/).
 // Gagal → cuba semula pada larian seterusnya; selepas MAX_ATTEMPTS → failed + last_error. Tetapan dimatikan / modul tamat → failed.
-// Baris push (B15) tidak disentuh.
+// Baris push (B15) tidak disentuh. W3: baris dengan template_json → mesej templat diluluskan Meta (WhatsApp Cloud).
 class SendQueuedMessagesJob
 {
     const MAX_ATTEMPTS = 3;
@@ -19,14 +19,20 @@ class SendQueuedMessagesJob
     {
         $result = ['sent' => 0, 'failed' => 0, 'retry' => 0];
         $rows = Database::fetchAll(
-            "SELECT id, vendor_id, cooperative_id, channel, recipient, message, attempts FROM notification_queue
+            "SELECT id, vendor_id, cooperative_id, channel, recipient, message, template_json, attempts FROM notification_queue
               WHERE status = 'pending' AND channel IN ('whatsapp', 'sms') AND attempts < ? ORDER BY id LIMIT " . $this->batch,
             [self::MAX_ATTEMPTS]
         );
         foreach ($rows as $row) {
             $attempts = (int) $row['attempts'] + 1;
             try {
-                $this->sender($row)->send($row['recipient'], $row['message']);
+                $sender = $this->sender($row);
+                $template = json_decode((string) $row['template_json'], true);
+                if (is_array($template) && $sender instanceof WhatsappCloudSender) {
+                    $sender->sendTemplate($row['recipient'], $template['name'], $template['language'], (array) $template['params']);
+                } else {
+                    $sender->send($row['recipient'], $row['message']);
+                }
                 Database::execute(
                     "UPDATE notification_queue SET status = 'sent', attempts = ?, last_error = NULL, sent_at = NOW() WHERE id = ?",
                     [$attempts, (int) $row['id']]

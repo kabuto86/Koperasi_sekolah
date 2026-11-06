@@ -23,7 +23,8 @@ Sebelum menulis sebarang kod, baca tiga fail ini dahulu:
 
 1. **UI desktop/web dahulu** (U1–U7) — Bootstrap + data mock melalui `assets/js/api.js`
 2. **Backend & API** (B1–B15) — sambung UI yang sudah ada
-3. **Apps Flutter** (F1–F4) — hanya selepas semua bahagian desktop siap
+3. **Web lengkap** (W1–W6) — siapkan semua bahagian web yang tertangguh (arahan pengguna 6 Nov 2026)
+4. **Apps Flutter** (F1–F4) — hanya selepas semua bahagian desktop siap
 
 ## Peraturan dokumen (WAJIB)
 

@@ -236,9 +236,9 @@ try {
 
     echo "11. Templat e-mel\n";
     $list = $owner->get('owner/email-templates/list')['data'];
-    // B9 menambah order_paid (7 kunci)
+    // B9 menambah order_paid (7 kunci); W3 menambah refund_processed, invoice_overdue, vendor_suspended (10 kunci)
     $byKey = array_column($list, null, 'template_key');
-    check('7 kunci (B9: order_paid), order_ready ada 4 bahasa, invoice_issued en belum diisi', count($list) === 7
+    check('10 kunci (B9: order_paid, W3: +3), order_ready ada 4 bahasa, invoice_issued en belum diisi', count($list) === 10
         && $byKey['order_ready']['languages']['ta'] !== null && $byKey['invoice_issued']['languages']['en'] === null && isset($byKey['order_paid']));
     $tpl = $owner->get('owner/email-templates/get', ['template_key' => 'order_ready', 'language_code' => 'ta'])['data'];
     check('get: subjek Tamil + pemegang tempat', strpos($tpl['subject'], '{order_no}') !== false && in_array('{child_name}', $tpl['placeholders'], true));

@@ -21,6 +21,8 @@ class GetPlatformSettingsJob
             'trial_days'          => (int) ($s['trial_days'] ?? 14),
             'grace_days'          => (int) ($s['grace_days'] ?? 7),
             'default_language'    => $s['default_language'] ?? Config::get('default_language'),
+            'app_android_url'     => $s['app_android_url'] ?? '',
+            'app_ios_url'         => $s['app_ios_url'] ?? '',
         ];
     }
 }

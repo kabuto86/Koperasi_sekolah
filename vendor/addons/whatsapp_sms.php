@@ -60,6 +60,7 @@ require __DIR__ . '/../_layout/header.php';
                     <h3 class="h6 mt-2 mb-1"><?= e(t('messaging.templates')) ?></h3>
                     <p class="small text-body-secondary mb-2"><?= e(t('messaging.templates_help')) ?></p>
                     <div class="d-flex flex-wrap gap-1 mb-3" id="msg-placeholders" aria-label="<?= e(t('messaging.placeholders')) ?>"></div>
+                    <div class="alert alert-light border small mb-0 js-meta-box"><i class="bi bi-whatsapp text-success" aria-hidden="true"></i> <?= e(t('messaging.meta_help')) ?></div>
                 </div>
                 <?php foreach ($messageEvents as $event): ?>
                 <div class="col-12">
@@ -72,6 +73,21 @@ require __DIR__ . '/../_layout/header.php';
                         <textarea class="form-control js-msg-template" id="msg-tpl-<?= e($event) ?>" name="templates.<?= e($event) ?>" rows="2" maxlength="500" required></textarea>
                         <div class="invalid-feedback"><?= e(t('error.required')) ?></div>
                         <div class="form-text"><?= e(t('messaging.preview')) ?>: <span class="js-msg-preview" data-event="<?= e($event) ?>"></span></div>
+                        <div class="row g-2 mt-1 js-meta-box">
+                            <div class="col-sm-8">
+                                <label class="form-label small mb-1" for="msg-meta-<?= e($event) ?>"><?= e(t('messaging.meta_name')) ?></label>
+                                <input type="text" class="form-control form-control-sm font-monospace" id="msg-meta-<?= e($event) ?>"
+                                       name="meta_templates.<?= e($event) ?>.name" maxlength="512" pattern="[a-z0-9_]*">
+                                <div class="invalid-feedback"><?= e(t('messaging.meta_name_format')) ?></div>
+                            </div>
+                            <div class="col-sm-4">
+                                <label class="form-label small mb-1" for="msg-meta-lang-<?= e($event) ?>"><?= e(t('messaging.meta_language')) ?></label>
+                                <input type="text" class="form-control form-control-sm font-monospace" id="msg-meta-lang-<?= e($event) ?>"
+                                       name="meta_templates.<?= e($event) ?>.language" maxlength="6">
+                                <div class="invalid-feedback"><?= e(t('messaging.meta_language_format')) ?></div>
+                            </div>
+                            <div class="col-12 form-text mt-0 js-meta-params" data-event="<?= e($event) ?>"></div>
+                        </div>
                     </div>
                 </div>
                 <?php endforeach; ?>

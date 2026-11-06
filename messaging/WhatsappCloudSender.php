@@ -1,6 +1,6 @@
 <?php
-// WhatsApp Cloud API (Meta). Kunci = phone_number_id:access_token. Mesej teks biasa.
-// Nota: mesej yang dimulakan perniagaan di luar tetingkap 24 jam memerlukan templat yang diluluskan Meta (PELAN 13 — tertangguh).
+// WhatsApp Cloud API (Meta). Kunci = phone_number_id:access_token. Mesej teks biasa (send) atau mesej templat yang
+// diluluskan Meta (sendTemplate — W3): wajib untuk mesej yang dimulakan perniagaan di luar tetingkap 24 jam.
 class WhatsappCloudSender extends MessageSender
 {
     const CODE = 'whatsapp_cloud';
@@ -9,7 +9,32 @@ class WhatsappCloudSender extends MessageSender
     public function send($phone, $text)
     {
         $this->requireKey();
-        $payload = json_encode(['messaging_product' => 'whatsapp', 'to' => $phone, 'type' => 'text', 'text' => ['body' => $text]]);
+        return $this->post(['messaging_product' => 'whatsapp', 'to' => $phone, 'type' => 'text', 'text' => ['body' => $text]]);
+    }
+
+    // Templat Meta: {{1}}, {{2}}, … = $params ikut tertib (MessagingSettings::META_PARAMS)
+    public function sendTemplate($phone, $name, $language, array $params)
+    {
+        $this->requireKey();
+        $parameters = [];
+        foreach ($params as $value) {
+            $parameters[] = ['type' => 'text', 'text' => (string) $value];
+        }
+        return $this->post([
+            'messaging_product' => 'whatsapp',
+            'to'                => $phone,
+            'type'              => 'template',
+            'template'          => [
+                'name'       => (string) $name,
+                'language'   => ['code' => (string) $language],
+                'components' => [['type' => 'body', 'parameters' => $parameters]],
+            ],
+        ]);
+    }
+
+    private function post(array $body)
+    {
+        $payload = json_encode($body, JSON_UNESCAPED_UNICODE);
         $response = $this->http('POST', $this->baseUrl() . '/' . rawurlencode($this->keyId) . '/messages', $payload,
             ['Content-Type: application/json', 'Authorization: Bearer ' . $this->keySecret]);
         if ($response['status'] !== 200 || empty($response['json']['messages'][0]['id'])) {

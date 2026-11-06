@@ -5,7 +5,7 @@
 > tanpa bertanya. Status semasa: [PROSES.md](PROSES.md). Prompt kerja:
 > [PROMPT-SESSION.md](PROMPT-SESSION.md).
 
-Kemas kini terakhir: 30 Oktober 2026 (B13 — Modul add-on)
+Kemas kini terakhir: 6 November 2026 (W1–W6 — Web lengkap)
 Persekitaran sasaran: XAMPP · PHP 8.2 · MariaDB 10.4+ / MySQL 8 · Bootstrap 5
 
 ---
@@ -52,6 +52,36 @@ mencatat **nama anak, darjah dan kelas**, dan barang diambil di koperasi sekolah
 1. **Peringkat 1 — UI desktop/web** (U1–U7). Semua skrin dibina dahulu dengan data contoh.
 2. **Peringkat 2 — Backend & API** (B1–B15). Sambung skrin yang sudah ada kepada data sebenar.
 3. **Peringkat 3 — Apps Flutter** (F1–F4). Hanya bermula selepas **semua** bahagian desktop siap.
+
+**Diputuskan pengguna, 6 Nov 2026:** sebelum Peringkat 3, semua bahagian web yang tertangguh dari U/B disiapkan dahulu dalam
+**Peringkat 2b — Web lengkap (W1–W6)**. Selepas W6, kerja yang tinggal hanya apps Flutter (F1–F4). Lihat 3.2.
+
+### 3.2 Peringkat 2b — Web lengkap (W1–W6)
+
+Senarai "Tertangguh" dalam PROSES.md (U7, B2–B15) yang bukan kerja apps:
+
+| Session | Isi | Keputusan |
+|---|---|---|
+| W1 | Profil vendor (`vendor/profile.php`) + 2FA vendor (`vendor/two-factor.php`) | Semua peranan (termasuk juruwang) boleh sunting nama, e-mel, telefon, bahasa & tukar kata laluan; peranan & akses koperasi kekal diurus pentadbir. 2FA vendor **pilihan**: aktifkan (QR + 8 kod pemulihan), jana semula kod, pindah peranti, **matikan** (kata laluan + kod 2FA). Pentadbir boleh set semula 2FA kakitangan (`vendor/staff/reset-2fa`). Profil dibuka walaupun langganan digantung |
+| W2 | Gateway borang POST (iPay88) untuk QR kaunter POS & yuran langganan; cron cuba semula refund gateway `pending` | QR POS iPay88 → `store/pay.php?ref=&t=` (halaman awam, token rawak 128-bit, hash dalam `payments.raw_payload`, hanya bil POS `pending` belum luput). Invois → `vendor/invoice-pay.php?ref=` (sesi vendor sama); kembali melalui `vendor/invoice-return.php` (GET/POST → 303). `cron/retry-refunds.php`: refund gateway `pending` 10 minit – 23 jam dicuba semula dengan kunci idempotensi sama (`refund_no`); > 23 jam = semakan manual |
+| W3 | E-mel "refund diproses" (ibu bapa), peringatan tunggakan & notis digantung (vendor), templat WhatsApp diluluskan Meta | Templat e-mel `refund_processed`, `invoice_overdue`, `vendor_suspended` (owner boleh sunting). E-mel tunggakan/digantung sekali setiap peralihan status. WhatsApp Cloud: nama templat Meta + kod bahasa per peristiwa (pilihan); parameter badan ikut tertib tetap `MessagingSettings::META_PARAMS`; kosong = teks biasa |
+| W4 | Modul `advanced_report`, `membership`, halaman `mobile_app` vendor | Laporan lanjutan: perbandingan tahun (bulanan & produk) + analisis kit (pembelian = pasangan pesanan + anak; kadar uncheck item). Keahlian: ahli (tiada IC), syer (buy/withdraw, ≤ baki), dividen tahunan = baki 31 Dis × kadar %, salinan disimpan, cash / reinvest. Apps: statistik kiraan sahaja + pautan muat turun dari tetapan owner (`app_android_url`, `app_ios_url`) |
+| W5 | Template store 2 & 3 (premium) + gambar pratonton | Template 2 Ceria & Template 3 Klasik: layout, header, footer, halaman utama & `theme.css` sendiri; halaman lain memuat paparan Template 1 (cangkuk JS sama). Pratonton = tangkap layar sebenar `assets/img/templates/` |
+| W6 | Semakan menyeluruh (semua `verify-*`, `check-ui`, audit UI), kemas kini DOC | Tiada lagi perkara web tertangguh. Baki yang disengajakan (bukan kerja web): resit PDF pelayan (cetak pelayar dipilih B9), refund API untuk ToyyibPay/Billplz/SenangPay/iPay88 (pembekal tiada API), kredit turun taraf (PELAN 18.10), imbas kamera (apps F1) |
+
+**Senarai cron lengkap (pelayan produksi, `crontab -e`, laluan penuh):**
+
+| Jadual | Fail | Kerja |
+|---|---|---|
+| `* * * * *` | `cron/send-emails.php` | hantar `email_queue` (SMTP owner) |
+| `* * * * *` | `cron/send-messages.php` | WhatsApp/SMS `notification_queue` (+ peringatan tunai) |
+| `* * * * *` | `cron/send-push.php` | push apps (FCM) |
+| `*/10 * * * *` | `cron/expire-online-orders.php` | luput bayaran online & QR POS (semak semula gateway dahulu) |
+| `*/15 * * * *` | `cron/retry-refunds.php` | cuba semula refund gateway tersangkut (W2) |
+| `0 * * * *` | `cron/expire-cash-orders.php` | luput pesanan tunai belum dibayar |
+| `15 * * * *` | `cron/suspend-overdue.php` | tunggakan → past_due → suspended + e-mel (W3) |
+| `5 0 * * *` | `cron/generate-invoices.php` | draf & terbit invois pembaharuan |
+| `15 3 * * *` | `cron/backup-db.php` | backup harian `.sql.gz` |
 
 ### 3.1 Bagaimana UI dibina tanpa backend
 
@@ -154,8 +184,8 @@ menggantung / mengaktifkan vendor (butang tidak dipapar, API 403).
 | `mobile_app` | Apps Flutter | Ibu bapa guna apps; API token + push notification (B15 — API sebenar: token Bearer hanya untuk koperasi yang melanggan modul ini; [API.md](API.md)) |
 | `template_premium` | Template premium | Template frontend selain Template 1 |
 | `whatsapp_sms` | Notifikasi WhatsApp/SMS | Mesej "sedia diambil" / "telah diambil" |
-| `advanced_report` | Laporan lanjutan | Perbandingan tahun, analisis kit |
-| `membership` | Keahlian koperasi | Ahli, syer, dividen (kemudian) |
+| `advanced_report` | Laporan lanjutan | Perbandingan tahun, analisis kit (W4) |
+| `membership` | Keahlian koperasi | Ahli, syer, dividen (W4 — jadual `membership_*`) |
 
 - Owner boleh **menambah modul baharu**: satu baris `modules` + folder `modules/{code}/`.
 - Akses disemak di pelayan: `ModuleAccess::has($cooperativeId, 'news')` dalam setiap endpoint modul.
@@ -431,6 +461,15 @@ Nama, harga dan maklumat anak **disalin** (snapshot) ke pesanan dan invois.
   > **B13:** `recipient` = nombor antarabangsa `60…`; `order_id` + `event` = peringatan tunai sekali setiap pesanan (indeks `idx_notifications_order`)
 - **`messaging_settings`** (U6) — id, vendor_id, cooperative_id UNIQUE, provider, channel ENUM(whatsapp, sms), sender, api_key_enc, is_enabled, events_json, templates_json, updated_at
   > Kunci API disulitkan (seperti gateway), tidak pernah dipulangkan; kosong semasa simpan = kekal
+  > **W3 (migrasi 009):** `messaging_settings.meta_templates_json` `{peristiwa: {name, language}}` & `notification_queue.template_json`
+  > `{name, language, params[]}` — mesej templat diluluskan Meta (WhatsApp Cloud)
+- **`membership_members`** (W4, migrasi 010) — id, vendor_id, cooperative_id, member_no UNIQUE(cooperative_id, member_no) `A0001`, full_name,
+  member_type ENUM(student, teacher, staff, parent, other), class_name, phone, email, joined_on, status ENUM(active, inactive), note — **tiada IC**
+- **`membership_share_transactions`** (W4) — id, vendor_id, cooperative_id, member_id, type ENUM(buy, withdraw, dividend), amount (sen),
+  transaction_date, note, dividend_id, vendor_user_id
+- **`membership_dividends`** (W4) — id, vendor_id, cooperative_id, year UNIQUE(cooperative_id, year), rate, total_shares, total_amount, member_count,
+  payout ENUM(cash, reinvest), status ENUM(declared, paid), declared_by, paid_at
+- **`membership_dividend_lines`** (W4) — id, vendor_id, dividend_id (CASCADE), member_id, share_balance (31 Dis), amount
 
 ### I. Sistem (2)
 
@@ -442,7 +481,7 @@ Nama, harga dan maklumat anak **disalin** (snapshot) ke pesanan dan invois.
 
 Jumlah: **69 jadual** (U6: + `messaging_settings`).
 
-### J. Tambahan B1 — jadual yang diperlukan oleh kontrak UI (PELAN 18) · jumlah sebenar **75 jadual** (B2: **76**)
+### J. Tambahan B1 — jadual yang diperlukan oleh kontrak UI (PELAN 18) · jumlah sebenar **75 jadual** (B2: **76**, W4: **80**)
 
 `database/schema.sql` ialah sumber kebenaran lajur. Tambahan berbanding senarai A–I di atas:
 
@@ -742,6 +781,9 @@ masuk baris gilir HANYA melalui `PushNotifications` (`orderReady`, `orderCollect
 - Vendor memilih template yang dilanggan untuk setiap koperasi (`cooperatives.template_id`). Template tidak dilanggan → jatuh balik ke `template1`
   (**sejak B6** `ResolveStoreTemplateJob`: template aktif + dilanggan vendor + folder lengkap dengan semua halaman wajib manifest; pratonton
   `?template=` hanya owner / vendor pemilik koperasi)
+- **Sejak W5:** `template2` (Ceria) & `template3` (Klasik) siap. Template baharu boleh memuat paparan halaman Template 1
+  (`require APP_ROOT . '/templates/template1/pages/{halaman}.php'`) dan hanya menukar `layout.php`, `partials/header|footer.php`, `pages/home.php`
+  dan `css/theme.css` (dimuat selepas `template1/css/template.css`; body `store-{kod}`). Gambar pratonton: `assets/img/templates/{kod}.jpg`
 - **Sejak U5:** logik setiap halaman store dalam `assets/js/store/{halaman}.js` (+ `common.js`, `layout.js`) — dikongsi semua template.
   Template baharu mesti mengekalkan `id` / atribut `data-*` yang dibaca JS (cth. `#store-context`, `data-cart-count`, `data-module`,
   `data-auth-guest|user`, `#slip-area`) dan boleh menukar rupa melalui `css/` sendiri. Slip & resit: `templates/{kod}/css/print-slip.css`
@@ -780,6 +822,10 @@ masuk baris gilir HANYA melalui `PushNotifications` (`orderReady`, `orderCollect
 - PIN POS: `PosPinLoginJob` (B2) — endpoint `vendor/pos/pin-login` disambung dalam B10 (`PosLoginJob` + `core/PosAuth`). PIN demo 1234 hanya
   dalam seed (hash Argon2id), tiada lagi PIN tetap dalam kod / teks skrin. Dikunci = `pin_failed_attempts ≥ 5`; buka = pentadbir tetapkan PIN baharu
   di Kakitangan (`SaveVendorStaffJob` mengosongkan kiraan). Had tambahan `pos_pin:{pengguna panel}` 30/10 minit
+- **2FA vendor (W1):** `vendor/two-factor.php` — `vendor/two-factor/setup` (rahsia dalam sesi `vendor_setup_secret`, disulitkan) → `enable` (kod
+  pertama; 8 kod pemulihan) · `regenerate-codes` (kod TOTP semasa) · `disable` (kata laluan **dan** kod TOTP / kod pemulihan — `DisableTotpJob`).
+  Pentadbir: `vendor/staff/reset-2fa` (`ResetVendorStaff2faJob`, kakitangan vendor sendiri sahaja). Profil `vendor/profile/get|save|change-password`
+  (tukar kata laluan membatalkan pautan reset/jemputan yang belum diguna). Log aktiviti: `profile_update`, `profile_password`, `two_factor_*`, `staff_reset_2fa`
 
 ## 12. Pelbagai bahasa — ms · en · zh · ta
 
@@ -846,10 +892,22 @@ melempar `GatewayException` (tidak disokong). **Stripe** sahaja: `GET /v1/checko
 - Bil `pending` yang sama diguna semula 30 minit (`StartOnlinePaymentJob::REUSE_MINUTES`); gateway gagal mencipta bil → pesanan tetap disimpan,
   `payment: null` + `payment_error`; ibu bapa tekan "Bayar" semula
 
+**Pelaksanaan W2 (gateway borang POST & refund tersangkut):**
+- **QR kaunter iPay88:** `PosOnlinePaymentJob` menyimpan borang + `pay_token_hash` (SHA-256 token rawak 32 hex) dalam `payments.raw_payload`; QR =
+  `store/pay.php?ref={gateway_ref}&t={token}`. `GetPosPaymentFormJob` hanya memulangkan borang untuk bil `pending` jualan POS `pending_payment`
+  yang belum luput dan token sepadan (`hash_equals`) — selain itu 404. Batal / dibayar / luput → pautan mati
+- **Invois langganan iPay88:** `PayInvoiceJob` menyimpan borang dalam `platform_payments.raw_payload`, `redirect_url` = `vendor/invoice-pay.php?ref=`
+  (`GetInvoicePaymentFormJob`, vendor sesi sahaja). `return_url` semua gateway owner = `vendor/invoice-return.php?invoice={id}` (GET/POST → 303 →
+  `invoices.php?paid_return=`; cookie SameSite=Lax dihantar pada GET). Owner boleh memilih iPay88 bila `payment_gateways.is_enabled_for_platform = 1`
+- **Refund tersangkut:** langkah 2 & 3 refund gateway dalam `GatewayRefundSender` (dikongsi `RefundOrderJob` & `RetryPendingRefundsJob`; baris refund
+  dikunci `FOR UPDATE` dan mesti masih `pending`). `cron/retry-refunds.php` (setiap 15 minit, `flock`)
+
 **WhatsApp/SMS (modul `whatsapp_sms`, B13):** bukan gateway bayaran, tetapi corak sama — driver dalam `messaging/` tanpa DB, kunci vendor
 disulitkan per koperasi. Twilio `POST /2010-04-01/Accounts/{SID}/Messages.json` (basic auth; saluran WhatsApp = awalan `whatsapp:`), WhatsApp Cloud
-`POST /v19.0/{phone_number_id}/messages` (Bearer), iSMS `GET isms_send_all_id.php` (jawapan `2000 = SUCCESS`; SMS sahaja). Tertangguh: templat
-WhatsApp yang diluluskan Meta untuk mesej di luar tetingkap 24 jam.
+`POST /v19.0/{phone_number_id}/messages` (Bearer), iSMS `GET isms_send_all_id.php` (jawapan `2000 = SUCCESS`; SMS sahaja). **W3:** templat
+WhatsApp diluluskan Meta — `type: template`, `template { name, language { code }, components [{ type: body, parameters [...] }] }`; parameter
+order_ready = parent_name, child_name, short_code, school_name · order_collected = parent_name, child_name, picked_by, time, school_name ·
+cash_reminder = parent_name, child_name, short_code, expires_on, school_name.
 
 ## 14. Langganan & harga
 

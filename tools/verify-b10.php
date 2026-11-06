@@ -377,8 +377,21 @@ try {
         'credentials' => ['merchant_code' => 'M00001', 'merchant_key' => 'ip-key']]);
     $count = (int) Database::fetchValue("SELECT COUNT(*) FROM orders WHERE channel = 'pos' AND status = 'pending_payment'");
     $res = sale($cashier1, $c1, $shiftId, [['product_id' => 3, 'variant_id' => 0, 'qty' => 1]], 'online');
-    check('Gateway borang POST (iPay88) → QR kaunter ditolak, jualan dibatalkan serta-merta', !ok($res) && $res['error'] === t('pos.online_qr_unsupported')
-        && (int) Database::fetchValue("SELECT COUNT(*) FROM orders WHERE channel = 'pos' AND status = 'pending_payment'") === $count && level(3)[1] === 0);
+    // W2: gateway borang POST (iPay88) → QR memaut ke halaman bayaran awam store/pay.php (tiada sesi) yang menghantar borang gateway
+    $qr = (string) ($res['data']['payment']['qr_payload'] ?? '');
+    check('Gateway borang POST (iPay88) → QR ke store/pay.php?ref=…&t=… (W2), stok ditahan', ok($res)
+        && strpos($qr, $base . '/store/pay.php?ref=') === 0 && preg_match('/[?&]t=[a-f0-9]{32}$/', $qr)
+        && (int) Database::fetchValue("SELECT COUNT(*) FROM orders WHERE channel = 'pos' AND status = 'pending_payment'") === $count + 1 && level(3)[1] === 1);
+    $guestPay = new Browser($base);
+    $payPage = $guestPay->page(substr($qr, strlen($base) + 1));
+    check('store/pay.php tanpa sesi: borang POST ke entry.asp iPay88 + CSP form-action asal gateway', $payPage['status'] === 200
+        && strpos($payPage['body'], '/ipay88/entry.asp"') !== false && strpos($payPage['body'], 'name="Signature"') !== false
+        && strpos(implode(' ', $payPage['headers']['content-security-policy'] ?? []), $fakeBase) !== false);
+    $badPay = $guestPay->page(preg_replace('/t=[a-f0-9]{32}$/', 't=' . str_repeat('0', 32), substr($qr, strlen($base) + 1)));
+    check('store/pay.php dengan token salah → 404 tanpa borang', $badPay['status'] === 404 && strpos($badPay['body'], 'entry.asp') === false);
+    $cancelIpay = $cashier1->post('vendor/pos/cancel-payment', $c1 + ['order_id' => $res['data']['receipt']['order_id']]);
+    $afterCancel = $guestPay->page(substr($qr, strlen($base) + 1));
+    check('Batal QR iPay88 → tahanan dilepas, pautan bayaran tidak sah lagi (404)', ok($cancelIpay) && level(3)[1] === 0 && $afterCancel['status'] === 404);
     Database::execute("UPDATE cooperative_gateways SET is_active = (gateway_code = 'toyyibpay') WHERE cooperative_id = 1");
 
     echo "9. Jualan syif, resit & tunai pesanan store di kaunter\n";

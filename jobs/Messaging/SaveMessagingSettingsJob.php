@@ -25,14 +25,15 @@ class SaveMessagingSettingsJob
         $data = $this->validate($current);
         $keyEnc = $data['api_key'] !== '' ? Crypto::encrypt($data['api_key']) : ($current['api_key_enc'] ?? null);
         Database::execute(
-            "INSERT INTO messaging_settings (vendor_id, cooperative_id, provider, channel, sender, api_key_enc, is_enabled, events_json, templates_json)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            "INSERT INTO messaging_settings (vendor_id, cooperative_id, provider, channel, sender, api_key_enc, is_enabled, events_json, templates_json,
+                                             meta_templates_json)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
              ON DUPLICATE KEY UPDATE provider = VALUES(provider), channel = VALUES(channel), sender = VALUES(sender),
                  api_key_enc = VALUES(api_key_enc), is_enabled = VALUES(is_enabled), events_json = VALUES(events_json),
-                 templates_json = VALUES(templates_json)",
+                 templates_json = VALUES(templates_json), meta_templates_json = VALUES(meta_templates_json)",
             [
                 $this->vendorId, $this->cooperativeId, $data['provider'], $data['channel'], $data['sender'], $keyEnc, $data['is_enabled'],
-                json_encode($data['events']), json_encode($data['templates'], JSON_UNESCAPED_UNICODE),
+                json_encode($data['events']), json_encode($data['templates'], JSON_UNESCAPED_UNICODE), json_encode($data['meta_templates']),
             ]
         );
         (new WriteActivityLogJob($this->vendorId, $this->cooperativeId, $this->userId, 'messaging_save', 'messaging', null, ''))->run();
@@ -78,8 +79,10 @@ class SaveMessagingSettingsJob
                 $v->addError('templates.' . $event, t('messaging.unknown_placeholder', ['tags' => $tags]));
             }
         }
+        $meta = $this->metaTemplates($v);
         ValidationException::throwIfFails($v);
         return [
+            'meta_templates' => $meta,
             'provider'   => $input['provider'],
             'channel'    => $input['channel'],
             'sender'     => $sender,
@@ -88,5 +91,24 @@ class SaveMessagingSettingsJob
             'events'     => $events,
             'templates'  => $templates,
         ];
+    }
+
+    // W3: nama templat Meta (huruf kecil, nombor, _) + kod bahasa (ms, en, zh_CN, …). Nama kosong = teks biasa
+    private function metaTemplates(Validator $v)
+    {
+        $result = [];
+        foreach (MessagingSettings::EVENTS as $event) {
+            $item = is_array($this->input['meta_templates'][$event] ?? null) ? $this->input['meta_templates'][$event] : [];
+            $name = trim((string) ($item['name'] ?? ''));
+            $language = trim((string) ($item['language'] ?? '')) ?: 'ms';
+            if ($name !== '' && !preg_match(MessagingSettings::META_NAME_PATTERN, $name)) {
+                $v->addError('meta_templates.' . $event . '.name', t('messaging.meta_name_format'));
+            }
+            if (!preg_match(MessagingSettings::META_LANGUAGE_PATTERN, $language)) {
+                $v->addError('meta_templates.' . $event . '.language', t('messaging.meta_language_format'));
+            }
+            $result[$event] = ['name' => $name, 'language' => $language];
+        }
+        return $result;
     }
 }

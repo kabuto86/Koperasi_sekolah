@@ -42,7 +42,7 @@ function loadPickingList() {
 function pickGroup(group, index) {
     var section = createEl('section', 'app-pick-group mb-4' + (index > 0 ? ' app-print-break' : ''));
     section.appendChild(createEl('h2', 'h5 border-bottom pb-1', T('class.full_name', { grade: T('grade.' + group.grade_level_code), name: group.class_name })
-        + ' — ' + T('order.child_count', { n: group.children.length })));
+        + ' — ' + T('order.child_count', { n: group.student_count })));
     var table = createEl('table', 'table table-sm table-bordered align-top');
     var head = createEl('thead');
     var row = createEl('tr');

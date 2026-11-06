@@ -64,6 +64,7 @@ class GetAddonCatalogJob
                 'id'         => (int) $row['id'],
                 'code'       => $row['code'],
                 'name'       => $row['name'],
+                'preview_image' => $row['preview_image'] ? View::url($row['preview_image']) : null,
                 'is_free'    => $free,
                 'price'      => $free ? 0 : Subscriptions::cyclePrice($row, $cycle),
                 'subscribed' => $free || AddonItems::templateSubscribed($this->vendorId, $this->cooperative['id'], $row['id']),
